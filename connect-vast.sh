@@ -7,7 +7,7 @@ METHOD=${1:-gateway}
 
 if [ "$METHOD" == "direct" ]; then
     echo "Connecting via direct IP with port forwarding..."
-    ssh -p 41366 root@50.217.254.161 \
+    ssh -p 40257 root@60.217.254.161 \
         -L 5678:localhost:5678 \
         -L 8501:localhost:8501 \
         -L 8001:localhost:8001 \
@@ -15,7 +15,7 @@ if [ "$METHOD" == "direct" ]; then
         -L 11434:localhost:11434
 else
     echo "Connecting via Vast.ai SSH gateway with port forwarding..."
-    ssh -p 11071 root@ssh4.vast.ai \
+    ssh -p 29889 root@ssh1.vast.ai \
         -L 5678:localhost:5678 \
         -L 8501:localhost:8501 \
         -L 8001:localhost:8001 \
