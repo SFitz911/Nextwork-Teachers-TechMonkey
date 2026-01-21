@@ -64,6 +64,13 @@ Viewer Chat → Webhook → n8n Workflow
 - NVIDIA Container Toolkit (for GPU support)
 - Vast.ai account (for GPU hosting)
 
+### No-Docker mode (if your Vast.ai host blocks containers)
+
+Some Vast.ai hosts block Docker containers (errors like `unshare: operation not permitted`). In that case, run services directly on the host:
+
+- See: [docs/NO_DOCKER.md](docs/NO_DOCKER.md)
+- Run: `bash scripts/deploy_no_docker.sh`
+
 ### 1. Vast.ai Setup
 
 **⚠️ Important:** Not all Vast.ai instances support Docker properly. Look for instances that explicitly support Docker/containers. See [docs/VAST_AI_INSTANCE_SELECTION.md](docs/VAST_AI_INSTANCE_SELECTION.md) for details.

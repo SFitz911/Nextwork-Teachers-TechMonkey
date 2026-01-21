@@ -78,6 +78,19 @@ The script will:
 - ✅ Install NVIDIA Container Toolkit
 - ✅ Configure GPU access
 - ✅ Install Docker Compose
+
+## If Docker doesn’t work on your instance (No-Docker mode)
+
+Some Vast.ai instances are restricted and Docker containers fail with errors like `unshare: operation not permitted` or mount/overlayfs errors.
+
+Use the **no‑docker** installer instead:
+
+```bash
+cd ~/Nextwork-Teachers-TechMonkey
+bash scripts/deploy_no_docker.sh
+```
+
+See: `docs/NO_DOCKER.md`
 - ✅ Create necessary directories
 - ✅ Set up environment variables
 
