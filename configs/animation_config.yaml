@@ -1,0 +1,73 @@
+# Animation Configuration
+provider: "lam"  # Options: "lam", "liveportrait", "sadtalker", "wav2lip"
+
+# LAM (Large Avatar Model) settings
+lam:
+  model_path: "/app/models/lam"
+  resolution: 512
+  fps: 25
+  use_gpu: true
+  
+  # Quality settings
+  quality: "high"  # Options: "low", "medium", "high"
+  smoothing: true
+  enhance_eyes: true
+
+# LivePortrait settings
+liveportrait:
+  model_path: "/app/models/liveportrait"
+  resolution: 512
+  fps: 30
+  use_gpu: true
+  
+  # Motion control
+  motion_intensity: 0.5  # 0.0 to 1.0
+  head_pose: true
+  expression_control: true
+
+# SadTalker settings (fallback)
+sadtalker:
+  checkpoint_path: "/app/models/SadTalker/checkpoints"
+  face_detector: "dlib"  # Options: "dlib", "face_alignment"
+  still_mode: false
+  preprocess: "full"  # Options: "full", "crop", "resize", "extcrop", "extfull"
+
+# Wav2Lip settings (fallback)
+wav2lip:
+  checkpoint_path: "/app/models/wav2lip_gan.pth"
+  face_detector: "retinaface"
+  resize_factor: 1
+  nosmooth: false
+
+# Avatar paths
+avatars:
+  teacher_a: "/app/avatars/teacher_a.jpg"
+  teacher_b: "/app/avatars/teacher_b.jpg"
+
+# Output settings
+output:
+  format: "mp4"
+  codec: "libx264"
+  bitrate: "2000k"
+  fps: 25
+  
+  # Temporary storage
+  temp_dir: "/app/output/temp"
+  keep_temp: false  # Set to true for debugging
+
+# Performance
+performance:
+  batch_size: 1
+  num_workers: 2
+  use_fp16: true
+  
+  # Caching
+  cache_frames: true
+  cache_size: 100  # Number of frames to cache
+
+# Idle animations
+idle:
+  enabled: true
+  animation_path: "/app/avatars/idle_loop.mp4"
+  duration: 5.0  # seconds
+  loop: true

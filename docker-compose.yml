@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # n8n Orchestration
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ai-teacher-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/data/workflows
+    networks:
+      - ai-teacher-network
+    # GPU support if available
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # LLM Service (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-teacher-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - ai-teacher-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Alternative: vLLM service
+    # Uncomment and use vllm instead if preferred
+    # image: vllm/vllm-openai:latest
+    # command: --model mistralai/Mistral-7B-Instruct-v0.2
+
+  # TTS Service (Piper/Coqui)
+  tts-service:
+    build:
+      context: ./services/tts
+      dockerfile: Dockerfile
+    container_name: ai-teacher-tts
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./services/tts/models:/app/models
+      - ./services/tts/output:/app/output
+    networks:
+      - ai-teacher-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - TTS_MODEL=piper
+      - TTS_VOICE=en_US-lessac-medium
+
+  # Animation Service (LAM/LivePortrait)
+  animation-service:
+    build:
+      context: ./services/animation
+      dockerfile: Dockerfile
+    container_name: ai-teacher-animation
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./services/animation/models:/app/models
+      - ./services/animation/avatars:/app/avatars
+      - ./services/animation/output:/app/output
+    networks:
+      - ai-teacher-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - ANIMATION_MODEL=lam
+      - AVATAR_PATH=/app/avatars
+
+  # Frontend (Streamlit)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-teacher-frontend
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./frontend:/app
+      - ./services/animation/output:/app/video_cache
+    networks:
+      - ai-teacher-network
+    environment:
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/chat
+      - TTS_API_URL=http://tts-service:8000
+      - ANIMATION_API_URL=http://animation-service:8000
+
+  # Redis for state management (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: ai-teacher-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-teacher-network
+
+volumes:
+  n8n_data:
+  ollama_data:
+  redis_data:
+
+networks:
+  ai-teacher-network:
+    driver: bridge

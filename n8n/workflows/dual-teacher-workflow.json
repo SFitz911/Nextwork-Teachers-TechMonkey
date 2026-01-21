@@ -1,0 +1,262 @@
+{
+  "name": "AI Virtual Classroom - Dual Teacher Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "chat-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "teacher:current_speaker"
+      },
+      "id": "get-current-speaker",
+      "name": "Get Current Speaker",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.value }}",
+              "operation": "equals",
+              "value2": "teacher_a"
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher",
+      "name": "Switch Teacher",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.body.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-teacher-a",
+      "name": "LLM Generate - Teacher A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.body.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-teacher-b",
+      "name": "LLM Generate - Teacher B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://tts-service:8000/tts",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.response }}"
+            },
+            {
+              "name": "voice",
+              "value": "en_US-lessac-medium"
+            },
+            {
+              "name": "chunk",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tts-generate",
+      "name": "TTS Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://animation-service:8000/animate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio_base64",
+              "value": "={{ $json.audio_base64 }}"
+            },
+            {
+              "name": "avatar_id",
+              "value": "teacher_a"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "animation-generate",
+      "name": "Animation Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "teacher:current_speaker",
+        "value": "teacher_b"
+      },
+      "id": "update-speaker",
+      "name": "Update Current Speaker",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Current Speaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Speaker": {
+      "main": [
+        [
+          {
+            "node": "Switch Teacher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Teacher": {
+      "main": [
+        [
+          {
+            "node": "LLM Generate - Teacher A",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Generate - Teacher B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate - Teacher A": {
+      "main": [
+        [
+          {
+            "node": "TTS Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate - Teacher B": {
+      "main": [
+        [
+          {
+            "node": "TTS Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS Generate": {
+      "main": [
+        [
+          {
+            "node": "Animation Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Animation Generate": {
+      "main": [
+        [
+          {
+            "node": "Update Current Speaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

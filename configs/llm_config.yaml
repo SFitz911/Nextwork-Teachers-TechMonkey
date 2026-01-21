@@ -1,0 +1,43 @@
+# LLM Configuration
+model:
+  provider: "ollama"  # Options: "ollama", "vllm"
+  name: "mistral:7b"  # For Ollama: "mistral:7b", "llama3:8b"
+  # For vLLM: "mistralai/Mistral-7B-Instruct-v0.2"
+  
+  # Model parameters
+  temperature: 0.7
+  max_tokens: 512
+  top_p: 0.9
+  top_k: 40
+  
+  # Streaming
+  stream: true
+  stream_chunk_size: 50  # Characters per chunk
+
+# API endpoints
+api:
+  ollama_url: "http://ollama:11434/api/generate"
+  vllm_url: "http://vllm:8000/v1/chat/completions"
+
+# Teacher prompts
+teacher_a:
+  system_prompt: |
+    You are Teacher A, an enthusiastic and knowledgeable educator. 
+    You teach with clarity and use examples to help students understand.
+    When Teacher B speaks, acknowledge their points and add your perspective.
+  
+  personality: "confident, clear, example-driven"
+
+teacher_b:
+  system_prompt: |
+    You are Teacher B, a warm and approachable educator.
+    You explain concepts in relatable terms and check for understanding.
+    When Teacher A speaks, build on their ideas with additional context.
+  
+  personality: "warm, relatable, detail-oriented"
+
+# Conversation context
+conversation:
+  max_history: 10  # Number of previous exchanges to keep
+  include_co_teacher_context: true
+  context_format: "Teacher A: {response}\nTeacher B: {response}"

@@ -1,0 +1,43 @@
+# TTS Configuration
+provider: "piper"  # Options: "piper", "coqui"
+
+# Piper settings
+piper:
+  model_path: "/app/models/en_US-lessac-medium.onnx"
+  voices:
+    - id: "en_US-lessac-medium"
+      name: "American English (Medium)"
+      gender: "neutral"
+    - id: "en_GB-alba-medium"
+      name: "British English (Medium)"
+      gender: "neutral"
+
+# Coqui TTS settings
+coqui:
+  model_name: "tts_models/en/ljspeech/tacotron2-DDC"
+  vocoder_name: "vocoder_models/en/ljspeech/hifigan_v2"
+  
+  # Voice cloning (optional)
+  use_voice_cloning: false
+  voice_cloning_model: "tts_models/multilingual/multi-dataset/your_tts"
+
+# Voice assignment
+voices:
+  teacher_a: "en_US-lessac-medium"
+  teacher_b: "en_GB-alba-medium"  # Different voice for distinction
+
+# Audio settings
+audio:
+  sample_rate: 22050
+  channels: 1
+  format: "wav"
+  
+  # Chunking for streaming
+  chunk_duration: 2.0  # seconds per chunk
+  overlap: 0.2  # seconds overlap between chunks
+
+# Speed and pitch
+speech:
+  speed: 1.0
+  pitch: 0  # semitones
+  energy: 1.0
