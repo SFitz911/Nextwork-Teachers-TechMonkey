@@ -29,7 +29,7 @@ Write-Host ""
 
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Connect to your Vast.ai instance with password:" -ForegroundColor White
-Write-Host "   ssh -p 29889 root@ssh1.vast.ai" -ForegroundColor Cyan
+Write-Host "   ssh -p 35859 root@ssh7.vast.ai" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "2. Once connected, run this command on the instance:" -ForegroundColor White
 Write-Host "   echo '$publicKey' >> ~/.ssh/authorized_keys" -ForegroundColor Cyan

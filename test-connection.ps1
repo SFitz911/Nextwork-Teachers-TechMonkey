@@ -2,8 +2,8 @@
 # Usage: .\test-connection.ps1 [-Port PORT] [-IP IP_ADDRESS]
 
 param(
-    [string]$Port = "40257",
-    [string]$IP = "60.217.254.161"
+    [string]$Port = "41428",
+    [string]$IP = "50.217.254.161"
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -30,12 +30,12 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 # Test 2: SSH Gateway connection
-Write-Host "Test 2: SSH Gateway connection (ssh1.vast.ai:29889)..." -ForegroundColor Yellow
-$result2 = ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p 29889 root@ssh1.vast.ai "echo 'Connection successful!'" 2>&1
+Write-Host "Test 2: SSH Gateway connection (ssh7.vast.ai:35859)..." -ForegroundColor Yellow
+$result2 = ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p 35859 root@ssh7.vast.ai "echo 'Connection successful!'" 2>&1
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ Gateway connection works!" -ForegroundColor Green
-    Write-Host "You can connect using: ssh -p 29889 root@ssh1.vast.ai" -ForegroundColor Cyan
+    Write-Host "You can connect using: ssh -p 35859 root@ssh7.vast.ai" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Note: Update connect-vast.ps1 to use gateway method" -ForegroundColor Yellow
     exit 0
