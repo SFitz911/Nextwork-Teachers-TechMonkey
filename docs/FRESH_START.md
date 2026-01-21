@@ -2,15 +2,24 @@
 
 This guide walks you through setting up a brand new VAST instance from scratch, including proper GitHub workflow.
 
+## Important: Terminal Types
+
+Throughout this guide, we'll refer to two different terminals:
+
+- **Desktop PowerShell Terminal**: Your local Windows machine (where you run commands to connect TO the VAST instance)
+- **VAST Terminal**: The cloud instance on Vast.ai (where you deploy and run services)
+
+Each step will clearly indicate which terminal to use.
+
 ## Prerequisites
 
 - Vast.ai account
 - GitHub account with repository access
 - SSH key generated on your local machine
 
-## Step 1: Generate/Verify SSH Key (Local Machine)
+## Step 1: Generate/Verify SSH Key (Desktop PowerShell Terminal)
 
-On your **Windows machine**, ensure you have an SSH key:
+On your **Desktop PowerShell Terminal**, ensure you have an SSH key:
 
 ```powershell
 # Check if key exists
@@ -52,9 +61,9 @@ cat ~/.ssh/id_ed25519.pub
 - Some instances allow adding keys during setup
 - Check instance configuration/access settings
 
-## Step 4: Test Connection (Local Machine)
+## Step 4: Test Connection (Desktop PowerShell Terminal)
 
-From your **local Windows machine**, test the connection:
+From your **Desktop PowerShell Terminal**, test the connection:
 
 ```powershell
 # Navigate to project directory
@@ -70,11 +79,11 @@ Or manually test:
 ssh -p YOUR_PORT root@YOUR_IP
 ```
 
-**If connection works**, you should see a shell prompt like `root@C.XXXXX:~#`
+**If connection works**, you should see a shell prompt like `root@C.XXXXX:~#` - you're now in the **VAST Terminal**.
 
-## Step 5: Clone Repository on VAST Instance
+## Step 5: Clone Repository (VAST Terminal)
 
-Once connected to your **VAST instance**, clone the repository:
+Once connected, you're in the **VAST Terminal**. Clone the repository:
 
 ```bash
 # Navigate to home directory
@@ -94,7 +103,7 @@ ls -la
 
 If your new instance has different IP/port, update the connection scripts:
 
-**On your local machine:**
+**On your Desktop PowerShell Terminal:**
 ```powershell
 cd E:\DATA_1TB\Desktop\Nextwork_Teachers_TechMonkey
 
@@ -105,9 +114,9 @@ git commit -m "Update connection details for new instance"
 git push origin main
 ```
 
-## Step 7: Deploy Services on VAST Instance
+## Step 7: Deploy Services (VAST Terminal)
 
-**On the VAST instance**, choose your deployment method:
+**In the VAST Terminal**, choose your deployment method:
 
 ### Option A: Docker Deployment (If Instance Supports It)
 
@@ -134,9 +143,9 @@ bash scripts/deploy_no_docker.sh
 bash scripts/run_no_docker_tmux.sh
 ```
 
-## Step 8: Verify Services Are Running
+## Step 8: Verify Services Are Running (VAST Terminal)
 
-**On the VAST instance:**
+**In the VAST Terminal:**
 
 ```bash
 # Check Docker containers (if using Docker)
@@ -153,9 +162,9 @@ nvidia-smi
 python3 scripts/health_check.py
 ```
 
-## Step 9: Set Up Port Forwarding (Local Machine)
+## Step 9: Set Up Port Forwarding (Desktop PowerShell Terminal)
 
-**On your local Windows machine**, create an SSH tunnel:
+**Open a NEW Desktop PowerShell Terminal** (keep the VAST Terminal open), create an SSH tunnel:
 
 ```powershell
 cd E:\DATA_1TB\Desktop\Nextwork_Teachers_TechMonkey
@@ -193,9 +202,9 @@ With port forwarding active, access services from your local browser:
 5. Configure endpoints if needed
 6. Activate the workflow
 
-## Step 12: Install LLM Models
+## Step 12: Install LLM Models (VAST Terminal)
 
-**On the VAST instance:**
+**In the VAST Terminal:**
 
 ```bash
 # If using Docker
@@ -205,9 +214,9 @@ docker exec ai-teacher-ollama ollama pull mistral:7b
 ollama pull mistral:7b
 ```
 
-## Step 13: Generate Teacher Avatars
+## Step 13: Generate Teacher Avatars (VAST Terminal)
 
-**On the VAST instance:**
+**In the VAST Terminal:**
 
 ```bash
 cd ~/Nextwork-Teachers-TechMonkey
@@ -221,9 +230,9 @@ python3 scripts/avatar_generation.py
 
 ## GitHub Workflow: Keeping Changes Synced
 
-**Always commit and push changes as you make them:**
+**Always commit and push changes as you make them!**
 
-### On Local Machine (After Making Changes)
+### On Desktop PowerShell Terminal (After Making Changes)
 
 ```powershell
 cd E:\DATA_1TB\Desktop\Nextwork_Teachers_TechMonkey
@@ -241,7 +250,7 @@ git commit -m "Description of what changed"
 git push origin main
 ```
 
-### On VAST Instance (After Making Changes)
+### On VAST Terminal (After Making Changes)
 
 ```bash
 cd ~/Nextwork-Teachers-TechMonkey
@@ -259,7 +268,7 @@ git commit -m "Description of what changed"
 git push origin main
 ```
 
-**Note:** Make sure you've configured git on the VAST instance:
+**Note:** Make sure you've configured git on the VAST Terminal:
 ```bash
 git config --global user.name "Your Name"
 git config --global user.email "your-email@example.com"
@@ -286,7 +295,7 @@ git config --global user.email "your-email@example.com"
 
 ## Quick Reference Commands
 
-### Local Machine
+### Desktop PowerShell Terminal
 ```powershell
 # Test connection
 .\quick-connect.ps1
@@ -298,7 +307,7 @@ git config --global user.email "your-email@example.com"
 .\add-ssh-key.ps1
 ```
 
-### VAST Instance
+### VAST Terminal
 ```bash
 # Check services
 docker compose ps  # or ps aux | grep python

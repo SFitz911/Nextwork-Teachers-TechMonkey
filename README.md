@@ -187,7 +187,15 @@ Edit configuration files in `configs/`:
 
 - **GitHub**: https://github.com/SFitz911/Nextwork-Teachers-TechMonkey.git
 - **Quick Start Guide**: [docs/QUICK_START_VAST.md](docs/QUICK_START_VAST.md)
+- **Fresh Start Guide**: [docs/FRESH_START.md](docs/FRESH_START.md) (Complete setup from scratch)
 - **SSH Setup**: [docs/SSH_SETUP.md](docs/SSH_SETUP.md)
+- **Terminal Guide**: [docs/TERMINAL_GUIDE.md](docs/TERMINAL_GUIDE.md) (Desktop vs VAST Terminal)
+
+## 📡 Current Connection Details
+
+- **Direct**: `ssh -p 41428 root@50.217.254.161`
+- **Gateway**: `ssh -p 35859 root@ssh7.vast.ai`
+- **SSH Key**: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOjUkOMrizf3mTkblsQoLOLTrUBBiy1z46qWgg8WaRp5`
 
 ## 🤝 Contributing
 
