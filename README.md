@@ -66,9 +66,12 @@ Viewer Chat → Webhook → n8n Workflow
 
 ### 1. Vast.ai Setup
 
-1. Rent an A100/H100 instance (≥40GB VRAM, CUDA 12+)
+**⚠️ Important:** Not all Vast.ai instances support Docker properly. Look for instances that explicitly support Docker/containers. See [docs/VAST_AI_INSTANCE_SELECTION.md](docs/VAST_AI_INSTANCE_SELECTION.md) for details.
+
+1. Rent an A100/H100 instance (≥40GB VRAM, CUDA 12+) that supports Docker
 2. SSH into the instance
-3. Install NVIDIA Container Toolkit:
+3. **Test Docker first:** `docker run hello-world` (must work!)
+4. Install NVIDIA Container Toolkit:
    ```bash
    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
