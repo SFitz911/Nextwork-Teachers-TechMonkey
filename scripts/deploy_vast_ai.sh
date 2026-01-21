@@ -24,6 +24,24 @@ if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sh get-docker.sh
     rm get-docker.sh
+    
+    # Start Docker service
+    if command -v systemctl &> /dev/null; then
+        sudo systemctl start docker || true
+        sudo systemctl enable docker || true
+    fi
+    
+    # Wait for Docker to be ready
+    echo "Waiting for Docker to start..."
+    sleep 5
+    
+    # Test Docker
+    if docker run --rm hello-world &> /dev/null 2>&1; then
+        echo "✅ Docker installed and working!"
+    else
+        echo "⚠️  Docker installed but may not be fully functional"
+        echo "You may need to restart or check Docker permissions"
+    fi
 fi
 
 # Install NVIDIA Container Toolkit
