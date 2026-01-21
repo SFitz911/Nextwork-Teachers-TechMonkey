@@ -1,13 +1,10 @@
-version: '3.8'
-
 services:
   # n8n Orchestration
   n8n:
     image: n8nio/n8n:latest
     container_name: ai-teacher-n8n
     restart: unless-stopped
-    ports:
-      - "5678:5678"
+    network_mode: host
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
@@ -19,8 +16,6 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflows:/data/workflows
-    networks:
-      - ai-teacher-network
     # GPU support if available
     deploy:
       resources:
@@ -35,12 +30,9 @@ services:
     image: ollama/ollama:latest
     container_name: ai-teacher-ollama
     restart: unless-stopped
-    ports:
-      - "11434:11434"
+    network_mode: host
     volumes:
       - ollama_data:/root/.ollama
-    networks:
-      - ai-teacher-network
     deploy:
       resources:
         reservations:
@@ -60,13 +52,10 @@ services:
       dockerfile: Dockerfile
     container_name: ai-teacher-tts
     restart: unless-stopped
-    ports:
-      - "8001:8000"
+    network_mode: host
     volumes:
       - ./services/tts/models:/app/models
       - ./services/tts/output:/app/output
-    networks:
-      - ai-teacher-network
     deploy:
       resources:
         reservations:
@@ -85,14 +74,11 @@ services:
       dockerfile: Dockerfile
     container_name: ai-teacher-animation
     restart: unless-stopped
-    ports:
-      - "8002:8000"
+    network_mode: host
     volumes:
       - ./services/animation/models:/app/models
       - ./services/animation/avatars:/app/avatars
       - ./services/animation/output:/app/output
-    networks:
-      - ai-teacher-network
     deploy:
       resources:
         reservations:
@@ -111,35 +97,25 @@ services:
       dockerfile: Dockerfile
     container_name: ai-teacher-frontend
     restart: unless-stopped
-    ports:
-      - "8501:8501"
+    network_mode: host
     volumes:
       - ./frontend:/app
       - ./services/animation/output:/app/video_cache
-    networks:
-      - ai-teacher-network
     environment:
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/chat
-      - TTS_API_URL=http://tts-service:8000
-      - ANIMATION_API_URL=http://animation-service:8000
+      - N8N_WEBHOOK_URL=http://localhost:5678/webhook/chat
+      - TTS_API_URL=http://localhost:8001
+      - ANIMATION_API_URL=http://localhost:8002
 
   # Redis for state management (optional)
   redis:
     image: redis:7-alpine
     container_name: ai-teacher-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    network_mode: host
     volumes:
       - redis_data:/data
-    networks:
-      - ai-teacher-network
 
 volumes:
   n8n_data:
   ollama_data:
   redis_data:
-
-networks:
-  ai-teacher-network:
-    driver: bridge
