@@ -30,12 +30,21 @@ You have several options:
 
 ### Option A: Git Clone (Recommended)
 
-If you've pushed to GitHub:
+**Always use Git Clone** - this keeps everything in sync with GitHub:
 ```bash
 cd ~
 git clone https://github.com/SFitz911/Nextwork-Teachers-TechMonkey.git
 cd Nextwork-Teachers-TechMonkey
 ```
+
+**Important:** After making any changes on the instance, commit and push:
+```bash
+git add .
+git commit -m "Description of changes"
+git push origin main
+```
+
+See `docs/FRESH_START.md` for complete setup guide including GitHub workflow.
 
 ### Option B: SCP Upload (From Windows)
 
