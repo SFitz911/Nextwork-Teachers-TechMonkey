@@ -86,11 +86,11 @@ st.markdown("Ask questions in the chat below, and our AI teachers will respond!"
 # Sidebar for settings
 with st.sidebar:
     st.header("⚙️ Settings")
-    teacher_a_name = st.text_input("Teacher A Name", value="Krishna")
-    teacher_b_name = st.text_input("Teacher B Name", value="Maya")
-    teacher_c_name = st.text_input("Teacher C Name", value="Maximus")
-    teacher_d_name = st.text_input("Teacher D Name", value="Tech Monkey Steve")
-    teacher_e_name = st.text_input("Teacher E Name", value="Teacher E")
+    teacher_a_name = st.text_input("Teacher A Name", value="Maya")
+    teacher_b_name = st.text_input("Teacher B Name", value="Maximus")
+    teacher_c_name = st.text_input("Teacher C Name", value="Krishna")
+    teacher_d_name = st.text_input("Teacher D Name", value="TechMonkey")
+    teacher_e_name = st.text_input("Teacher E Name", value="Pano Bieber")
     
     st.header("📊 Status")
     if st.button("Check Services"):
