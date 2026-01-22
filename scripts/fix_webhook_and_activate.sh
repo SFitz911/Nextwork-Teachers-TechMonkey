@@ -36,17 +36,30 @@ WEBHOOK_RESPONSE=$(curl -s -X POST http://localhost:5678/webhook/chat-webhook \
     -d '{"message": "test", "timestamp": 1234567890}' 2>&1)
 
 if echo "$WEBHOOK_RESPONSE" | grep -q "404\|not registered"; then
-    echo "⚠️  Webhook not registered - workflow needs to be activated"
+    echo "⚠️  Webhook not registered - activating workflow automatically..."
     echo ""
-    echo "To activate the workflow:"
-    echo "1. Open http://localhost:5678 in your browser"
-    echo "2. Log in with your credentials"
-    echo "3. Open the workflow: 'AI Virtual Classroom - Five Teacher Workflow'"
-    echo "   (or import n8n/workflows/five-teacher-workflow.json if needed)"
-    echo "4. Click the 'Active/Inactive' toggle in the top-right to activate it"
-    echo ""
-    echo "If you don't see the toggle, n8n might be in dev mode."
-    echo "Check n8n logs: tail -20 logs/n8n.log"
+    
+    # Try to activate via API
+    if bash scripts/activate_workflow_api.sh; then
+        echo ""
+        echo "✅ Workflow activated! Testing webhook again..."
+        sleep 2
+        WEBHOOK_RESPONSE=$(curl -s -X POST http://localhost:5678/webhook/chat-webhook \
+            -H "Content-Type: application/json" \
+            -d '{"message": "test", "timestamp": 1234567890}' 2>&1)
+        
+        if echo "$WEBHOOK_RESPONSE" | grep -q "404\|not registered"; then
+            echo "⚠️  Webhook still not responding. May need a moment to register."
+        else
+            echo "✅ Webhook is now working!"
+        fi
+    else
+        echo ""
+        echo "⚠️  Automatic activation failed. Manual steps:"
+        echo "1. Open http://localhost:5678 in your browser"
+        echo "2. Log in with credentials from .env file"
+        echo "3. Open the workflow and activate it"
+    fi
 else
     echo "✅ Webhook is working!"
     echo "Response: $WEBHOOK_RESPONSE"
