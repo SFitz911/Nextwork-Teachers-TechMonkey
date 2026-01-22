@@ -89,7 +89,7 @@ with st.sidebar:
     teacher_a_name = st.text_input("Teacher A Name", value="Maya")
     teacher_b_name = st.text_input("Teacher B Name", value="Maximus")
     teacher_c_name = st.text_input("Teacher C Name", value="Krishna")
-    teacher_d_name = st.text_input("Teacher D Name", value="TechMonkey")
+    teacher_d_name = st.text_input("Teacher D Name", value="TechMonkey Steve")
     teacher_e_name = st.text_input("Teacher E Name", value="Pano Bieber")
     
     st.header("📊 Status")
