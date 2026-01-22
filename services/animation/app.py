@@ -21,7 +21,7 @@ AVATAR_PATH = os.getenv("AVATAR_PATH", "/app/avatars")
 class AnimationRequest(BaseModel):
     audio_url: Optional[str] = None
     audio_base64: Optional[str] = None
-    avatar_id: str  # "teacher_a" or "teacher_b"
+    avatar_id: str  # "teacher_a", "teacher_b", "teacher_c", or "teacher_d"
     style: Optional[str] = "default"
 
 

@@ -43,6 +43,8 @@ wav2lip:
 avatars:
   teacher_a: "/app/avatars/teacher_a.jpg"
   teacher_b: "/app/avatars/teacher_b.jpg"
+  teacher_c: "/app/avatars/teacher_c.jpg"
+  teacher_d: "/app/avatars/teacher_d.jpg"
 
 # Output settings
 output:
