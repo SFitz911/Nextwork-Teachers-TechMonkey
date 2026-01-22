@@ -1,0 +1,302 @@
+{
+  "name": "AI Virtual Classroom - Five Teacher Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "chat-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple round-robin teacher selection (no Redis needed)\nconst teachers = ['teacher_a', 'teacher_b', 'teacher_c', 'teacher_d', 'teacher_e'];\nconst lastTeacher = $input.item.json.lastTeacher || 'teacher_e';\nconst currentIndex = teachers.indexOf(lastTeacher);\nconst nextIndex = (currentIndex + 1) % teachers.length;\nconst selectedTeacher = teachers[nextIndex];\n\nreturn {\n  json: {\n    selectedTeacher: selectedTeacher,\n    lastTeacher: selectedTeacher,\n    message: $input.item.json.body?.message || $input.item.json.message\n  }\n};"
+      },
+      "id": "select-teacher",
+      "name": "Select Teacher (Round-Robin)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.selectedTeacher }}",
+              "operation": "equals",
+              "value2": "teacher_a"
+            },
+            {
+              "value1": "={{ $json.selectedTeacher }}",
+              "operation": "equals",
+              "value2": "teacher_b"
+            },
+            {
+              "value1": "={{ $json.selectedTeacher }}",
+              "operation": "equals",
+              "value2": "teacher_c"
+            },
+            {
+              "value1": "={{ $json.selectedTeacher }}",
+              "operation": "equals",
+              "value2": "teacher_d"
+            },
+            {
+              "value1": "={{ $json.selectedTeacher }}",
+              "operation": "equals",
+              "value2": "teacher_e"
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher",
+      "name": "Switch Teacher",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract response text from Ollama\nconst ollamaResponse = $input.item.json;\nlet responseText = '';\n\nif (ollamaResponse.response) {\n  responseText = ollamaResponse.response;\n} else if (typeof ollamaResponse === 'string') {\n  responseText = ollamaResponse;\n} else if (ollamaResponse.text) {\n  responseText = ollamaResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
+      },
+      "id": "extract-response",
+      "name": "Extract LLM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8001/tts",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "voice",
+              "value": "en_US-lessac-medium"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tts-generate",
+      "name": "TTS Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get audio URL or base64 from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\nlet audioBase64 = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.audio_base64) {\n  audioBase64 = ttsResponse.audio_base64;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    audio_base64: audioBase64,\n    avatar_id: selectedTeacher,\n    text: $('Extract LLM Response').item.json.text\n  }\n};"
+      },
+      "id": "prepare-animation",
+      "name": "Prepare Animation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8002/animate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio_url",
+              "value": "={{ $json.audio_url }}"
+            },
+            {
+              "name": "audio_base64",
+              "value": "={{ $json.audio_base64 }}"
+            },
+            {
+              "name": "avatar_id",
+              "value": "={{ $json.avatar_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "animation-generate",
+      "name": "Animation Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for frontend\nconst animationResponse = $input.item.json;\nconst text = $('Extract LLM Response').item.json.text;\nconst teacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: animationResponse.video_url || animationResponse.video_path || '',\n    job_id: animationResponse.job_id || ''\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Select Teacher (Round-Robin)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Teacher (Round-Robin)": {
+      "main": [
+        [
+          {
+            "node": "Switch Teacher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Teacher": {
+      "main": [
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract LLM Response": {
+      "main": [
+        [
+          {
+            "node": "TTS Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS Generate": {
+      "main": [
+        [
+          {
+            "node": "Prepare Animation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Animation": {
+      "main": [
+        [
+          {
+            "node": "Animation Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Animation Generate": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-22T00:00:00.000Z",
+  "versionId": "1"
+}
