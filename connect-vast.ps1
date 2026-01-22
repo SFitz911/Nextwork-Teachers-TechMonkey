@@ -27,10 +27,36 @@ Write-Host "Opening SSH connection in new window..." -ForegroundColor Green
 Write-Host ""
 
 if ($Method -eq "direct") {
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'SSH Port Forwarding Active - DO NOT CLOSE THIS WINDOW' -ForegroundColor Green; Write-Host ''; ssh -p 41428 root@50.217.254.161 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
+    $sshArgs = "-p 41428 root@50.217.254.161 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
 } else {
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'SSH Port Forwarding Active - DO NOT CLOSE THIS WINDOW' -ForegroundColor Green; Write-Host ''; ssh -p 35859 root@ssh7.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
+    $sshArgs = "-p 35859 root@ssh7.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
 }
+
+# Create a temporary script file that will be executed in the new window
+$tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
+$scriptContent = @"
+Write-Host '==========================================' -ForegroundColor Cyan
+Write-Host 'SSH Port Forwarding Window' -ForegroundColor Cyan
+Write-Host '==========================================' -ForegroundColor Cyan
+Write-Host ''
+Write-Host 'DO NOT CLOSE THIS WINDOW' -ForegroundColor Yellow
+Write-Host 'Port forwarding will stop if you close this window!' -ForegroundColor Yellow
+Write-Host ''
+Write-Host 'Connecting to VAST.ai...' -ForegroundColor Green
+Write-Host ''
+ssh $sshArgs
+if (`$LASTEXITCODE -ne 0) {
+    Write-Host ''
+    Write-Host 'SSH connection failed or closed!' -ForegroundColor Red
+    Write-Host 'Press any key to exit...' -ForegroundColor Yellow
+    `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+}
+"@
+
+Set-Content -Path $tempScript -Value $scriptContent
+
+# Start the new PowerShell window with the script
+Start-Process powershell -ArgumentList "-NoExit", "-File", $tempScript
 
 Write-Host "✅ SSH port forwarding started in new window!" -ForegroundColor Green
 Write-Host ""

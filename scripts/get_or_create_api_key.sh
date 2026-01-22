@@ -18,10 +18,14 @@ N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 N8N_URL="http://localhost:5678"
 
-# Validate API key format: must start with "n8n_" followed by alphanumeric
+# Validate API key format: can be n8n_ format OR JWT token
 validate_api_key() {
     local key="$1"
+    # n8n API key format: starts with "n8n_" followed by alphanumeric
     if [[ "$key" =~ ^n8n_[A-Za-z0-9]+$ ]]; then
+        return 0
+    # JWT token format: three base64 parts separated by dots
+    elif [[ "$key" =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
         return 0
     else
         return 1
@@ -29,13 +33,36 @@ validate_api_key() {
 }
 
 # Try to get existing API keys
-API_KEYS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+HTTP_CODE=$(curl -s -o /tmp/api_keys_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
     -H "Content-Type: application/json" \
     "${N8N_URL}/api/v1/api-keys" 2>/dev/null)
 
+API_KEYS_JSON=$(cat /tmp/api_keys_response.json 2>/dev/null || echo "")
+
+# Check HTTP status code
+if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "❌ API returned HTTP $HTTP_CODE" >&2
+    if [[ -f /tmp/api_keys_response.json ]]; then
+        echo "Response: $(head -c 200 /tmp/api_keys_response.json)" >&2
+    fi
+    # Try to use basic auth for other endpoints instead
+    echo "⚠️  API key endpoint may require different authentication. Trying alternative method..." >&2
+    rm -f /tmp/api_keys_response.json
+    exit 1
+fi
+
 # Check if we got a valid response
-if echo "$API_KEYS_JSON" | grep -q "Unauthorized\|401"; then
+if echo "$API_KEYS_JSON" | grep -q "Unauthorized\|401\|Forbidden"; then
     echo "❌ Authentication failed" >&2
+    rm -f /tmp/api_keys_response.json
+    exit 1
+fi
+
+# Check if response is valid JSON
+if ! echo "$API_KEYS_JSON" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+    echo "❌ API returned non-JSON response" >&2
+    echo "Response preview: $(echo "$API_KEYS_JSON" | head -c 200)" >&2
+    rm -f /tmp/api_keys_response.json
     exit 1
 fi
 
@@ -47,11 +74,17 @@ try:
     if isinstance(data, dict) and 'data' in data:
         keys = data['data']
         if keys and len(keys) > 0:
-            key = keys[0].get('apiKey', '')
+            # Try 'apiKey' first, then 'id', then 'token'
+            key = keys[0].get('apiKey') or keys[0].get('id') or keys[0].get('token') or keys[0].get('key', '')
             if key:
                 print(key)
     elif isinstance(data, list) and len(data) > 0:
-        key = data[0].get('apiKey', '')
+        key = data[0].get('apiKey') or data[0].get('id') or data[0].get('token') or data[0].get('key', '')
+        if key:
+            print(key)
+    # Also check if the response itself is a key/token
+    elif isinstance(data, dict):
+        key = data.get('apiKey') or data.get('id') or data.get('token') or data.get('key', '')
         if key:
             print(key)
 except:
@@ -71,11 +104,23 @@ if [[ -n "$EXISTING_KEY" ]]; then
 fi
 
 # Try to create a new API key
-CREATE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+CREATE_HTTP_CODE=$(curl -s -o /tmp/create_key_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
     -X POST \
     -H "Content-Type: application/json" \
     -d '{"name": "Auto-generated API Key"}' \
     "${N8N_URL}/api/v1/api-keys" 2>/dev/null)
+
+CREATE_RESPONSE=$(cat /tmp/create_key_response.json 2>/dev/null || echo "")
+
+# Check HTTP status code
+if [[ "$CREATE_HTTP_CODE" != "200" ]] && [[ "$CREATE_HTTP_CODE" != "201" ]]; then
+    echo "❌ Failed to create API key (HTTP $CREATE_HTTP_CODE)" >&2
+    if [[ -f /tmp/create_key_response.json ]]; then
+        echo "Response: $(head -c 200 /tmp/create_key_response.json)" >&2
+    fi
+    rm -f /tmp/create_key_response.json /tmp/api_keys_response.json
+    exit 1
+fi
 
 NEW_KEY=$(echo "$CREATE_RESPONSE" | python3 -c "
 import json, sys
@@ -105,7 +150,12 @@ if [[ -n "$NEW_KEY" ]]; then
     fi
 fi
 
+# Clean up temp files
+rm -f /tmp/api_keys_response.json /tmp/create_key_response.json
+
 # If we get here, we failed to get or create a key
 # Print error to stderr, nothing to stdout, exit 1
 echo "❌ Failed to get or create API key" >&2
+echo "   Tried to get existing keys and create new one, both failed" >&2
+echo "   Check n8n is running and credentials are correct" >&2
 exit 1

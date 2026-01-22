@@ -7,69 +7,54 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# Load .env if it exists
+if [[ -f ".env" ]]; then
+    # shellcheck disable=SC2046
+    export $(grep -v '^#' .env | xargs)
+fi
+
 N8N_URL="http://localhost:5678"
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 N8N_API_KEY="${N8N_API_KEY:-}"
 
-# Get API key if needed
+# Require API key - fail fast if not set
 if [[ -z "$N8N_API_KEY" ]]; then
-    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
-    if [[ -z "$N8N_API_KEY" ]]; then
-        echo "❌ Missing N8N_API_KEY environment variable" >&2
-        echo "   Run: export N8N_API_KEY=\$(bash scripts/get_or_create_api_key.sh)" >&2
-        exit 1
-    fi
-    # Validate API key format
-    if [[ ! "$N8N_API_KEY" =~ ^n8n_[A-Za-z0-9]+$ ]]; then
-        echo "❌ Invalid N8N_API_KEY format (must start with 'n8n_')" >&2
-        echo "   Got: ${N8N_API_KEY:0:20}..." >&2
-        exit 1
-    fi
-    export N8N_API_KEY
+    echo "❌ N8N_API_KEY is not set!" >&2
+    echo "   Add it to your .env file:" >&2
+    echo "   echo 'N8N_API_KEY=your_api_key_here' >> .env" >&2
+    echo "" >&2
+    echo "   To get your API key:" >&2
+    echo "   1. Open http://localhost:5678 in your browser" >&2
+    echo "   2. Go to Settings → API" >&2
+    echo "   3. Create or copy your API key" >&2
+    exit 1
 fi
 
-# Get latest execution ID - try with workflow ID first
-if [[ -n "$N8N_API_KEY" ]]; then
-    WORKFLOW_ID=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
+# Get workflow ID first
+WORKFLOW_ID=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
     for wf in data.get('data', []):
-        if 'Five Teacher' in wf.get('name', ''):
+        name = wf.get('name', '')
+        if 'Five Teacher' in name or 'AI Virtual Classroom' in name or 'Virtual Classroom' in name:
             print(wf.get('id', ''))
-            break
+            sys.exit(0)
 except:
     pass
 " 2>/dev/null)
-else
-    WORKFLOW_ID=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    for wf in data.get('data', []):
-        if 'Five Teacher' in wf.get('name', ''):
-            print(wf.get('id', ''))
-            break
-except:
-    pass
-" 2>/dev/null)
+
+if [[ -z "$WORKFLOW_ID" ]]; then
+    echo "❌ Workflow not found!" >&2
+    echo "" >&2
+    echo "To import the workflow, run:" >&2
+    echo "  bash scripts/clean_and_import_workflow.sh" >&2
+    exit 1
 fi
 
-if [[ -n "$WORKFLOW_ID" ]]; then
-    echo "Workflow ID: $WORKFLOW_ID"
-    if [[ -n "$N8N_API_KEY" ]]; then
-        EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
-    else
-        EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
-    fi
-else
-    if [[ -n "$N8N_API_KEY" ]]; then
-        EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
-    else
-        EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
-    fi
-fi
+echo "Workflow ID: $WORKFLOW_ID"
+EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
 
 # Debug: show what we got
 echo "Executions API response (first 500 chars):"
@@ -112,12 +97,8 @@ fi
 echo "Latest Execution ID: $LATEST_EXEC_ID"
 echo ""
 
-# Get execution data - save to file first
-if [[ -n "$N8N_API_KEY" ]]; then
-    EXEC_DATA=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
-else
-    EXEC_DATA=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
-fi
+# Get execution data using API key
+EXEC_DATA=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
 
 # Save to file for inspection
 echo "$EXEC_DATA" > /tmp/exec_full.json

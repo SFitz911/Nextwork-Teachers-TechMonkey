@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Virtual Classroom - Documentation Index</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .category {
+            margin-bottom: 40px;
+        }
+        
+        .category h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .doc-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        
+        .doc-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .doc-card p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1em;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Documentation Index</h1>
+            <p>AI Virtual Classroom - Complete Documentation Library</p>
+        </header>
+        
+        <div class="content">
+            <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search documentation...">
+            
+            <!-- Getting Started -->
+            <div class="category" data-category="getting-started">
+                <h2>🚀 Getting Started</h2>
+                <div class="doc-grid">
+                    <a href="FRESH_START.md" class="doc-card" data-title="Fresh Start" data-desc="Complete setup guide for new VAST instances">
+                        <h3>Fresh Start</h3>
+                        <p>Complete guide for setting up a brand new VAST instance from scratch, including GitHub workflow.</p>
+                    </a>
+                    <a href="QUICK_START_VAST.md" class="doc-card" data-title="Quick Start VAST" data-desc="Quick setup guide for VAST instances">
+                        <h3>Quick Start VAST</h3>
+                        <p>Fast-track setup guide for getting started quickly on VAST.</p>
+                    </a>
+                    <a href="ALREADY_ON_INSTANCE.md" class="doc-card" data-title="Already on Instance" data-desc="Guide for when you're already on the instance">
+                        <h3>Already on Instance</h3>
+                        <p>What to do when you're already connected to your VAST instance.</p>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Setup & Configuration -->
+            <div class="category" data-category="setup">
+                <h2>⚙️ Setup & Configuration</h2>
+                <div class="doc-grid">
+                    <a href="SSH_SETUP.md" class="doc-card" data-title="SSH Setup" data-desc="SSH connection and key setup">
+                        <h3>SSH Setup</h3>
+                        <p>Complete guide for setting up SSH keys and connecting to VAST instances.</p>
+                    </a>
+                    <a href="PORT_FORWARDING_GUIDE.md" class="doc-card" data-title="Port Forwarding Guide" data-desc="SSH port forwarding setup and troubleshooting">
+                        <h3>Port Forwarding Guide</h3>
+                        <p>How to set up and maintain SSH port forwarding for accessing services.</p>
+                    </a>
+                    <a href="TERMINAL_GUIDE.md" class="doc-card" data-title="Terminal Guide" data-desc="Understanding different terminal types">
+                        <h3>Terminal Guide</h3>
+                        <p>Guide to understanding Desktop PowerShell vs VAST Terminal.</p>
+                    </a>
+                    <a href="VAST_AI_INSTANCE_SELECTION.md" class="doc-card" data-title="VAST Instance Selection" data-desc="Choosing the right VAST instance">
+                        <h3>VAST Instance Selection</h3>
+                        <p>How to select the right VAST.ai instance for your needs.</p>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Deployment -->
+            <div class="category" data-category="deployment">
+                <h2>🚢 Deployment</h2>
+                <div class="doc-grid">
+                    <a href="DEPLOYMENT.md" class="doc-card" data-title="Deployment" data-desc="Deployment guide">
+                        <h3>Deployment Guide</h3>
+                        <p>Complete deployment instructions for the AI Virtual Classroom.</p>
+                    </a>
+                    <a href="NO_DOCKER.md" class="doc-card" data-title="No Docker" data-desc="Running without Docker">
+                        <h3>No Docker Setup</h3>
+                        <p>Guide for running services without Docker containers.</p>
+                    </a>
+                    <a href="UPLOAD_TO_VAST.md" class="doc-card" data-title="Upload to VAST" data-desc="Uploading files to VAST">
+                        <h3>Upload to VAST</h3>
+                        <p>How to upload files and code to your VAST instance.</p>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Architecture & Development -->
+            <div class="category" data-category="architecture">
+                <h2>🏗️ Architecture & Development</h2>
+                <div class="doc-grid">
+                    <a href="ARCHITECTURE.md" class="doc-card" data-title="Architecture" data-desc="System architecture overview">
+                        <h3>System Architecture</h3>
+                        <p>Complete overview of the system architecture and component interactions.</p>
+                    </a>
+                    <a href="SCRIPT_AUDIT.md" class="doc-card" data-title="Script Audit" data-desc="All scripts and their usage">
+                        <h3>Script Audit</h3>
+                        <p>Complete audit of all scripts, where to run them, and when to use each.</p>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Troubleshooting -->
+            <div class="category" data-category="troubleshooting">
+                <h2>🔧 Troubleshooting</h2>
+                <div class="doc-grid">
+                    <a href="DEBUG_WEBHOOK_ISSUE.md" class="doc-card" data-title="Debug Webhook Issue" data-desc="Webhook debugging guide">
+                        <h3>Debug Webhook Issue</h3>
+                        <p>Step-by-step guide for debugging webhook problems.</p>
+                    </a>
+                    <a href="TROUBLESHOOT_SSH.md" class="doc-card" data-title="Troubleshoot SSH" data-desc="SSH connection issues">
+                        <h3>Troubleshoot SSH</h3>
+                        <p>Common SSH connection issues and their solutions.</p>
+                    </a>
+                    <a href="TROUBLESHOOT_DOCKER.md" class="doc-card" data-title="Troubleshoot Docker" data-desc="Docker-related issues">
+                        <h3>Troubleshoot Docker</h3>
+                        <p>Solutions for Docker-related problems.</p>
+                    </a>
+                    <a href="DOCKER_MOUNT_FIX.md" class="doc-card" data-title="Docker Mount Fix" data-desc="Fixing Docker mount issues">
+                        <h3>Docker Mount Fix</h3>
+                        <p>How to fix Docker volume mount problems.</p>
+                    </a>
+                    <a href="FIX_EXISTING_DIRECTORY.md" class="doc-card" data-title="Fix Existing Directory" data-desc="Fixing directory issues">
+                        <h3>Fix Existing Directory</h3>
+                        <p>Solutions for existing directory conflicts and issues.</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>AI Virtual Classroom Documentation | Last Updated: 2026-01-22</p>
+            <p>Click any document card above to open it</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Search functionality
+        const searchBox = document.getElementById('searchBox');
+        const categories = document.querySelectorAll('.category');
+        const docCards = document.querySelectorAll('.doc-card');
+        
+        searchBox.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            let hasResults = false;
+            
+            categories.forEach(category => {
+                const cards = category.querySelectorAll('.doc-card');
+                let categoryHasResults = false;
+                
+                cards.forEach(card => {
+                    const title = card.getAttribute('data-title').toLowerCase();
+                    const desc = card.getAttribute('data-desc').toLowerCase();
+                    const text = card.textContent.toLowerCase();
+                    
+                    if (title.includes(searchTerm) || desc.includes(searchTerm) || text.includes(searchTerm)) {
+                        card.style.display = 'block';
+                        categoryHasResults = true;
+                        hasResults = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                if (categoryHasResults) {
+                    category.style.display = 'block';
+                } else {
+                    category.style.display = 'none';
+                }
+            });
+            
+            // Show no results message if needed
+            let noResultsMsg = document.getElementById('noResults');
+            if (!hasResults && searchTerm) {
+                if (!noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.id = 'noResults';
+                    noResultsMsg.className = 'no-results';
+                    noResultsMsg.textContent = 'No documents found matching your search.';
+                    document.querySelector('.content').appendChild(noResultsMsg);
+                }
+            } else if (noResultsMsg) {
+                noResultsMsg.remove();
+            }
+        });
+        
+        // Handle file opening
+        docCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                const file = this.getAttribute('href');
+                const fileName = this.getAttribute('data-title');
+                
+                // For VS Code or file:// protocol, try to open directly
+                if (window.location.protocol === 'file:') {
+                    // Try to open in VS Code if available
+                    if (window.vscode) {
+                        window.vscode.postMessage({
+                            command: 'openFile',
+                            file: file
+                        });
+                    } else {
+                        // Fallback: try to navigate to file
+                        const fullPath = window.location.pathname.replace('index.html', '') + file;
+                        window.location.href = fullPath;
+                    }
+                } else {
+                    // For web context, try to fetch and display
+                    fetch(file)
+                        .then(response => {
+                            if (!response.ok) throw new Error('File not found');
+                            return response.text();
+                        })
+                        .then(text => {
+                            // Create a new window with the markdown content
+                            const newWindow = window.open('', '_blank');
+                            if (newWindow) {
+                                // Simple markdown to HTML converter
+                                let html = text
+                                    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                                    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                                    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                                    .replace(/^\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+                                    .replace(/^\*(.*)\*/gim, '<em>$1</em>')
+                                    .replace(/`([^`]+)`/gim, '<code>$1</code>')
+                                    .replace(/\n/g, '<br>');
+                                
+                                newWindow.document.write(`
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                        <title>${fileName}</title>
+                                        <meta charset="UTF-8">
+                                        <style>
+                                            body { 
+                                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                                                max-width: 900px; 
+                                                margin: 40px auto; 
+                                                padding: 20px; 
+                                                line-height: 1.6; 
+                                                background: #f5f5f5;
+                                            }
+                                            .content {
+                                                background: white;
+                                                padding: 30px;
+                                                border-radius: 8px;
+                                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                            }
+                                            h1 { color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+                                            h2 { color: #764ba2; margin-top: 30px; }
+                                            h3 { color: #555; margin-top: 20px; }
+                                            pre { 
+                                                background: #f4f4f4; 
+                                                padding: 15px; 
+                                                border-radius: 5px; 
+                                                overflow-x: auto; 
+                                                border-left: 4px solid #667eea;
+                                            }
+                                            code { 
+                                                background: #f4f4f4; 
+                                                padding: 2px 6px; 
+                                                border-radius: 3px; 
+                                                font-family: 'Courier New', monospace;
+                                            }
+                                            a { color: #667eea; text-decoration: none; }
+                                            a:hover { text-decoration: underline; }
+                                            ul, ol { margin-left: 20px; margin-top: 10px; }
+                                            li { margin-bottom: 5px; }
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <div class="content">
+                                            ${html}
+                                        </div>
+                                    </body>
+                                    </html>
+                                `);
+                                newWindow.document.close();
+                            } else {
+                                alert('Please allow pop-ups to view documents, or open manually: ' + file);
+                            }
+                        })
+                        .catch(err => {
+                            alert('Could not open file: ' + file + '\n\nPlease open it manually from the docs folder.');
+                            console.error('Error opening file:', err);
+                        });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

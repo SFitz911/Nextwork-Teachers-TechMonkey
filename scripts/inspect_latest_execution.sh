@@ -18,36 +18,65 @@ N8N_API_KEY="${N8N_API_KEY:-}"
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 
-# Get workflow ID
-if [[ -n "$N8N_API_KEY" ]]; then
-    WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/workflows")
-else
-    WORKFLOWS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows")
+# Require API key - fail fast if not set
+if [[ -z "$N8N_API_KEY" ]]; then
+    echo "❌ N8N_API_KEY is not set!" >&2
+    echo "   Add it to your .env file:" >&2
+    echo "   echo 'N8N_API_KEY=your_api_key_here' >> .env" >&2
+    echo "" >&2
+    echo "   To get your API key:" >&2
+    echo "   1. Open http://localhost:5678 in your browser" >&2
+    echo "   2. Go to Settings → API" >&2
+    echo "   3. Create or copy your API key" >&2
+    exit 1
 fi
 
+# Get workflow ID using API key
+WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/workflows")
+
+# Try multiple name patterns
 WORKFLOW_ID=$(echo "$WORKFLOWS" | python3 -c "
 import sys, json
-data = json.load(sys.stdin)
-for wf in data.get('data', []):
-    if 'Five Teacher' in wf.get('name', ''):
-        print(wf['id'])
-        break
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        name = wf.get('name', '')
+        # Try multiple patterns
+        if 'Five Teacher' in name or 'AI Virtual Classroom' in name or 'Virtual Classroom' in name:
+            print(wf.get('id', ''))
+            sys.exit(0)
+except:
+    pass
 " 2>/dev/null || echo "")
 
 if [[ -z "$WORKFLOW_ID" ]]; then
-    echo "❌ Five Teacher workflow not found"
+    echo "❌ Workflow not found!" >&2
+    echo "" >&2
+    echo "Available workflows:" >&2
+    echo "$WORKFLOWS" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    workflows = data.get('data', [])
+    if workflows:
+        for wf in workflows:
+            print(f\"  - {wf.get('name', 'Unknown')} (ID: {wf.get('id', 'N/A')}, Active: {wf.get('active', False)})\")
+    else:
+        print('  (No workflows found)')
+except Exception as e:
+    print(f'  (Error parsing workflows: {e})')
+" 2>&1
+    echo "" >&2
+    echo "To import the workflow, run:" >&2
+    echo "  bash scripts/clean_and_import_workflow.sh" >&2
     exit 1
 fi
 
 echo "Workflow ID: $WORKFLOW_ID"
 echo ""
 
-# Get latest execution
-if [[ -n "$N8N_API_KEY" ]]; then
-    EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1")
-else
-    EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1")
-fi
+# Get latest execution using API key
+EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1")
 
 LATEST_EXEC_ID=$(echo "$EXECUTIONS" | python3 -c "
 import sys, json
@@ -70,38 +99,24 @@ echo ""
 # Get execution details with verbose error checking
 echo "Fetching execution details for ID: $LATEST_EXEC_ID..."
 
-# Make sure we have an API key
-if [[ -z "$N8N_API_KEY" ]]; then
-    echo "Getting API key..."
-    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
-    if [[ -z "$N8N_API_KEY" ]]; then
-        echo "❌ Could not get API key. Trying basic auth..."
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
-        echo "HTTP Status: $HTTP_CODE"
-        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
-    else
-        export N8N_API_KEY
-    fi
-fi
+# API key is required and should already be set from .env
+# No need to try to create one - just use what's in .env
 
-if [[ -n "$N8N_API_KEY" ]]; then
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
-    echo "HTTP Status: $HTTP_CODE"
-    EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
-else
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
-    echo "HTTP Status: $HTTP_CODE"
-    EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+# Use API key (required for includeData=true)
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+echo "HTTP Status: $HTTP_CODE"
+EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "❌ API request failed with HTTP $HTTP_CODE" >&2
+    echo "Response: $(echo "$EXEC_DETAILS" | head -c 200)" >&2
+    exit 1
 fi
 
 echo "Response length: ${#EXEC_DETAILS} characters"
 if [[ ${#EXEC_DETAILS} -lt 10 ]]; then
     echo "⚠️  Response is very short, trying without includeData..."
-    if [[ -n "$N8N_API_KEY" ]]; then
-        EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
-    else
-        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
-    fi
+    EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
     echo "Response length (without includeData): ${#EXEC_DETAILS} characters"
 fi
 
@@ -111,19 +126,11 @@ if [[ -z "$EXEC_DETAILS" ]] || [[ "$EXEC_DETAILS" == *"error"* ]] || [[ "$EXEC_D
     echo "Response: $EXEC_DETAILS"
     echo ""
     echo "Trying without includeData parameter..."
-    if [[ -n "$N8N_API_KEY" ]]; then
-        EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
-    else
-        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
-    fi
+    EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
     if [[ -z "$EXEC_DETAILS" ]]; then
         echo "Still empty. Checking API response..."
         echo "HTTP Status:"
-        if [[ -n "$N8N_API_KEY" ]]; then
-            curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}"
-        else
-            curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}"
-        fi
+        curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}"
         echo ""
         exit 1
     fi
@@ -135,18 +142,50 @@ echo "$EXEC_DETAILS" > /tmp/exec_response.json 2>/dev/null || true
 # Check if response is valid JSON - try to parse it
 if ! echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
     echo "⚠️  Response is not valid JSON"
-    echo "First 500 characters of response:"
-    echo "$EXEC_DETAILS" | head -c 500
+    echo ""
+    echo "First 200 characters of response:"
+    echo "$EXEC_DETAILS" | head -c 200
     echo ""
     echo ""
-    echo "Full response saved to /tmp/exec_response.json for inspection"
-    echo "Checking response type..."
-    echo "$EXEC_DETAILS" | head -c 100
-    echo ""
-    echo ""
-    echo "This might be HTML or an error page. Checking if n8n is accessible..."
-    curl -s http://localhost:5678 > /dev/null && echo "✅ n8n is accessible" || echo "❌ n8n is not accessible"
-    exit 1
+    
+    # Try to extract JSON from response (might be embedded in HTML or have prefix)
+    JSON_PART=$(echo "$EXEC_DETAILS" | python3 -c "
+import sys
+text = sys.stdin.read()
+# Try to find JSON object
+start = text.find('{')
+if start != -1:
+    # Try to find matching closing brace
+    brace_count = 0
+    for i in range(start, len(text)):
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                print(text[start:i+1])
+                break
+" 2>/dev/null || echo "")
+    
+    if [[ -n "$JSON_PART" ]]; then
+        echo "Found JSON in response, extracting..."
+        EXEC_DETAILS="$JSON_PART"
+        # Try parsing again
+        if echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+            echo "✅ Successfully extracted valid JSON"
+        else
+            echo "❌ Extracted JSON is still invalid"
+            echo "Full response saved to /tmp/exec_response.json for inspection"
+            exit 1
+        fi
+    else
+        echo "❌ Could not extract JSON from response"
+        echo "Full response saved to /tmp/exec_response.json for inspection"
+        echo ""
+        echo "This might be HTML or an error page. Checking if n8n is accessible..."
+        curl -s http://localhost:5678 > /dev/null && echo "✅ n8n is accessible" || echo "❌ n8n is not accessible"
+        exit 1
+    fi
 fi
 
 # Save valid JSON for inspection
