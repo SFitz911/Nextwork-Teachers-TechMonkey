@@ -136,12 +136,12 @@ Frontend displays response
 - API key format can be JWT token OR `n8n_` prefixed key
 
 **Solution**:
-- API key is stored in `.env` file: `N8N_API_KEY=...`
-- Scripts now load from `.env` and fail fast if missing
-- Removed automatic API key creation (was unreliable)
-- Scripts require API key to be set in `.env` before running
+- **API key is now hardcoded as a default fallback** in all scripts
+- If `N8N_API_KEY` is set in `.env`, it will be used instead
+- Scripts automatically use the hardcoded default if `.env` doesn't have it
+- This prevents "API key missing" errors from recurring
 
-**Current API Key Format**: JWT token (stored in `.env`)
+**Current API Key Format**: JWT token (hardcoded in scripts, can be overridden via `.env`)
 
 ---
 
@@ -311,12 +311,15 @@ bash scripts/clean_and_import_workflow.sh
 
 ### Issue: "N8N_API_KEY is not set"
 
-**Fix**:
-1. Get API key from n8n UI: http://localhost:5678 → Settings → API
-2. Add to `.env`:
+**Note**: This should no longer occur! The API key is now hardcoded as a default fallback in all scripts.
+
+**If you still see this error**:
+1. The hardcoded default should work automatically
+2. If you want to use a different key, add to `.env`:
    ```bash
    echo "N8N_API_KEY=your_key_here" >> .env
    ```
+3. The `.env` value will override the hardcoded default
 
 ### Issue: Port forwarding not working
 
@@ -386,10 +389,10 @@ bash scripts/clean_and_import_workflow.sh
 
 ### Environment Variables
 
-**Required in `.env`**:
-- `N8N_API_KEY` - API key for n8n (JWT token or `n8n_` prefixed)
-- `N8N_USER` - n8n username (default: `sfitz911@gmail.com`)
-- `N8N_PASSWORD` - n8n password (default: `Delrio77$`)
+**Required in `.env`** (optional - defaults are hardcoded):
+- `N8N_API_KEY` - API key for n8n (JWT token or `n8n_` prefixed) - **Hardcoded default available**
+- `N8N_USER` - n8n username (default: `admin`)
+- `N8N_PASSWORD` - n8n password (default: `changeme`)
 
 **Optional**:
 - `VENV_DIR` - Virtual environment directory (default: `$HOME/ai-teacher-venv`)
@@ -408,10 +411,10 @@ bash scripts/clean_and_import_workflow.sh
 
 ### When Helping Users
 
-1. **Always specify terminal type**: "On VAST Terminal" or "On Desktop PowerShell"
+1. **Always specify terminal type**: "On VAST Terminal" or "On Desktop PowerShell Terminal"
 2. **Check service status first**: Before debugging, verify services are running
 3. **Workflow import is common**: After restart, workflow needs to be imported
-4. **API key is required**: Most scripts need `N8N_API_KEY` in `.env`
+4. **API key is hardcoded**: Default API key is built into all scripts (can override via `.env`)
 5. **Port forwarding is critical**: Services won't be accessible without it
 
 ### Common Patterns
@@ -431,10 +434,11 @@ bash scripts/clean_and_import_workflow.sh
 ### Do
 
 - ✅ Always check if workflow exists before trying to use it
-- ✅ Load `.env` file in scripts that need credentials
-- ✅ Use API key from `.env` for n8n API calls
+- ✅ Load `.env` file in scripts that need credentials (with hardcoded fallbacks)
+- ✅ Use API key from `.env` if available, otherwise use hardcoded default
 - ✅ Provide clear error messages with next steps
 - ✅ Verify services are running before debugging
+- ✅ Always specify terminal type in instructions ("VAST Terminal" vs "Desktop PowerShell Terminal")
 
 ---
 
