@@ -132,7 +132,7 @@ fi
 # Debug: Save response to file to inspect
 echo "$EXEC_DETAILS" > /tmp/exec_response.json 2>/dev/null || true
 
-# Check if response is valid JSON
+# Check if response is valid JSON - try to parse it
 if ! echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
     echo "⚠️  Response is not valid JSON"
     echo "First 500 characters of response:"
@@ -148,6 +148,9 @@ if ! echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 
     curl -s http://localhost:5678 > /dev/null && echo "✅ n8n is accessible" || echo "❌ n8n is not accessible"
     exit 1
 fi
+
+# Save valid JSON for inspection
+echo "$EXEC_DETAILS" > /tmp/exec_response.json
 
 # Parse and display execution details
 echo "$EXEC_DETAILS" | python3 << 'PYTHON_SCRIPT'
