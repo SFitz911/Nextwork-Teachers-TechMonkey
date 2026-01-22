@@ -165,6 +165,27 @@ async def list_avatars():
     return {"avatars": avatars}
 
 
+@app.get("/avatar/{avatar_id}")
+async def get_avatar(avatar_id: str):
+    """
+    Serve avatar image file
+    """
+    # Try .jpg first, then .png
+    avatar_path = os.path.join(AVATAR_PATH, f"{avatar_id}.jpg")
+    if not os.path.exists(avatar_path):
+        avatar_path = os.path.join(AVATAR_PATH, f"{avatar_id}.png")
+        if not os.path.exists(avatar_path):
+            raise HTTPException(status_code=404, detail=f"Avatar {avatar_id} not found")
+    
+    # Determine media type
+    if avatar_path.endswith(".png"):
+        media_type = "image/png"
+    else:
+        media_type = "image/jpeg"
+    
+    return FileResponse(avatar_path, media_type=media_type)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8002)

@@ -79,6 +79,17 @@ def get_video_stream(teacher_id: str) -> Optional[str]:
     return None
 
 
+def get_avatar_image(teacher_id: str) -> Optional[str]:
+    """
+    Get avatar image URL for teacher from animation API
+    """
+    try:
+        # Get from animation API
+        return f"{ANIMATION_API_URL}/avatar/{teacher_id}"
+    except:
+        return None
+
+
 # Main UI
 st.title("👨‍🏫 AI Virtual Classroom")
 st.markdown("Ask questions in the chat below, and our AI teachers will respond!")
@@ -120,7 +131,15 @@ with col1:
     if video_a:
         st.video(video_a)
     else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+A+Video", use_container_width=True)
+        # Show avatar image if available
+        avatar_a = get_avatar_image("teacher_a")
+        if avatar_a:
+            try:
+                st.image(avatar_a, use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/640x360?text=Maya", use_container_width=True)
+        else:
+            st.image("https://via.placeholder.com/640x360?text=Maya", use_container_width=True)
         st.info("Waiting for Teacher A to speak...")
     
     # Status indicator
@@ -138,30 +157,20 @@ with col2:
     if video_b:
         st.video(video_b)
     else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+B+Video", use_container_width=True)
+        # Show avatar image if available
+        avatar_b = get_avatar_image("teacher_b")
+        if avatar_b:
+            try:
+                st.image(avatar_b, use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/640x360?text=Maximus", use_container_width=True)
+        else:
+            st.image("https://via.placeholder.com/640x360?text=Maximus", use_container_width=True)
         st.info("Waiting for Teacher B to speak...")
     
     # Status indicator
     status_b = st.empty()
     status_b.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_c_name}")
-    
-    # Video player for Teacher C
-    video_c = get_video_stream("teacher_c")
-    if video_c:
-        st.video(video_c)
-    else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+C+Video", use_container_width=True)
-        st.info("Waiting for Teacher C to speak...")
-    
-    # Status indicator
-    status_c = st.empty()
-    status_c.info("🟢 Ready")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -193,7 +202,15 @@ with col4:
     if video_d:
         st.video(video_d)
     else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+D+Video", use_container_width=True)
+        # Show avatar image if available
+        avatar_d = get_avatar_image("teacher_d")
+        if avatar_d:
+            try:
+                st.image(avatar_d, use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/640x360?text=TechMonkey+Steve", use_container_width=True)
+        else:
+            st.image("https://via.placeholder.com/640x360?text=TechMonkey+Steve", use_container_width=True)
         st.info("Waiting for Teacher D to speak...")
     
     # Status indicator
@@ -211,7 +228,15 @@ with col5:
     if video_e:
         st.video(video_e)
     else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+E+Video", use_container_width=True)
+        # Show avatar image if available
+        avatar_e = get_avatar_image("teacher_e")
+        if avatar_e:
+            try:
+                st.image(avatar_e, use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/640x360?text=Pano+Bieber", use_container_width=True)
+        else:
+            st.image("https://via.placeholder.com/640x360?text=Pano+Bieber", use_container_width=True)
         st.info("Waiting for Teacher E to speak...")
     
     # Status indicator
