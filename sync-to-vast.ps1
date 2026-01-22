@@ -1,8 +1,9 @@
 # PowerShell script to commit, push, and sync to VAST instance
-# Usage: .\sync-to-vast.ps1 [commit-message]
+# Usage: .\sync-to-vast.ps1 [commit-message] [-PortForward]
 
 param(
-    [string]$CommitMessage = "Update code"
+    [string]$CommitMessage = "Update code",
+    [switch]$PortForward = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +71,27 @@ try {
     Write-Host "  TTS:       http://localhost:8001" -ForegroundColor White
     Write-Host "  animation: http://localhost:8002" -ForegroundColor White
     Write-Host ""
-    Write-Host "Make sure your SSH port forwarding is active!" -ForegroundColor Yellow
+    
+    # Step 3: Optionally start SSH port forwarding
+    if ($PortForward) {
+        Write-Host "Starting SSH port forwarding in new window..." -ForegroundColor Yellow
+        Start-Process powershell -ArgumentList "-NoExit", "-Command", "ssh -p $VastPort ${VastUser}@${VastHost} -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002"
+        Write-Host "SSH port forwarding started in new PowerShell window" -ForegroundColor Green
+        Write-Host "Keep that window open to maintain port forwarding!" -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+    } else {
+        Write-Host "To start SSH port forwarding, run:" -ForegroundColor Yellow
+        Write-Host "  .\connect-vast.ps1" -ForegroundColor White
+        Write-Host "Or use: .\sync-to-vast.ps1 -PortForward" -ForegroundColor White
+    }
+    
+    Write-Host ""
+    Write-Host "Next steps:" -ForegroundColor Cyan
+    Write-Host "  1. Ensure SSH port forwarding is active" -ForegroundColor White
+    Write-Host "  2. Open http://localhost:5678 in browser and log in" -ForegroundColor White
+    Write-Host "  3. Activate your workflow in n8n" -ForegroundColor White
+    Write-Host "  4. Test the frontend at http://localhost:8501" -ForegroundColor White
+    
 } catch {
     Write-Host ""
     Write-Host "Error syncing to VAST instance:" -ForegroundColor Red
