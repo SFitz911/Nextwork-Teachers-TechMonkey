@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Script to get or create n8n API key
-# Usage: bash scripts/get_or_create_api_key.sh
+# Outputs ONLY the raw API key to stdout, all logging to stderr
+# Usage: export N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh)
 
 set -euo pipefail
 
@@ -17,7 +18,15 @@ N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 N8N_URL="http://localhost:5678"
 
-echo "Getting n8n API key..." >&2
+# Validate API key format: must start with "n8n_" followed by alphanumeric
+validate_api_key() {
+    local key="$1"
+    if [[ "$key" =~ ^n8n_[A-Za-z0-9]+$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
 
 # Try to get existing API keys
 API_KEYS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
@@ -38,20 +47,30 @@ try:
     if isinstance(data, dict) and 'data' in data:
         keys = data['data']
         if keys and len(keys) > 0:
-            print(keys[0].get('apiKey', ''))
+            key = keys[0].get('apiKey', '')
+            if key:
+                print(key)
     elif isinstance(data, list) and len(data) > 0:
-        print(data[0].get('apiKey', ''))
+        key = data[0].get('apiKey', '')
+        if key:
+            print(key)
 except:
     pass
 " 2>/dev/null)
 
+# Validate and output existing key
 if [[ -n "$EXISTING_KEY" ]]; then
-    echo "$EXISTING_KEY"
-    exit 0
+    if validate_api_key "$EXISTING_KEY"; then
+        # ONLY output the key to stdout - no newline, no prefix, nothing else
+        printf '%s' "$EXISTING_KEY"
+        exit 0
+    else
+        echo "❌ Invalid API key format: ${EXISTING_KEY:0:20}..." >&2
+        exit 1
+    fi
 fi
 
 # Try to create a new API key
-echo "No existing API key found. Creating new one..." >&2
 CREATE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
     -X POST \
     -H "Content-Type: application/json" \
@@ -70,15 +89,23 @@ except:
     pass
 " 2>/dev/null)
 
+# Validate and output new key
 if [[ -n "$NEW_KEY" ]]; then
-    echo "$NEW_KEY"
-    # Save to .env for future use
-    if ! grep -q "N8N_API_KEY" .env 2>/dev/null; then
-        echo "N8N_API_KEY=$NEW_KEY" >> .env
-        echo "✅ Saved API key to .env" >&2
+    if validate_api_key "$NEW_KEY"; then
+        # Save to .env for future use
+        if ! grep -q "N8N_API_KEY" .env 2>/dev/null; then
+            echo "N8N_API_KEY=$NEW_KEY" >> .env 2>/dev/null || true
+        fi
+        # ONLY output the key to stdout - no newline, no prefix, nothing else
+        printf '%s' "$NEW_KEY"
+        exit 0
+    else
+        echo "❌ Invalid API key format: ${NEW_KEY:0:20}..." >&2
+        exit 1
     fi
-    exit 0
 fi
 
+# If we get here, we failed to get or create a key
+# Print error to stderr, nothing to stdout, exit 1
 echo "❌ Failed to get or create API key" >&2
 exit 1

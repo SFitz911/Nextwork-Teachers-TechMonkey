@@ -16,8 +16,14 @@ N8N_API_KEY="${N8N_API_KEY:-}"
 if [[ -z "$N8N_API_KEY" ]]; then
     N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
     if [[ -z "$N8N_API_KEY" ]]; then
-        echo "❌ Missing N8N_API_KEY environment variable"
-        echo "   Run: export N8N_API_KEY=\$(bash scripts/get_or_create_api_key.sh)"
+        echo "❌ Missing N8N_API_KEY environment variable" >&2
+        echo "   Run: export N8N_API_KEY=\$(bash scripts/get_or_create_api_key.sh)" >&2
+        exit 1
+    fi
+    # Validate API key format
+    if [[ ! "$N8N_API_KEY" =~ ^n8n_[A-Za-z0-9]+$ ]]; then
+        echo "❌ Invalid N8N_API_KEY format (must start with 'n8n_')" >&2
+        echo "   Got: ${N8N_API_KEY:0:20}..." >&2
         exit 1
     fi
     export N8N_API_KEY
