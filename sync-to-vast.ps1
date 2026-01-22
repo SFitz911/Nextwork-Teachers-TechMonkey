@@ -13,6 +13,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Change to script directory (project root)
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
+
+Write-Host "Working directory: $ScriptDir" -ForegroundColor Gray
+Write-Host ""
+
 # VAST connection details
 $VastPort = 41428
 $VastHost = "50.217.254.161"
