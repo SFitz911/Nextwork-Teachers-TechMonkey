@@ -98,14 +98,13 @@ import sys
 with open('$WORKFLOW_FILE', 'r') as f:
     workflow = json.load(f)
 
-# Keep only fields that n8n API accepts
+# Keep only fields that n8n API accepts (tags is read-only, so exclude it)
 cleaned = {
     "name": workflow.get("name", ""),
     "nodes": workflow.get("nodes", []),
     "connections": workflow.get("connections", {}),
     "settings": workflow.get("settings", {}),
     "staticData": workflow.get("staticData", {}),
-    "tags": workflow.get("tags", []),
 }
 
 with open('$CLEANED_WORKFLOW', 'w') as f:
