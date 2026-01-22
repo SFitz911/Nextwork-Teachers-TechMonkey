@@ -91,7 +91,7 @@ fi
 
 # Clean the workflow JSON (remove fields n8n API doesn't accept)
 echo "Cleaning workflow JSON for API import..."
-python3 << 'PYTHON'
+python3 << PYTHON
 import json
 import sys
 
