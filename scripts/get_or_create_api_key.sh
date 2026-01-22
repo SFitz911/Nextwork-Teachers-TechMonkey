@@ -103,7 +103,7 @@ if [[ -n "$EXISTING_KEY" ]]; then
     fi
 fi
 
-# Try to create a new API key
+# Try to create a new API key using basic auth
 CREATE_HTTP_CODE=$(curl -s -o /tmp/create_key_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
     -X POST \
     -H "Content-Type: application/json" \
@@ -118,6 +118,12 @@ if [[ "$CREATE_HTTP_CODE" != "200" ]] && [[ "$CREATE_HTTP_CODE" != "201" ]]; the
     if [[ -f /tmp/create_key_response.json ]]; then
         echo "Response: $(head -c 200 /tmp/create_key_response.json)" >&2
     fi
+    echo "" >&2
+    echo "You may need to create an API key manually:" >&2
+    echo "  1. Open http://localhost:5678 in your browser" >&2
+    echo "  2. Go to Settings → API" >&2
+    echo "  3. Create a new API key" >&2
+    echo "  4. Add it to .env: echo 'N8N_API_KEY=your_key_here' >> .env" >&2
     rm -f /tmp/create_key_response.json /tmp/api_keys_response.json
     exit 1
 fi
