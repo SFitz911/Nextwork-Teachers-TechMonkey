@@ -14,7 +14,9 @@ if [[ -f ".env" ]]; then
 fi
 
 N8N_URL="${N8N_URL:-http://localhost:5678}"
-N8N_API_KEY="${N8N_API_KEY:-}"
+# Default API key (hardcoded fallback)
+DEFAULT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE1ODkzYS1hY2Q2LTQ2NWYtODcyNS02NDQzZTRkNTkyZTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MDYxNjMwfQ.faRO3CRuldcSQd0-g9sJORo8tUq_vfMMDpOmXQTPH0I"
+N8N_API_KEY="${N8N_API_KEY:-$DEFAULT_API_KEY}"
 N8N_USER="${N8N_USER:-admin}"
 N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 

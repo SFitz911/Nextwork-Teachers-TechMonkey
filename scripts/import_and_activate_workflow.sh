@@ -16,17 +16,16 @@ fi
 # Get credentials
 N8N_USER="${N8N_USER:-admin}"
 N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
-N8N_API_KEY="${N8N_API_KEY:-}"
+# Default API key (hardcoded fallback)
+DEFAULT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE1ODkzYS1hY2Q2LTQ2NWYtODcyNS02NDQzZTRkNTkyZTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MDYxNjMwfQ.faRO3CRuldcSQd0-g9sJORo8tUq_vfMMDpOmXQTPH0I"
+N8N_API_KEY="${N8N_API_KEY:-$DEFAULT_API_KEY}"
 N8N_URL="http://localhost:5678"
 
-# Get or create API key if not set
-if [[ -z "$N8N_API_KEY" ]]; then
-    echo "Getting n8n API key..."
-    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
-    if [[ -n "$N8N_API_KEY" ]]; then
-        export N8N_API_KEY
-        echo "✅ Using API key for authentication"
-    else
+# Use API key for authentication
+if [[ -n "$N8N_API_KEY" ]]; then
+    export N8N_API_KEY
+    echo "✅ Using API key for authentication"
+else
         echo "⚠️  Could not get API key, will try basic auth"
     fi
 fi
