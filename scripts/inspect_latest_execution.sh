@@ -69,16 +69,33 @@ echo ""
 
 # Get execution details
 if [[ -n "$N8N_API_KEY" ]]; then
-    EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
 else
-    EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
 fi
 
 # Check if we got a valid response
 if [[ -z "$EXEC_DETAILS" ]] || [[ "$EXEC_DETAILS" == *"error"* ]] || [[ "$EXEC_DETAILS" == *"Unauthorized"* ]]; then
     echo "❌ Failed to get execution details"
     echo "Response: $EXEC_DETAILS"
-    exit 1
+    echo ""
+    echo "Trying without includeData parameter..."
+    if [[ -n "$N8N_API_KEY" ]]; then
+        EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    else
+        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    fi
+    if [[ -z "$EXEC_DETAILS" ]]; then
+        echo "Still empty. Checking API response..."
+        echo "HTTP Status:"
+        if [[ -n "$N8N_API_KEY" ]]; then
+            curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}"
+        else
+            curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}"
+        fi
+        echo ""
+        exit 1
+    fi
 fi
 
 # Parse and display execution details
