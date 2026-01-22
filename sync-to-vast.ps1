@@ -1,11 +1,5 @@
 # PowerShell script to commit, push, and sync to VAST instance
 # Usage: .\sync-to-vast.ps1 [commit-message]
-# 
-# This script:
-# 1. Commits any changes locally
-# 2. Pushes to GitHub
-# 3. SSHs into VAST instance and pulls latest code
-# 4. Restarts services on VAST instance
 
 param(
     [string]$CommitMessage = "Update code"
@@ -31,7 +25,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Step 1: Check git status
-Write-Host "📋 Checking git status..." -ForegroundColor Yellow
+Write-Host "Checking git status..." -ForegroundColor Yellow
 $status = git status --porcelain
 
 if ($status) {
@@ -40,35 +34,34 @@ if ($status) {
     
     # Add all changes
     Write-Host ""
-    Write-Host "📦 Staging changes..." -ForegroundColor Yellow
+    Write-Host "Staging changes..." -ForegroundColor Yellow
     git add -A
     
     # Commit
-    Write-Host "💾 Committing changes..." -ForegroundColor Yellow
+    Write-Host "Committing changes..." -ForegroundColor Yellow
     git commit -m $CommitMessage
     
     # Push to GitHub
-    Write-Host "🚀 Pushing to GitHub..." -ForegroundColor Yellow
+    Write-Host "Pushing to GitHub..." -ForegroundColor Yellow
     git push origin main
     
-    Write-Host "✅ Changes committed and pushed!" -ForegroundColor Green
+    Write-Host "Changes committed and pushed!" -ForegroundColor Green
 } else {
-    Write-Host "✅ No uncommitted changes" -ForegroundColor Green
+    Write-Host "No uncommitted changes" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "🔌 Connecting to VAST instance..." -ForegroundColor Yellow
+Write-Host "Connecting to VAST instance..." -ForegroundColor Yellow
 
 # Step 2: SSH into VAST and run sync script
-# Use single quotes to prevent PowerShell from parsing bash syntax
 $syncCommand = 'cd ~/Nextwork-Teachers-TechMonkey && git pull origin main && bash scripts/sync_and_restart.sh'
 
 try {
-    ssh -p $VastPort ${VastUser}@${VastHost} $syncCommand
+    ssh -p $VastPort "${VastUser}@${VastHost}" $syncCommand
     
     Write-Host ""
     Write-Host "==========================================" -ForegroundColor Green
-    Write-Host "✅ Sync complete!" -ForegroundColor Green
+    Write-Host "Sync complete!" -ForegroundColor Green
     Write-Host "==========================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "Services should now be running with latest code:" -ForegroundColor Cyan
@@ -80,11 +73,12 @@ try {
     Write-Host "Make sure your SSH port forwarding is active!" -ForegroundColor Yellow
 } catch {
     Write-Host ""
-    Write-Host "❌ Error syncing to VAST instance:" -ForegroundColor Red
+    Write-Host "Error syncing to VAST instance:" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     Write-Host ""
     Write-Host "You may need to:" -ForegroundColor Yellow
     Write-Host "  1. Check your SSH connection" -ForegroundColor Yellow
     Write-Host "  2. Manually run: ssh -p $VastPort ${VastUser}@${VastHost}" -ForegroundColor Yellow
-    Write-Host "  3. Then run: cd ~/Nextwork-Teachers-TechMonkey; git pull; bash scripts/sync_and_restart.sh" -ForegroundColor Yellow
+    $manualCmd = "cd ~/Nextwork-Teachers-TechMonkey; git pull; bash scripts/sync_and_restart.sh"
+    Write-Host "  3. Then run: $manualCmd" -ForegroundColor Yellow
 }
