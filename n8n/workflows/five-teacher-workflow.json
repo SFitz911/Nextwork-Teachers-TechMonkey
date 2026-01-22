@@ -2,7 +2,12 @@
   "name": "AI Virtual Classroom - Five Teacher Workflow",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
       "id": "webhook-trigger",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
