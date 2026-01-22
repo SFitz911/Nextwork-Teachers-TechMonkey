@@ -38,6 +38,7 @@ tmux new-session -d -s "$SESSION" -n n8n
 # Window 0: n8n
 tmux send-keys -t "$SESSION":n8n \
   "cd '$PROJECT_DIR' && source '$VENV_DIR/bin/activate' >/dev/null 2>&1 || true && \
+   export NODE_ENV=production && \
    export N8N_BASIC_AUTH_ACTIVE=true && \
    export N8N_BASIC_AUTH_USER=\"${N8N_USER:-admin}\" && \
    export N8N_BASIC_AUTH_PASSWORD=\"${N8N_PASSWORD:-changeme}\" && \
@@ -65,7 +66,7 @@ tmux send-keys -t "$SESSION":animation \
 tmux new-window -t "$SESSION" -n frontend
 tmux send-keys -t "$SESSION":frontend \
   "cd '$PROJECT_DIR' && source '$VENV_DIR/bin/activate' && \
-   export N8N_WEBHOOK_URL='http://localhost:5678/webhook/chat' && \
+   export N8N_WEBHOOK_URL='http://localhost:5678/webhook/chat-webhook' && \
    export TTS_API_URL='http://localhost:8001' && \
    export ANIMATION_API_URL='http://localhost:8002' && \
    streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee logs/frontend.log" C-m
