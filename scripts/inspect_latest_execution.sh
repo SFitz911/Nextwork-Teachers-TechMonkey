@@ -129,11 +129,19 @@ if [[ -z "$EXEC_DETAILS" ]] || [[ "$EXEC_DETAILS" == *"error"* ]] || [[ "$EXEC_D
     fi
 fi
 
+# Debug: Save response to file to inspect
+echo "$EXEC_DETAILS" > /tmp/exec_response.json 2>/dev/null || true
+
 # Check if response is valid JSON
 if ! echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
     echo "⚠️  Response is not valid JSON"
     echo "First 500 characters of response:"
     echo "$EXEC_DETAILS" | head -c 500
+    echo ""
+    echo ""
+    echo "Full response saved to /tmp/exec_response.json for inspection"
+    echo "Checking response type..."
+    echo "$EXEC_DETAILS" | head -c 100
     echo ""
     echo ""
     echo "This might be HTML or an error page. Checking if n8n is accessible..."
