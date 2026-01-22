@@ -17,7 +17,7 @@ N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 N8N_URL="http://localhost:5678"
 
-echo "Getting n8n API key..."
+echo "Getting n8n API key..." >&2
 
 # Try to get existing API keys
 API_KEYS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
@@ -26,7 +26,7 @@ API_KEYS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
 
 # Check if we got a valid response
 if echo "$API_KEYS_JSON" | grep -q "Unauthorized\|401"; then
-    echo "❌ Authentication failed"
+    echo "❌ Authentication failed" >&2
     exit 1
 fi
 
@@ -51,7 +51,7 @@ if [[ -n "$EXISTING_KEY" ]]; then
 fi
 
 # Try to create a new API key
-echo "No existing API key found. Creating new one..."
+echo "No existing API key found. Creating new one..." >&2
 CREATE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
     -X POST \
     -H "Content-Type: application/json" \
@@ -75,10 +75,10 @@ if [[ -n "$NEW_KEY" ]]; then
     # Save to .env for future use
     if ! grep -q "N8N_API_KEY" .env 2>/dev/null; then
         echo "N8N_API_KEY=$NEW_KEY" >> .env
-        echo "✅ Saved API key to .env"
+        echo "✅ Saved API key to .env" >&2
     fi
     exit 0
 fi
 
-echo "❌ Failed to get or create API key"
+echo "❌ Failed to get or create API key" >&2
 exit 1
