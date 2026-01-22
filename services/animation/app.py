@@ -46,10 +46,12 @@ async def animate_avatar(request: AnimationRequest):
     Generate lip-synced animation from audio
     """
     try:
-        # Load avatar image
+        # Load avatar image (try .jpg first, then .png)
         avatar_path = os.path.join(AVATAR_PATH, f"{request.avatar_id}.jpg")
         if not os.path.exists(avatar_path):
-            raise HTTPException(status_code=404, detail=f"Avatar {request.avatar_id} not found")
+            avatar_path = os.path.join(AVATAR_PATH, f"{request.avatar_id}.png")
+            if not os.path.exists(avatar_path):
+                raise HTTPException(status_code=404, detail=f"Avatar {request.avatar_id} not found (tried .jpg and .png)")
         
         # Process audio (from URL or base64)
         audio_data = await get_audio_data(request.audio_url, request.audio_base64)
