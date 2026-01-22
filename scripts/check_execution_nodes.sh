@@ -15,9 +15,12 @@ N8N_API_KEY="${N8N_API_KEY:-}"
 # Get API key if needed
 if [[ -z "$N8N_API_KEY" ]]; then
     N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
-    if [[ -n "$N8N_API_KEY" ]]; then
-        export N8N_API_KEY
+    if [[ -z "$N8N_API_KEY" ]]; then
+        echo "❌ Missing N8N_API_KEY environment variable"
+        echo "   Run: export N8N_API_KEY=\$(bash scripts/get_or_create_api_key.sh)"
+        exit 1
     fi
+    export N8N_API_KEY
 fi
 
 # Get latest execution ID - try with workflow ID first
