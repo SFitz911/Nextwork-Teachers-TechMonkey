@@ -48,26 +48,50 @@ echo ""
 
 # Get all workflows - API key is required
 echo "Fetching all workflows..."
-WORKFLOWS_JSON=$(curl -s \
+HTTP_CODE=$(curl -s -o /tmp/workflows_response.json -w "%{http_code}" \
     -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
     -H "Content-Type: application/json" \
     "${N8N_URL}/api/v1/workflows" 2>/dev/null)
 
+WORKFLOWS_JSON=$(cat /tmp/workflows_response.json 2>/dev/null || echo "")
+
 # Check if API key works
-if echo "$WORKFLOWS_JSON" | grep -q "unauthorized\|401\|'X-N8N-API-KEY' header required"; then
-    echo "❌ API key authentication failed"
+if [[ "$HTTP_CODE" == "401" ]] || [[ "$HTTP_CODE" == "403" ]] || \
+   echo "$WORKFLOWS_JSON" | grep -q "unauthorized\|'X-N8N-API-KEY' header required"; then
+    echo "❌ API key authentication failed (HTTP $HTTP_CODE)"
     echo "Response: $(echo "$WORKFLOWS_JSON" | head -c 200)"
     echo ""
-    echo "The API key in .env may be invalid or expired."
-    echo "To fix:"
-    echo "  1. Open http://localhost:5678 in your browser"
-    echo "  2. Go to Settings → API"
-    echo "  3. Create a new API key"
-    echo "  4. Update .env: echo 'N8N_API_KEY=your_new_key_here' >> .env"
+    echo "The API key in .env is invalid or expired."
+    echo ""
+    echo "Run this helper script for step-by-step instructions:"
+    echo "   bash scripts/fix_api_key.sh"
+    echo ""
+    echo "Or manually:"
+    echo "  1. Ensure port forwarding is active: .\connect-vast.ps1 (Desktop PowerShell)"
+    echo "  2. Open http://localhost:5678 in your browser"
+    echo "  3. Log in with your credentials"
+    echo "  4. Go to Settings → API"
+    echo "  5. Create a NEW API key (or use existing one)"
+    echo "  6. Update .env with the new key:"
+    echo "     sed -i 's/^N8N_API_KEY=.*/N8N_API_KEY=your_new_key_here/' .env"
+    echo "     # Or manually edit .env"
+    echo ""
+    echo "Then run this script again."
+    rm -f /tmp/workflows_response.json
+    exit 1
+fi
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "❌ Failed to fetch workflows (HTTP $HTTP_CODE)"
+    echo "Response: $(echo "$WORKFLOWS_JSON" | head -c 200)"
+    echo ""
+    echo "Check if n8n is running: curl http://localhost:5678"
+    rm -f /tmp/workflows_response.json
     exit 1
 fi
 
 echo "✅ API key authentication working"
+rm -f /tmp/workflows_response.json
 
 # Backup existing workflows before deletion
 BACKUP_DIR="$PROJECT_DIR/backups/workflows"

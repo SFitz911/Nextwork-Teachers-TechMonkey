@@ -66,13 +66,36 @@ if [[ -z "${N8N_API_KEY:-}" ]]; then
     echo ""
     ERRORS=$((ERRORS + 1))
 else
-    # Validate API key format
-    if [[ "$N8N_API_KEY" =~ ^n8n_[A-Za-z0-9]+$ ]] || \
-       [[ "$N8N_API_KEY" =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
-        echo "✅ N8N_API_KEY is set and format looks valid"
+    # Test API key by making actual API call
+    echo "   Testing API key..."
+    TEST_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "http://localhost:5678/api/v1/workflows" 2>/dev/null || echo "000")
+    
+    if [[ "$TEST_RESPONSE" == "200" ]]; then
+        echo "✅ N8N_API_KEY is set and working"
+    elif [[ "$TEST_RESPONSE" == "401" ]] || [[ "$TEST_RESPONSE" == "403" ]]; then
+        echo "❌ N8N_API_KEY is invalid or expired (HTTP $TEST_RESPONSE)"
+        echo ""
+        echo "   The API key in .env is not working. To fix:"
+        echo "   1. Ensure port forwarding is active: .\connect-vast.ps1 (Desktop PowerShell)"
+        echo "   2. Open http://localhost:5678 in your browser"
+        echo "   3. Log in with your N8N_USER and N8N_PASSWORD"
+        echo "   4. Go to Settings → API"
+        echo "   5. Create a NEW API key"
+        echo "   6. Update .env:"
+        echo "      sed -i 's/^N8N_API_KEY=.*/N8N_API_KEY=your_new_key_here/' .env"
+        echo "      # Or manually edit .env and replace the old key"
+        echo ""
+        ERRORS=$((ERRORS + 1))
+    elif [[ "$TEST_RESPONSE" == "000" ]] || [[ "$TEST_RESPONSE" == "" ]]; then
+        echo "⚠️  Could not test API key (n8n may not be running)"
+        echo "   API key is set, but cannot verify it works"
+        echo "   Format looks OK, but test it after starting services"
+        WARNINGS=$((WARNINGS + 1))
     else
-        echo "⚠️  N8N_API_KEY format may be invalid"
-        echo "   Expected: 'n8n_...' or JWT token format"
+        echo "⚠️  API key test returned HTTP $TEST_RESPONSE"
+        echo "   API key is set, but may not be working correctly"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
