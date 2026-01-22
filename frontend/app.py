@@ -183,7 +183,15 @@ with col3:
     if video_c:
         st.video(video_c)
     else:
-        st.image("https://via.placeholder.com/640x360?text=Teacher+C+Video", use_container_width=True)
+        # Show avatar image if available
+        avatar_c = get_avatar_image("teacher_c")
+        if avatar_c:
+            try:
+                st.image(avatar_c, use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/640x360?text=Krishna", use_container_width=True)
+        else:
+            st.image("https://via.placeholder.com/640x360?text=Krishna", use_container_width=True)
         st.info("Waiting for Teacher C to speak...")
     
     # Status indicator
