@@ -44,19 +44,30 @@ Write-Host 'Port forwarding will stop if you close this window!' -ForegroundColo
 Write-Host ''
 Write-Host 'Connecting to VAST.ai...' -ForegroundColor Green
 Write-Host ''
-ssh $sshArgs
-if (`$LASTEXITCODE -ne 0) {
+Write-Host 'If connection fails, check:' -ForegroundColor Yellow
+Write-Host '  1. SSH key is added to VAST instance' -ForegroundColor White
+Write-Host '  2. Instance is running on Vast.ai dashboard' -ForegroundColor White
+Write-Host '  3. IP/port are correct in connect-vast.ps1' -ForegroundColor White
+Write-Host ''
+try {
+    ssh $sshArgs
+} catch {
     Write-Host ''
-    Write-Host 'SSH connection failed or closed!' -ForegroundColor Red
-    Write-Host 'Press any key to exit...' -ForegroundColor Yellow
-    `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    Write-Host 'SSH connection error!' -ForegroundColor Red
+    Write-Host `$_.Exception.Message -ForegroundColor Red
 }
+Write-Host ''
+Write-Host 'SSH connection closed or failed.' -ForegroundColor Yellow
+Write-Host 'This window will stay open for 30 seconds so you can see any errors.' -ForegroundColor Yellow
+Write-Host ''
+Start-Sleep -Seconds 30
 "@
 
 Set-Content -Path $tempScript -Value $scriptContent
 
 # Start the new PowerShell window with the script
-Start-Process powershell -ArgumentList "-NoExit", "-File", $tempScript
+# Use -NoExit to keep window open even if script completes
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", $tempScript
 
 Write-Host "✅ SSH port forwarding started in new window!" -ForegroundColor Green
 Write-Host ""
