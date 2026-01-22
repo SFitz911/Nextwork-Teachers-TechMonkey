@@ -74,6 +74,13 @@ else
     EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
 fi
 
+# Check if we got a valid response
+if [[ -z "$EXEC_DETAILS" ]] || [[ "$EXEC_DETAILS" == *"error"* ]] || [[ "$EXEC_DETAILS" == *"Unauthorized"* ]]; then
+    echo "❌ Failed to get execution details"
+    echo "Response: $EXEC_DETAILS"
+    exit 1
+fi
+
 # Parse and display execution details
 echo "$EXEC_DETAILS" | python3 << 'PYTHON_SCRIPT'
 import sys
@@ -181,6 +188,10 @@ try:
 except Exception as e:
     print(f"Error parsing execution: {e}")
     print("\nRaw execution data (first 1000 chars):")
-    sys.stdin.seek(0)
-    print(sys.stdin.read()[:1000])
+    import sys
+    raw_data = sys.stdin.read() if hasattr(sys.stdin, 'read') else ""
+    if raw_data:
+        print(raw_data[:1000])
+    else:
+        print("(No data available)")
 PYTHON_SCRIPT
