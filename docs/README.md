@@ -11,6 +11,7 @@ Welcome to the AI Virtual Classroom documentation! This index organizes all avai
 ## ⚙️ Setup & Configuration
 
 - **[SSH Setup](SSH_SETUP.md)** - Complete guide for setting up SSH keys and connecting to VAST instances
+- **[Port Forwarding Required](PORT_FORWARDING_REQUIRED.md)** - **⚠️ READ THIS FIRST** - Why localhost URLs don't work without port forwarding
 - **[Port Forwarding Guide](PORT_FORWARDING_GUIDE.md)** - How to set up and maintain SSH port forwarding
 - **[Terminal Guide](TERMINAL_GUIDE.md)** - Understanding Desktop PowerShell vs VAST Terminal
 - **[VAST Instance Selection](VAST_AI_INSTANCE_SELECTION.md)** - How to select the right VAST.ai instance
@@ -39,9 +40,10 @@ Welcome to the AI Virtual Classroom documentation! This index organizes all avai
 ### Most Common Tasks
 
 1. **After VAST Restart**: See [Fresh Start](FRESH_START.md) or run `bash scripts/restart_and_setup.sh`
-2. **Port Forwarding Issues**: See [Port Forwarding Guide](PORT_FORWARDING_GUIDE.md)
-3. **Webhook Problems**: See [Debug Webhook Issue](DEBUG_WEBHOOK_ISSUE.md)
-4. **Script Questions**: See [Script Audit](SCRIPT_AUDIT.md)
+2. **Services show as "running" but localhost doesn't work**: See [Port Forwarding Required](PORT_FORWARDING_REQUIRED.md) ⚠️
+3. **Port Forwarding Issues**: See [Port Forwarding Guide](PORT_FORWARDING_GUIDE.md)
+4. **Webhook Problems**: See [Debug Webhook Issue](DEBUG_WEBHOOK_ISSUE.md)
+5. **Script Questions**: See [Script Audit](SCRIPT_AUDIT.md)
 
 ### Documentation Files
 
