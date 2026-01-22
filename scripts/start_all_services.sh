@@ -20,6 +20,11 @@ if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
+# Default API key (hardcoded fallback) - use if not in .env
+if [[ -z "${N8N_API_KEY:-}" ]]; then
+    export N8N_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE1ODkzYS1hY2Q2LTQ2NWYtODcyNS02NDQzZTRkNTkyZTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MDYxNjMwfQ.faRO3CRuldcSQd0-g9sJORo8tUq_vfMMDpOmXQTPH0I"
+fi
+
 SESSION="ai-teacher"
 VENV_DIR="${VENV_DIR:-$HOME/ai-teacher-venv}"
 

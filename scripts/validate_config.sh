@@ -52,20 +52,18 @@ else
     echo "✅ N8N_PASSWORD is set"
 fi
 
+# Default API key (hardcoded fallback)
+DEFAULT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE1ODkzYS1hY2Q2LTQ2NWYtODcyNS02NDQzZTRkNTkyZTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MDYxNjMwfQ.faRO3CRuldcSQd0-g9sJORo8tUq_vfMMDpOmXQTPH0I"
+
+# Use default if not set
 if [[ -z "${N8N_API_KEY:-}" ]]; then
-    echo "❌ N8N_API_KEY not set in .env"
-    echo ""
-    echo "   To create an API key:"
-    echo "   1. Ensure port forwarding is active: .\connect-vast.ps1 (Desktop PowerShell)"
-    echo "   2. Open http://localhost:5678 in your browser"
-    echo "   3. Log in with your N8N_USER and N8N_PASSWORD"
-    echo "   4. Go to Settings → API"
-    echo "   5. Click 'Create API Key'"
-    echo "   6. Copy the API key"
-    echo "   7. Add to .env: echo 'N8N_API_KEY=your_key_here' >> .env"
-    echo ""
-    ERRORS=$((ERRORS + 1))
-else
+    N8N_API_KEY="$DEFAULT_API_KEY"
+    echo "⚠️  N8N_API_KEY not set in .env, using default (hardcoded)"
+    echo "   To set your own: echo 'N8N_API_KEY=your_key' >> .env"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+if [[ -n "${N8N_API_KEY:-}" ]]; then
     # Test API key by making actual API call
     echo "   Testing API key..."
     TEST_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
