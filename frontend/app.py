@@ -64,7 +64,22 @@ def send_chat_message(message: str) -> dict:
             timeout=30
         )
         response.raise_for_status()
-        return response.json()
+        
+        # Check if response has content
+        if not response.text:
+            st.error("Error: Empty response from webhook")
+            return {}
+        
+        # Try to parse JSON
+        try:
+            return response.json()
+        except ValueError as e:
+            st.error(f"Error parsing response: {str(e)}")
+            st.error(f"Response was: {response.text[:200]}")
+            return {}
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error sending message: {str(e)}")
+        return {}
     except Exception as e:
         st.error(f"Error sending message: {str(e)}")
         return {}
