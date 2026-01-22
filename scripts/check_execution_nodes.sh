@@ -63,10 +63,23 @@ else
 fi
 
 # Debug: show what we got
-echo "Executions API response (first 200 chars):"
-echo "$EXECUTIONS" | head -c 200
+echo "Executions API response (first 500 chars):"
+echo "$EXECUTIONS" | head -c 500
 echo ""
 echo ""
+
+# Check if response is valid JSON
+if ! echo "$EXECUTIONS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+    echo "⚠️  API response is not valid JSON"
+    echo "Full response:"
+    echo "$EXECUTIONS"
+    echo ""
+    echo "This might mean:"
+    echo "  1. API key is invalid or missing"
+    echo "  2. n8n API endpoint changed"
+    echo "  3. No executions exist yet"
+    exit 1
+fi
 
 LATEST_EXEC_ID=$(echo "$EXECUTIONS" | python3 -c "
 import json, sys
