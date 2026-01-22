@@ -114,6 +114,18 @@ if [[ -z "$EXEC_DETAILS" ]] || [[ "$EXEC_DETAILS" == *"error"* ]] || [[ "$EXEC_D
     fi
 fi
 
+# Check if response is valid JSON
+if ! echo "$EXEC_DETAILS" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+    echo "⚠️  Response is not valid JSON"
+    echo "First 500 characters of response:"
+    echo "$EXEC_DETAILS" | head -c 500
+    echo ""
+    echo ""
+    echo "This might be HTML or an error page. Checking if n8n is accessible..."
+    curl -s http://localhost:5678 > /dev/null && echo "✅ n8n is accessible" || echo "❌ n8n is not accessible"
+    exit 1
+fi
+
 # Parse and display execution details
 echo "$EXEC_DETAILS" | python3 << 'PYTHON_SCRIPT'
 import sys
