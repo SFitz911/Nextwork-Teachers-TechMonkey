@@ -69,6 +69,21 @@ echo ""
 
 # Get execution details with verbose error checking
 echo "Fetching execution details for ID: $LATEST_EXEC_ID..."
+
+# Make sure we have an API key
+if [[ -z "$N8N_API_KEY" ]]; then
+    echo "Getting API key..."
+    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
+    if [[ -z "$N8N_API_KEY" ]]; then
+        echo "❌ Could not get API key. Trying basic auth..."
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+        echo "HTTP Status: $HTTP_CODE"
+        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+    else
+        export N8N_API_KEY
+    fi
+fi
+
 if [[ -n "$N8N_API_KEY" ]]; then
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
     echo "HTTP Status: $HTTP_CODE"
