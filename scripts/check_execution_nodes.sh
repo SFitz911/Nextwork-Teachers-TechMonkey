@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Check which nodes actually executed in the latest execution
+# Usage: bash scripts/check_execution_nodes.sh
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+N8N_URL="http://localhost:5678"
+N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
+N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+
+# Get latest execution ID
+EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+
+LATEST_EXEC_ID=$(echo "$EXECUTIONS" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    executions = data.get('data', [])
+    if executions:
+        print(executions[0].get('id', ''))
+except:
+    pass
+" 2>/dev/null)
+
+if [[ -z "$LATEST_EXEC_ID" ]]; then
+    echo "❌ No executions found"
+    exit 1
+fi
+
+echo "Latest Execution ID: $LATEST_EXEC_ID"
+echo ""
+
+# Get execution data - save to file first
+EXEC_DATA=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+
+# Save to file for inspection
+echo "$EXEC_DATA" > /tmp/exec_full.json
+
+# Parse and show nodes
+echo "$EXEC_DATA" | python3 << 'PYTHON'
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+    exec_data = data.get('data', {})
+    
+    print(f"Status: {exec_data.get('status', 'unknown')}")
+    print(f"Finished: {exec_data.get('finished', False)}")
+    print(f"Started: {exec_data.get('startedAt', 'N/A')}")
+    print(f"Stopped: {exec_data.get('stoppedAt', 'N/A')}")
+    print()
+    
+    result_data = exec_data.get('data', {}).get('resultData', {})
+    run_data = result_data.get('runData', {})
+    
+    if not run_data:
+        print("❌ No node execution data found")
+        print("This means the workflow stopped immediately after webhook trigger")
+        sys.exit(0)
+    
+    print("Nodes that executed:")
+    print("=" * 60)
+    
+    for node_name, node_runs in run_data.items():
+        if node_runs and len(node_runs) > 0:
+            last_run = node_runs[-1]
+            error = last_run.get('error', {})
+            status = last_run.get('executionStatus', 'unknown')
+            
+            if error:
+                print(f"❌ {node_name}: ERROR")
+                print(f"   {error.get('message', 'Unknown error')}")
+            elif status == 'success':
+                print(f"✅ {node_name}: Success")
+            else:
+                print(f"⚠️  {node_name}: {status}")
+        else:
+            print(f"⚪ {node_name}: Not executed")
+    
+    print()
+    print("=" * 60)
+    
+    # Check if Respond to Webhook executed
+    respond_found = False
+    for node_name in run_data.keys():
+        if 'respond' in node_name.lower() or 'webhook' in node_name.lower():
+            if node_name != 'Webhook Trigger':
+                respond_found = True
+                print(f"\n✅ 'Respond to Webhook' node found: {node_name}")
+                break
+    
+    if not respond_found:
+        print("\n❌ 'Respond to Webhook' node did NOT execute!")
+        print("   The workflow is stopping before reaching the response node.")
+        
+except Exception as e:
+    print(f"Error: {e}")
+    print("\nRaw data saved to /tmp/exec_full.json")
+    print("First 500 chars:")
+    sys.stdin.seek(0)
+    print(sys.stdin.read()[:500])
+PYTHON
