@@ -11,8 +11,31 @@ N8N_URL="http://localhost:5678"
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 
-# Get latest execution ID
-EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+# Get latest execution ID - try with workflow ID first
+WORKFLOW_ID=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        if 'Five Teacher' in wf.get('name', ''):
+            print(wf.get('id', ''))
+            break
+except:
+    pass
+" 2>/dev/null)
+
+if [[ -n "$WORKFLOW_ID" ]]; then
+    echo "Workflow ID: $WORKFLOW_ID"
+    EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
+else
+    EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+fi
+
+# Debug: show what we got
+echo "Executions API response (first 200 chars):"
+echo "$EXECUTIONS" | head -c 200
+echo ""
+echo ""
 
 LATEST_EXEC_ID=$(echo "$EXECUTIONS" | python3 -c "
 import json, sys
@@ -21,9 +44,12 @@ try:
     executions = data.get('data', [])
     if executions:
         print(executions[0].get('id', ''))
-except:
-    pass
-" 2>/dev/null)
+    else:
+        print('')
+except Exception as e:
+    print('')
+    sys.stderr.write(f'Error: {e}\\n')
+" 2>&1)
 
 if [[ -z "$LATEST_EXEC_ID" ]]; then
     echo "❌ No executions found"
