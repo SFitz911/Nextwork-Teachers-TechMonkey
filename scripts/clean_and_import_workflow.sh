@@ -13,28 +13,24 @@ if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
+# Validate configuration first
+if ! bash scripts/validate_config.sh 2>/dev/null; then
+    echo ""
+    echo "❌ Configuration validation failed"
+    echo "   Run: bash scripts/validate_config.sh"
+    exit 1
+fi
+
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
 N8N_API_KEY="${N8N_API_KEY:-}"
 N8N_URL="http://localhost:5678"
 
-# Get or create API key - required for workflow operations
+# API key is required - validate_config.sh should have caught this, but double-check
 if [[ -z "$N8N_API_KEY" ]]; then
-    echo "API key not found, attempting to get or create one..."
-    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
-    if [[ -n "$N8N_API_KEY" ]]; then
-        export N8N_API_KEY
-        echo "✅ Got API key"
-    else
-        echo "⚠️  Could not get API key automatically"
-        echo "   n8n requires an API key for workflow operations"
-        echo "   You can create one manually:"
-        echo "   1. Open http://localhost:5678 in your browser"
-        echo "   2. Go to Settings → API"
-        echo "   3. Create a new API key"
-        echo "   4. Add it to .env: echo 'N8N_API_KEY=your_key_here' >> .env"
-        exit 1
-    fi
+    echo "❌ N8N_API_KEY is required but not set"
+    echo "   Run: bash scripts/validate_config.sh"
+    exit 1
 fi
 
 echo "=========================================="
@@ -64,6 +60,20 @@ if echo "$WORKFLOWS_JSON" | grep -q "unauthorized\|401\|'X-N8N-API-KEY' header r
 fi
 
 echo "✅ API key authentication working"
+
+# Backup existing workflows before deletion
+BACKUP_DIR="$PROJECT_DIR/backups/workflows"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/workflow_backup_$(date +%Y%m%d_%H%M%S).json"
+
+echo "Backing up existing workflows..."
+if echo "$WORKFLOWS_JSON" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+    echo "$WORKFLOWS_JSON" > "$BACKUP_FILE"
+    echo "✅ Workflows backed up to: $BACKUP_FILE"
+else
+    echo "⚠️  Could not backup workflows (invalid JSON response)"
+fi
+echo ""
 
 # Delete all old workflows
 echo "Deleting old workflows..."
@@ -184,10 +194,47 @@ if [[ -z "$NEW_WORKFLOW_ID" ]]; then
     echo "❌ Failed to import workflow"
     echo "Response:"
     echo "$IMPORT_RESPONSE" | head -20
+    echo ""
+    echo "Attempting to restore from backup..."
+    
+    # Try to restore from most recent backup
+    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.json 2>/dev/null | head -1)
+    if [[ -n "$LATEST_BACKUP" ]] && [[ -f "$LATEST_BACKUP" ]]; then
+        echo "   Found backup: $LATEST_BACKUP"
+        echo "   You may need to import workflow manually through n8n UI"
+        echo "   Or check the backup file for workflow details"
+    fi
+    
     exit 1
 fi
 
 echo "✅ Workflow imported (ID: $NEW_WORKFLOW_ID)"
+
+# Verify workflow was imported correctly
+echo "Verifying workflow import..."
+sleep 2
+VERIFY_WORKFLOW=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+    "${N8N_URL}/api/v1/workflows" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        if wf.get('id') == '$NEW_WORKFLOW_ID':
+            name = wf.get('name', 'Unknown')
+            active = wf.get('active', False)
+            print(f'{name}|{active}')
+            break
+except:
+    pass
+" 2>/dev/null)
+
+if [[ -n "$VERIFY_WORKFLOW" ]]; then
+    WORKFLOW_NAME=$(echo "$VERIFY_WORKFLOW" | cut -d'|' -f1)
+    WORKFLOW_ACTIVE=$(echo "$VERIFY_WORKFLOW" | cut -d'|' -f2)
+    echo "✅ Workflow verified: $WORKFLOW_NAME (active: $WORKFLOW_ACTIVE)"
+else
+    echo "⚠️  Could not verify workflow import"
+fi
 echo ""
 
 # Activate the workflow

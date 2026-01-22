@@ -22,8 +22,12 @@ fi
 # Load .env for n8n basic auth if present
 if [[ -f ".env" ]]; then
   # shellcheck disable=SC2046
-  export $(grep -v '^#' .env | xargs -d '\n' || true)
+  export $(grep -v '^#' .env | xargs)
 fi
+
+# Use environment variables with sensible defaults (but prefer .env)
+N8N_USER="${N8N_USER:-admin}"
+N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 
 mkdir -p logs
 
@@ -40,8 +44,8 @@ tmux send-keys -t "$SESSION":n8n \
   "cd '$PROJECT_DIR' && source '$VENV_DIR/bin/activate' >/dev/null 2>&1 || true && \
    export NODE_ENV=production && \
    export N8N_BASIC_AUTH_ACTIVE=true && \
-   export N8N_BASIC_AUTH_USER=\"${N8N_USER:-admin}\" && \
-   export N8N_BASIC_AUTH_PASSWORD=\"${N8N_PASSWORD:-changeme}\" && \
+   export N8N_BASIC_AUTH_USER=\"${N8N_USER}\" && \
+   export N8N_BASIC_AUTH_PASSWORD=\"${N8N_PASSWORD}\" && \
    export N8N_HOST=\"${N8N_HOST:-0.0.0.0}\" && \
    export N8N_PORT=5678 && \
    export N8N_PROTOCOL=http && \

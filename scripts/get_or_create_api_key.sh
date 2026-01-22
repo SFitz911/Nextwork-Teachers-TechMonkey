@@ -14,9 +14,10 @@ if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
-N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
-N8N_URL="http://localhost:5678"
+# Use defaults from .env (no hardcoded credentials)
+N8N_USER="${N8N_USER:-admin}"
+N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
+N8N_URL="${N8N_URL:-http://localhost:5678}"
 
 # Validate API key format: can be n8n_ format OR JWT token
 validate_api_key() {
@@ -32,21 +33,40 @@ validate_api_key() {
     fi
 }
 
-# Try to get existing API keys
-HTTP_CODE=$(curl -s -o /tmp/api_keys_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -H "Content-Type: application/json" \
-    "${N8N_URL}/api/v1/api-keys" 2>/dev/null)
+# Try to get existing API keys - try multiple endpoint paths
+# Some n8n versions use different paths
+ENDPOINTS=(
+    "/api/v1/api-keys"
+    "/rest/api-keys"
+    "/api/api-keys"
+)
 
-API_KEYS_JSON=$(cat /tmp/api_keys_response.json 2>/dev/null || echo "")
+API_KEYS_JSON=""
+HTTP_CODE=""
+
+for ENDPOINT in "${ENDPOINTS[@]}"; do
+    HTTP_CODE=$(curl -s -o /tmp/api_keys_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}${ENDPOINT}" 2>/dev/null)
+    
+    if [[ "$HTTP_CODE" == "200" ]]; then
+        API_KEYS_JSON=$(cat /tmp/api_keys_response.json 2>/dev/null || echo "")
+        break
+    fi
+done
 
 # Check HTTP status code
 if [[ "$HTTP_CODE" != "200" ]]; then
-    echo "❌ API returned HTTP $HTTP_CODE" >&2
+    echo "❌ API key endpoint not found (tried multiple paths, got HTTP $HTTP_CODE)" >&2
     if [[ -f /tmp/api_keys_response.json ]]; then
         echo "Response: $(head -c 200 /tmp/api_keys_response.json)" >&2
     fi
-    # Try to use basic auth for other endpoints instead
-    echo "⚠️  API key endpoint may require different authentication. Trying alternative method..." >&2
+    echo "" >&2
+    echo "⚠️  Cannot create API key programmatically. You need to create it manually:" >&2
+    echo "  1. Open http://localhost:5678 in your browser (with port forwarding active)" >&2
+    echo "  2. Go to Settings → API" >&2
+    echo "  3. Create a new API key" >&2
+    echo "  4. Add it to .env: echo 'N8N_API_KEY=your_key_here' >> .env" >&2
     rm -f /tmp/api_keys_response.json
     exit 1
 fi
@@ -103,12 +123,22 @@ if [[ -n "$EXISTING_KEY" ]]; then
     fi
 fi
 
-# Try to create a new API key using basic auth
-CREATE_HTTP_CODE=$(curl -s -o /tmp/create_key_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"name": "Auto-generated API Key"}' \
-    "${N8N_URL}/api/v1/api-keys" 2>/dev/null)
+# Try to create a new API key using basic auth - try multiple endpoints
+CREATE_HTTP_CODE=""
+CREATE_RESPONSE=""
+
+for ENDPOINT in "${ENDPOINTS[@]}"; do
+    CREATE_HTTP_CODE=$(curl -s -o /tmp/create_key_response.json -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"name": "Auto-generated API Key"}' \
+        "${N8N_URL}${ENDPOINT}" 2>/dev/null)
+    
+    if [[ "$CREATE_HTTP_CODE" == "200" ]] || [[ "$CREATE_HTTP_CODE" == "201" ]]; then
+        CREATE_RESPONSE=$(cat /tmp/create_key_response.json 2>/dev/null || echo "")
+        break
+    fi
+done
 
 CREATE_RESPONSE=$(cat /tmp/create_key_response.json 2>/dev/null || echo "")
 
