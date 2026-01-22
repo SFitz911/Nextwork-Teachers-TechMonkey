@@ -178,8 +178,8 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseMode": "lastNode",
+        "responseData": "allFields",
         "options": {}
       },
       "id": "respond-to-webhook",
