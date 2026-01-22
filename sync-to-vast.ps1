@@ -60,11 +60,8 @@ Write-Host ""
 Write-Host "🔌 Connecting to VAST instance..." -ForegroundColor Yellow
 
 # Step 2: SSH into VAST and run sync script
-$syncCommand = @"
-cd ~/Nextwork-Teachers-TechMonkey && 
-git pull origin main && 
-bash scripts/sync_and_restart.sh
-"@
+# Use single quotes to prevent PowerShell from parsing bash syntax
+$syncCommand = 'cd ~/Nextwork-Teachers-TechMonkey && git pull origin main && bash scripts/sync_and_restart.sh'
 
 try {
     ssh -p $VastPort ${VastUser}@${VastHost} $syncCommand
@@ -89,5 +86,5 @@ try {
     Write-Host "You may need to:" -ForegroundColor Yellow
     Write-Host "  1. Check your SSH connection" -ForegroundColor Yellow
     Write-Host "  2. Manually run: ssh -p $VastPort ${VastUser}@${VastHost}" -ForegroundColor Yellow
-    Write-Host "  3. Then run: cd ~/Nextwork-Teachers-TechMonkey && git pull && bash scripts/sync_and_restart.sh" -ForegroundColor Yellow
+    Write-Host "  3. Then run: cd ~/Nextwork-Teachers-TechMonkey; git pull; bash scripts/sync_and_restart.sh" -ForegroundColor Yellow
 }
