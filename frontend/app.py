@@ -67,7 +67,24 @@ def send_chat_message(message: str) -> dict:
         
         # Check if response has content
         if not response.text:
-            st.error("Error: Empty response from webhook")
+            st.error("❌ Error: Empty response from webhook")
+            st.warning("""
+            **The workflow executed but didn't return a response.**
+            
+            This usually means the workflow is failing before reaching the 'Respond to Webhook' node.
+            
+            **To diagnose:**
+            1. Open n8n UI: http://localhost:5678
+            2. Go to 'Workflows' → 'AI Virtual Classroom - Five Teacher Workflow'
+            3. Click the 'Executions' tab
+            4. Check the latest execution to see which node failed
+            
+            **Common issues:**
+            - Workflow not activated (check green toggle in n8n)
+            - Ollama service not running
+            - Code node syntax error
+            - Service timeout
+            """)
             return {}
         
         # Try to parse JSON
@@ -77,11 +94,30 @@ def send_chat_message(message: str) -> dict:
             st.error(f"Error parsing response: {str(e)}")
             st.error(f"Response was: {response.text[:200]}")
             return {}
+    except requests.exceptions.Timeout:
+        st.error("❌ Request timed out after 30 seconds")
+        st.warning("The workflow may be taking too long. Check if Ollama and other services are running.")
+        return {}
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to webhook")
+        st.warning(f"""
+        **Connection failed to:** {N8N_WEBHOOK_URL}
+        
+        **Possible causes:**
+        1. Port forwarding not active - Run: `.\connect-vast.ps1`
+        2. n8n service not running
+        3. Wrong webhook URL
+        
+        **Check port forwarding:** Run `.\scripts\check_port_forwarding.ps1`
+        """)
+        return {}
     except requests.exceptions.RequestException as e:
         st.error(f"Error sending message: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            st.error(f"HTTP Status: {e.response.status_code}")
         return {}
     except Exception as e:
-        st.error(f"Error sending message: {str(e)}")
+        st.error(f"Unexpected error: {str(e)}")
         return {}
 
 
@@ -309,7 +345,19 @@ with col_send:
                     st.session_state.chat_history[-1]["response"] = result.get("response", "Processing...")
                     st.rerun()
                 else:
-                    st.error("Failed to get response. Please check service status.")
+                    st.error("❌ Failed to get response. Please check service status.")
+                    st.info("""
+                    💡 **To diagnose:**
+                    
+                    **1. Check port forwarding** (Desktop PowerShell):
+                       `.\scripts\check_port_forwarding.ps1`
+                    
+                    **2. Run diagnostic** (VAST Terminal):
+                       `bash scripts/diagnose_webhook_issue.sh`
+                    
+                    **3. Check which node failed** (VAST Terminal):
+                       `bash scripts/debug_webhook_execution.sh`
+                    """)
 
 with col_clear:
     if st.button("🗑️ Clear"):

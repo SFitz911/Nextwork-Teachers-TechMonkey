@@ -1,24 +1,42 @@
 # PowerShell script to connect to Vast.ai with port forwarding
 # Usage: .\connect-vast.ps1 [direct|gateway]
+#
+# IMPORTANT: This opens SSH in a NEW PowerShell window.
+# Keep that window open for port forwarding to work!
+# DO NOT close the SSH window while using services.
 
 param(
     [string]$Method = "gateway"
 )
 
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "Starting SSH Port Forwarding" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "This will open a NEW PowerShell window with SSH connection." -ForegroundColor Yellow
+Write-Host "KEEP THAT WINDOW OPEN for port forwarding to work!" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Ports being forwarded:" -ForegroundColor White
+Write-Host "  - 5678  → n8n" -ForegroundColor White
+Write-Host "  - 8501  → Frontend" -ForegroundColor White
+Write-Host "  - 8001  → TTS" -ForegroundColor White
+Write-Host "  - 8002  → Animation" -ForegroundColor White
+Write-Host "  - 11434 → Ollama" -ForegroundColor White
+Write-Host ""
+Write-Host "Opening SSH connection in new window..." -ForegroundColor Green
+Write-Host ""
+
 if ($Method -eq "direct") {
-    Write-Host "Connecting via direct IP with port forwarding..." -ForegroundColor Green
-    ssh -p 41428 root@50.217.254.161 `
-        -L 5678:localhost:5678 `
-        -L 8501:localhost:8501 `
-        -L 8001:localhost:8001 `
-        -L 8002:localhost:8002 `
-        -L 11434:localhost:11434
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'SSH Port Forwarding Active - DO NOT CLOSE THIS WINDOW' -ForegroundColor Green; Write-Host ''; ssh -p 41428 root@50.217.254.161 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
 } else {
-    Write-Host "Connecting via Vast.ai SSH gateway with port forwarding..." -ForegroundColor Green
-    ssh -p 35859 root@ssh7.vast.ai `
-        -L 5678:localhost:5678 `
-        -L 8501:localhost:8501 `
-        -L 8001:localhost:8001 `
-        -L 8002:localhost:8002 `
-        -L 11434:localhost:11434
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Write-Host 'SSH Port Forwarding Active - DO NOT CLOSE THIS WINDOW' -ForegroundColor Green; Write-Host ''; ssh -p 35859 root@ssh7.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 11434:localhost:11434"
 }
+
+Write-Host "✅ SSH port forwarding started in new window!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Cyan
+Write-Host "  1. A new PowerShell window opened - KEEP IT OPEN" -ForegroundColor White
+Write-Host "  2. Wait 3-5 seconds for connection to establish" -ForegroundColor White
+Write-Host "  3. Run: .\scripts\check_port_forwarding.ps1 to verify" -ForegroundColor White
+Write-Host "  4. If ports 8001/8002 fail, check if services are running on VAST" -ForegroundColor White
+Write-Host ""
