@@ -10,9 +10,19 @@ cd "$PROJECT_DIR"
 N8N_URL="http://localhost:5678"
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+N8N_API_KEY="${N8N_API_KEY:-}"
+
+# Get API key if needed
+if [[ -z "$N8N_API_KEY" ]]; then
+    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
+    if [[ -n "$N8N_API_KEY" ]]; then
+        export N8N_API_KEY
+    fi
+fi
 
 # Get latest execution ID - try with workflow ID first
-WORKFLOW_ID=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
+if [[ -n "$N8N_API_KEY" ]]; then
+    WORKFLOW_ID=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -23,12 +33,33 @@ try:
 except:
     pass
 " 2>/dev/null)
+else
+    WORKFLOW_ID=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        if 'Five Teacher' in wf.get('name', ''):
+            print(wf.get('id', ''))
+            break
+except:
+    pass
+" 2>/dev/null)
+fi
 
 if [[ -n "$WORKFLOW_ID" ]]; then
     echo "Workflow ID: $WORKFLOW_ID"
-    EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
+    if [[ -n "$N8N_API_KEY" ]]; then
+        EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
+    else
+        EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?workflowId=${WORKFLOW_ID}&limit=1" 2>/dev/null)
+    fi
 else
-    EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+    if [[ -n "$N8N_API_KEY" ]]; then
+        EXECUTIONS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+    else
+        EXECUTIONS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions?limit=1" 2>/dev/null)
+    fi
 fi
 
 # Debug: show what we got
@@ -60,7 +91,11 @@ echo "Latest Execution ID: $LATEST_EXEC_ID"
 echo ""
 
 # Get execution data - save to file first
-EXEC_DATA=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+if [[ -n "$N8N_API_KEY" ]]; then
+    EXEC_DATA=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+else
+    EXEC_DATA=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true" 2>/dev/null)
+fi
 
 # Save to file for inspection
 echo "$EXEC_DATA" > /tmp/exec_full.json
