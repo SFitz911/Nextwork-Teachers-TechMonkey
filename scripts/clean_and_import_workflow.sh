@@ -31,9 +31,25 @@ echo "Cleaning and Importing Correct Workflow"
 echo "=========================================="
 echo ""
 
-# Get all workflows
+# Get all workflows - test API key first
 echo "Fetching all workflows..."
+USE_API_KEY=false
+
 if [[ -n "$N8N_API_KEY" ]]; then
+    # Test if API key works
+    TEST_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    
+    if [[ "$TEST_CODE" == "200" ]]; then
+        USE_API_KEY=true
+        echo "✅ API key authentication working"
+    else
+        echo "⚠️  API key authentication failed (HTTP $TEST_CODE), using basic auth"
+    fi
+fi
+
+if [[ "$USE_API_KEY" == "true" ]]; then
     WORKFLOWS_JSON=$(curl -s \
         -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
         -H "Content-Type: application/json" \
@@ -59,7 +75,7 @@ except:
 for WF_ID in $ALL_WORKFLOW_IDS; do
     if [[ -n "$WF_ID" ]]; then
         echo "   Deleting workflow $WF_ID..."
-        if [[ -n "$N8N_API_KEY" ]]; then
+        if [[ "$USE_API_KEY" == "true" ]]; then
             curl -s -X DELETE \
                 -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
                 -H "Content-Type: application/json" \
@@ -113,8 +129,9 @@ with open('$CLEANED_WORKFLOW', 'w') as f:
 print("✅ Workflow cleaned")
 PYTHON
 
-# Import workflow
-if [[ -n "$N8N_API_KEY" ]]; then
+# Import workflow - use same auth method that worked
+if [[ "$USE_API_KEY" == "true" ]]; then
+    echo "Importing workflow using API key..."
     IMPORT_RESPONSE=$(curl -s \
         -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
         -X POST \
@@ -122,6 +139,7 @@ if [[ -n "$N8N_API_KEY" ]]; then
         -d @"$CLEANED_WORKFLOW" \
         "${N8N_URL}/api/v1/workflows" 2>/dev/null)
 else
+    echo "Importing workflow using basic authentication..."
     IMPORT_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
         -X POST \
         -H "Content-Type: application/json" \
@@ -145,6 +163,17 @@ if [[ -z "$NEW_WORKFLOW_ID" ]]; then
     # Try to find it by name
     sleep 2
     if [[ -n "$N8N_API_KEY" ]]; then
+        WORKFLOWS_JSON=$(curl -s \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    else
+        WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    fi
+    
+    if [[ "$USE_API_KEY" == "true" ]]; then
         WORKFLOWS_JSON=$(curl -s \
             -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
             -H "Content-Type: application/json" \
@@ -181,7 +210,9 @@ echo ""
 # Activate the workflow
 echo "Activating workflow..."
 sleep 2
-if [[ -n "$N8N_API_KEY" ]]; then
+
+# Use same auth method that worked for import
+if [[ "$USE_API_KEY" == "true" ]]; then
     ACTIVATE_RESPONSE=$(curl -s -X POST \
         -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
         -H "Content-Type: application/json" \
