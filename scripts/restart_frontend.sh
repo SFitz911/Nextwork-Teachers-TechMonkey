@@ -12,9 +12,11 @@ echo "Restarting Frontend"
 echo "=========================================="
 echo ""
 
-# Kill existing frontend
+# Kill existing frontend (including in tmux)
 echo "Stopping existing frontend..."
 pkill -f streamlit || true
+# Also kill any streamlit in tmux sessions
+tmux list-sessions 2>/dev/null | grep -q ai-teacher && tmux kill-window -t ai-teacher:frontend 2>/dev/null || true
 sleep 2
 
 # Activate virtual environment
