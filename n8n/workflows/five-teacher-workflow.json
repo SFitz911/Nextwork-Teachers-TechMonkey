@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Simple round-robin teacher selection (no Redis needed)\nconst teachers = ['teacher_a', 'teacher_b', 'teacher_c', 'teacher_d', 'teacher_e'];\nconst lastTeacher = $input.item.json.lastTeacher || 'teacher_e';\nconst currentIndex = teachers.indexOf(lastTeacher);\nconst nextIndex = (currentIndex + 1) % teachers.length;\nconst selectedTeacher = teachers[nextIndex];\n\nreturn {\n  json: {\n    selectedTeacher: selectedTeacher,\n    lastTeacher: selectedTeacher,\n    message: $input.item.json.body?.message || $input.item.json.message\n  }\n};"
+        "jsCode": "// Simple round-robin teacher selection (no Redis needed)\nconst teachers = ['teacher_a', 'teacher_b', 'teacher_c', 'teacher_d', 'teacher_e'];\nconst lastTeacher = $input.item.json.lastTeacher || 'teacher_e';\nconst currentIndex = teachers.indexOf(lastTeacher);\nconst nextIndex = (currentIndex + 1) % teachers.length;\nconst selectedTeacher = teachers[nextIndex];\n\n// Extract message from webhook body\nlet message = '';\nif ($input.item.json.body && typeof $input.item.json.body === 'object') {\n  message = $input.item.json.body.message || '';\n} else if (typeof $input.item.json.body === 'string') {\n  try {\n    const bodyObj = JSON.parse($input.item.json.body);\n    message = bodyObj.message || '';\n  } catch (e) {\n    message = $input.item.json.body || '';\n  }\n} else {\n  message = $input.item.json.message || $input.item.json.body?.message || '';\n}\n\nreturn {\n  json: {\n    selectedTeacher: selectedTeacher,\n    lastTeacher: selectedTeacher,\n    message: message\n  }\n};"
       },
       "id": "select-teacher",
       "name": "Select Teacher (Round-Robin)",
