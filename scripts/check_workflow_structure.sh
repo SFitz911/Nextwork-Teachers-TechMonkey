@@ -54,6 +54,19 @@ else
     WORKFLOW_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}")
 fi
 
+# Check if we got a valid response
+if [[ -z "$WORKFLOW_DETAILS" ]] || [[ "$WORKFLOW_DETAILS" == *"error"* ]] || [[ "$WORKFLOW_DETAILS" == *"Unauthorized"* ]]; then
+    echo "❌ Failed to get workflow details"
+    echo "Response: $WORKFLOW_DETAILS"
+    echo ""
+    echo "Trying with basic auth instead..."
+    WORKFLOW_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}")
+    if [[ -z "$WORKFLOW_DETAILS" ]]; then
+        echo "Still failed. Check authentication."
+        exit 1
+    fi
+fi
+
 echo "Analyzing workflow structure..."
 echo "$WORKFLOW_DETAILS" | python3 << 'PYTHON'
 import sys, json
