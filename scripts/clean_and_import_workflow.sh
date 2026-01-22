@@ -82,11 +82,37 @@ sleep 2
 # Import the correct workflow
 echo "Importing Five Teacher workflow..."
 WORKFLOW_FILE="$PROJECT_DIR/n8n/workflows/five-teacher-workflow.json"
+CLEANED_WORKFLOW="/tmp/five-teacher-workflow-cleaned.json"
 
 if [[ ! -f "$WORKFLOW_FILE" ]]; then
     echo "❌ Workflow file not found: $WORKFLOW_FILE"
     exit 1
 fi
+
+# Clean the workflow JSON (remove fields n8n API doesn't accept)
+echo "Cleaning workflow JSON for API import..."
+python3 << 'PYTHON'
+import json
+import sys
+
+with open('$WORKFLOW_FILE', 'r') as f:
+    workflow = json.load(f)
+
+# Keep only fields that n8n API accepts
+cleaned = {
+    "name": workflow.get("name", ""),
+    "nodes": workflow.get("nodes", []),
+    "connections": workflow.get("connections", {}),
+    "settings": workflow.get("settings", {}),
+    "staticData": workflow.get("staticData", {}),
+    "tags": workflow.get("tags", []),
+}
+
+with open('$CLEANED_WORKFLOW', 'w') as f:
+    json.dump(cleaned, f, indent=2)
+
+print("✅ Workflow cleaned")
+PYTHON
 
 # Import workflow
 if [[ -n "$N8N_API_KEY" ]]; then
@@ -94,13 +120,13 @@ if [[ -n "$N8N_API_KEY" ]]; then
         -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
         -X POST \
         -H "Content-Type: application/json" \
-        -d @"$WORKFLOW_FILE" \
+        -d @"$CLEANED_WORKFLOW" \
         "${N8N_URL}/api/v1/workflows" 2>/dev/null)
 else
     IMPORT_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
         -X POST \
         -H "Content-Type: application/json" \
-        -d @"$WORKFLOW_FILE" \
+        -d @"$CLEANED_WORKFLOW" \
         "${N8N_URL}/api/v1/workflows" 2>/dev/null)
 fi
 
