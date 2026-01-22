@@ -16,7 +16,20 @@ fi
 # Get credentials
 N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
 N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+N8N_API_KEY="${N8N_API_KEY:-}"
 N8N_URL="http://localhost:5678"
+
+# Get or create API key if not set
+if [[ -z "$N8N_API_KEY" ]]; then
+    echo "Getting n8n API key..."
+    N8N_API_KEY=$(bash scripts/get_or_create_api_key.sh 2>/dev/null || echo "")
+    if [[ -n "$N8N_API_KEY" ]]; then
+        export N8N_API_KEY
+        echo "✅ Using API key for authentication"
+    else
+        echo "⚠️  Could not get API key, will try basic auth"
+    fi
+fi
 
 # Workflow file (default to five-teacher-workflow.json)
 WORKFLOW_FILE="${1:-$PROJECT_DIR/n8n/workflows/five-teacher-workflow.json}"
@@ -45,9 +58,16 @@ echo ""
 
 # Check if workflow already exists
 echo "Checking for existing workflows..."
-WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -H "Content-Type: application/json" \
-    "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+if [[ -n "$N8N_API_KEY" ]]; then
+    WORKFLOWS_JSON=$(curl -s \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+else
+    WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+fi
 
 if echo "$WORKFLOWS_JSON" | grep -q "Unauthorized\|401"; then
     echo "❌ Authentication failed. Check credentials in .env file"
@@ -116,11 +136,20 @@ fi
 
 # Import the workflow
 echo "Importing workflow..."
-IMPORT_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d @"$WORKFLOW_FILE" \
-    "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+if [[ -n "$N8N_API_KEY" ]]; then
+    IMPORT_RESPONSE=$(curl -s \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d @"$WORKFLOW_FILE" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+else
+    IMPORT_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d @"$WORKFLOW_FILE" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+fi
 
 # Check if import was successful
 NEW_WORKFLOW_ID=$(echo "$IMPORT_RESPONSE" | python3 -c "
@@ -140,9 +169,16 @@ except:
 if [[ -z "$NEW_WORKFLOW_ID" ]]; then
     # Try alternative: check if workflow was created by name
     sleep 2
-    WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-        -H "Content-Type: application/json" \
-        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    if [[ -n "$N8N_API_KEY" ]]; then
+        WORKFLOWS_JSON=$(curl -s \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    else
+        WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    fi
     
     NEW_WORKFLOW_ID=$(echo "$WORKFLOWS_JSON" | python3 -c "
 import json, sys
@@ -166,11 +202,20 @@ if [[ -z "$NEW_WORKFLOW_ID" ]]; then
     echo "Trying manual import method..."
     
     # Alternative: Use n8n's import endpoint
-    IMPORT_RESPONSE2=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"name\":\"$WORKFLOW_NAME\",\"nodes\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['nodes']))" 2>/dev/null),\"connections\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['connections']))" 2>/dev/null)}" \
-        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    if [[ -n "$N8N_API_KEY" ]]; then
+        IMPORT_RESPONSE2=$(curl -s \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$WORKFLOW_NAME\",\"nodes\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['nodes']))" 2>/dev/null),\"connections\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['connections']))" 2>/dev/null)}" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    else
+        IMPORT_RESPONSE2=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$WORKFLOW_NAME\",\"nodes\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['nodes']))" 2>/dev/null),\"connections\":$(python3 -c "import json; print(json.dumps(json.load(open('$WORKFLOW_FILE'))['connections']))" 2>/dev/null)}" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    fi
     
     echo "$IMPORT_RESPONSE2" | head -10
     exit 1
@@ -181,10 +226,18 @@ echo ""
 
 # Activate the workflow
 echo "Activating workflow..."
-ACTIVATE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}/activate" 2>/dev/null)
+if [[ -n "$N8N_API_KEY" ]]; then
+    ACTIVATE_RESPONSE=$(curl -s \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}/activate" 2>/dev/null)
+else
+    ACTIVATE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}/activate" 2>/dev/null)
+fi
 
 if echo "$ACTIVATE_RESPONSE" | grep -q "active.*true\|success"; then
     echo "✅ Workflow activated successfully!"
@@ -199,9 +252,16 @@ fi
 echo ""
 echo "Verifying activation..."
 sleep 2
-VERIFY_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
-    -H "Content-Type: application/json" \
-    "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}" 2>/dev/null)
+if [[ -n "$N8N_API_KEY" ]]; then
+    VERIFY_RESPONSE=$(curl -s \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}" 2>/dev/null)
+else
+    VERIFY_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        -H "Content-Type: application/json" \
+        "${N8N_URL}/api/v1/workflows/${NEW_WORKFLOW_ID}" 2>/dev/null)
+fi
 
 IS_ACTIVE=$(echo "$VERIFY_RESPONSE" | python3 -c "
 import json, sys
