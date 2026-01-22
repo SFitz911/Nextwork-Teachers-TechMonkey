@@ -67,11 +67,27 @@ fi
 echo "Latest Execution ID: $LATEST_EXEC_ID"
 echo ""
 
-# Get execution details
+# Get execution details with verbose error checking
+echo "Fetching execution details for ID: $LATEST_EXEC_ID..."
 if [[ -n "$N8N_API_KEY" ]]; then
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+    echo "HTTP Status: $HTTP_CODE"
     EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
 else
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+    echo "HTTP Status: $HTTP_CODE"
     EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}?includeData=true")
+fi
+
+echo "Response length: ${#EXEC_DETAILS} characters"
+if [[ ${#EXEC_DETAILS} -lt 10 ]]; then
+    echo "⚠️  Response is very short, trying without includeData..."
+    if [[ -n "$N8N_API_KEY" ]]; then
+        EXEC_DETAILS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    else
+        EXEC_DETAILS=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" "${N8N_URL}/api/v1/executions/${LATEST_EXEC_ID}")
+    fi
+    echo "Response length (without includeData): ${#EXEC_DETAILS} characters"
 fi
 
 # Check if we got a valid response
