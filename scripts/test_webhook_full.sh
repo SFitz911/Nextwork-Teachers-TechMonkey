@@ -16,44 +16,48 @@ echo "URL: ${N8N_URL}/webhook/chat-webhook"
 echo "Body: {\"message\": \"Hello, can you introduce yourself?\", \"timestamp\": $(date +%s)}"
 echo ""
 
-# Test with verbose output
-RESPONSE=$(curl -v -X POST "${N8N_URL}/webhook/chat-webhook" \
+# Test with separate verbose and body capture
+echo "Testing webhook (verbose output to stderr, body to stdout)..."
+echo ""
+
+# Get just the response body
+BODY=$(curl -s -X POST "${N8N_URL}/webhook/chat-webhook" \
     -H "Content-Type: application/json" \
-    -d '{"message": "Hello, can you introduce yourself?", "timestamp": 1234567890}' 2>&1)
+    -d '{"message": "Hello, can you introduce yourself?", "timestamp": 1234567890}')
 
-echo "Full curl output:"
-echo "$RESPONSE"
+# Get HTTP status separately
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${N8N_URL}/webhook/chat-webhook" \
+    -H "Content-Type: application/json" \
+    -d '{"message": "Hello, can you introduce yourself?", "timestamp": 1234567890}')
+
+echo "HTTP Status Code: $HTTP_CODE"
 echo ""
 
-# Extract HTTP status
-HTTP_STATUS=$(echo "$RESPONSE" | grep -i "< HTTP" | head -1 || echo "")
-echo "HTTP Status: $HTTP_STATUS"
-echo ""
-
-# Extract response body (everything after the first blank line after headers)
-BODY=$(echo "$RESPONSE" | sed -n '/^\r$/,$p' | tail -n +2)
-
+echo "Response body (raw):"
 if [[ -z "$BODY" ]]; then
-    # Try alternative extraction
-    BODY=$(echo "$RESPONSE" | grep -A 100 "^{" | head -20 || echo "$RESPONSE" | tail -20)
-fi
-
-echo "Response body:"
-echo "$BODY"
-echo ""
-
-# Check if it's valid JSON
-if echo "$BODY" | python3 -m json.tool > /dev/null 2>&1; then
-    echo "✅ Response is valid JSON"
+    echo "   [EMPTY - No response body received]"
     echo ""
-    echo "Parsed JSON:"
-    echo "$BODY" | python3 -m json.tool
+    echo "❌ Response is EMPTY (this is the problem!)"
+    echo ""
+    echo "This means the workflow is executing but not returning a response."
+    echo "Possible causes:"
+    echo "  1. Workflow is failing before reaching 'Respond to Webhook' node"
+    echo "  2. 'Respond to Webhook' node is not properly configured"
+    echo "  3. Workflow execution is timing out"
 else
-    echo "❌ Response is NOT valid JSON"
-    if [[ -z "$BODY" ]]; then
-        echo "   Response is EMPTY (this is the problem!)"
+    echo "$BODY"
+    echo ""
+    
+    # Check if it's valid JSON
+    if echo "$BODY" | python3 -m json.tool > /dev/null 2>&1; then
+        echo "✅ Response is valid JSON"
+        echo ""
+        echo "Parsed JSON:"
+        echo "$BODY" | python3 -m json.tool
     else
+        echo "❌ Response is NOT valid JSON"
         echo "   Response content: $BODY"
+        echo "   Length: ${#BODY} characters"
     fi
 fi
 
