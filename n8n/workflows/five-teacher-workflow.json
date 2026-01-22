@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get audio URL or base64 from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\nlet audioBase64 = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.audio_base64) {\n  audioBase64 = ttsResponse.audio_base64;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    audio_base64: audioBase64,\n    avatar_id: selectedTeacher,\n    text: $('Extract LLM Response').item.json.text\n  }\n};"
+        "jsCode": "// Get audio URL from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: selectedTeacher,\n    text: $('Extract LLM Response').item.json.text\n  }\n};"
       },
       "id": "prepare-animation",
       "name": "Prepare Animation",
@@ -147,10 +147,6 @@
             {
               "name": "audio_url",
               "value": "={{ $json.audio_url }}"
-            },
-            {
-              "name": "audio_base64",
-              "value": "={{ $json.audio_base64 }}"
             },
             {
               "name": "avatar_id",
