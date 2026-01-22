@@ -11,7 +11,7 @@ from typing import Optional
 import time
 
 # Configuration
-N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/chat")
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/chat-webhook")
 TTS_API_URL = os.getenv("TTS_API_URL", "http://localhost:8001")
 ANIMATION_API_URL = os.getenv("ANIMATION_API_URL", "http://localhost:8002")
 
