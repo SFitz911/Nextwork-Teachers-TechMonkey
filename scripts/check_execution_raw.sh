@@ -13,10 +13,10 @@ if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-N8N_URL="http://localhost:5678"
+N8N_URL="${N8N_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
-N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
-N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+N8N_USER="${N8N_USER:-admin}"
+N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 
 EXEC_ID="${1:-}"
 

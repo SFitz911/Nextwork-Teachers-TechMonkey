@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+# Source error handling if available
+if [[ -f "$(dirname "${BASH_SOURCE[0]}")/lib/error_handling.sh" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/lib/error_handling.sh"
+fi
+
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
 
@@ -18,13 +23,16 @@ if ! bash scripts/validate_config.sh 2>/dev/null; then
     echo ""
     echo "❌ Configuration validation failed"
     echo "   Run: bash scripts/validate_config.sh"
+    echo ""
+    provide_next_steps "config_invalid" || true
     exit 1
 fi
 
-N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
-N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+# Use defaults from common.sh or .env
+N8N_USER="${N8N_USER:-admin}"
+N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 N8N_API_KEY="${N8N_API_KEY:-}"
-N8N_URL="http://localhost:5678"
+N8N_URL="${N8N_URL:-http://localhost:5678}"
 
 # API key is required - validate_config.sh should have caught this, but double-check
 if [[ -z "$N8N_API_KEY" ]]; then

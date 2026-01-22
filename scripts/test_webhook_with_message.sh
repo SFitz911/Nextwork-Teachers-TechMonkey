@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ⚠️  DEPRECATED: Use scripts/test_webhook.sh [message] instead
 # Test webhook with a message and show full execution details
 # Usage: bash scripts/test_webhook_with_message.sh
 

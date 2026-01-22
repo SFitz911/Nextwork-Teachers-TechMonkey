@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ⚠️  DEPRECATED: Use scripts/inspect_execution.sh --latest instead
 # Inspect the latest workflow execution in detail
 # Usage: bash scripts/inspect_latest_execution.sh
 
@@ -13,10 +14,10 @@ if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-N8N_URL="http://localhost:5678"
+N8N_URL="${N8N_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
-N8N_USER="${N8N_USER:-sfitz911@gmail.com}"
-N8N_PASSWORD="${N8N_PASSWORD:-Delrio77$}"
+N8N_USER="${N8N_USER:-admin}"
+N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 
 # Require API key - fail fast if not set
 if [[ -z "$N8N_API_KEY" ]]; then

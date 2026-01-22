@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ⚠️  DEPRECATED: Use scripts/test_webhook.sh instead
 # Simple webhook test - just get the response
 # Usage: bash scripts/simple_webhook_test.sh
 
