@@ -415,7 +415,10 @@ bash scripts/clean_and_import_workflow.sh
 2. **Check service status first**: Before debugging, verify services are running
 3. **Workflow import is common**: After restart, workflow needs to be imported
 4. **API key is hardcoded**: Default API key is built into all scripts (can override via `.env`)
-5. **Port forwarding is critical**: Services won't be accessible without it
+5. **Port forwarding is CRITICAL**: Services running on VAST are NOT accessible via localhost on Desktop without SSH port forwarding. Always remind users to:
+   - Run `.\connect-vast.ps1` on Desktop PowerShell
+   - Keep the SSH window open
+   - Verify with `.\scripts\check_port_forwarding.ps1`
 
 ### Common Patterns
 
@@ -439,6 +442,7 @@ bash scripts/clean_and_import_workflow.sh
 - ✅ Provide clear error messages with next steps
 - ✅ Verify services are running before debugging
 - ✅ Always specify terminal type in instructions ("VAST Terminal" vs "Desktop PowerShell Terminal")
+- ✅ **CRITICAL**: When services show as "running" but localhost URLs don't work, remind user about port forwarding requirement
 
 ---
 

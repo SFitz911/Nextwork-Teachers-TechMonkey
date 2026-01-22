@@ -49,10 +49,14 @@ else
 fi
 
 echo ""
-echo "2. Testing if services are accessible locally..."
+echo "2. Testing if services are accessible via localhost..."
+echo ""
+echo "⚠️  NOTE: This checks if services are accessible from THIS machine (VAST)."
+echo "   To access from your Desktop, you need SSH port forwarding active!"
 echo ""
 
 # Test localhost connections
+PORT_FORWARDING_NEEDED=false
 for port in 11434 5678 8001 8002 8501; do
     case $port in
         11434) name="Ollama" ;;
@@ -65,9 +69,10 @@ for port in 11434 5678 8001 8002 8501; do
     if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" > /dev/null 2>&1 || \
        curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/docs" > /dev/null 2>&1 || \
        curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/api/tags" > /dev/null 2>&1; then
-        echo "✅ $name is accessible on port $port"
+        echo "✅ $name is accessible on port $port (on VAST instance)"
     else
         echo "❌ $name is NOT accessible on port $port"
+        PORT_FORWARDING_NEEDED=true
     fi
 done
 
@@ -76,11 +81,28 @@ echo "=========================================="
 echo "Summary"
 echo "=========================================="
 echo ""
+
+# Check if we're on VAST (likely) or Desktop (unlikely but possible)
+if [[ -n "${SSH_CONNECTION:-}" ]] || hostname | grep -q "vast\|C\."; then
+    echo "📍 You are on the VAST instance."
+    echo ""
+    echo "To access services from your Desktop browser:"
+    echo "  1. On Desktop PowerShell: .\connect-vast.ps1"
+    echo "  2. Keep that SSH window open"
+    echo "  3. Then access: http://localhost:5678 (n8n) or http://localhost:8501 (frontend)"
+    echo ""
+else
+    echo "📍 You may be on your Desktop machine."
+    if [[ "$PORT_FORWARDING_NEEDED" == "true" ]]; then
+        echo ""
+        echo "⚠️  Port forwarding may not be active!"
+        echo "   Run: .\connect-vast.ps1 (Desktop PowerShell)"
+        echo "   Keep that window open while accessing services."
+        echo ""
+    fi
+fi
+
 echo "For debugging the webhook issue, we need:"
 echo "  ✅ n8n (port 5678) - REQUIRED"
 echo "  ⚠️  TTS and Animation - Only needed when workflow runs"
-echo ""
-echo "Since n8n is accessible, you can:"
-echo "  1. Open http://localhost:5678 in your browser"
-echo "  2. Check workflow executions to see which node is failing"
 echo ""
