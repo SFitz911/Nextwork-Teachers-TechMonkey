@@ -90,6 +90,7 @@ with st.sidebar:
     teacher_b_name = st.text_input("Teacher B Name", value="Maya")
     teacher_c_name = st.text_input("Teacher C Name", value="Maximus")
     teacher_d_name = st.text_input("Teacher D Name", value="Tech Monkey Steve")
+    teacher_e_name = st.text_input("Teacher E Name", value="Teacher E")
     
     st.header("📊 Status")
     if st.button("Check Services"):
@@ -106,9 +107,9 @@ with st.sidebar:
             except:
                 st.error(f"❌ {name}: Offline")
 
-# Four-column layout for teachers (2x2 grid)
-col1, col2 = st.columns(2)
-col3, col4 = st.columns(2)
+# Five-teacher layout (3 on top, 2 on bottom)
+col1, col2, col3 = st.columns(3)
+col4, col5 = st.columns(2)
 
 with col1:
     st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
@@ -164,6 +165,25 @@ with col3:
     
     st.markdown('</div>', unsafe_allow_html=True)
 
+with col3:
+    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
+    st.header(f"👨‍🏫 {teacher_c_name}")
+    
+    # Video player for Teacher C
+    video_c = get_video_stream("teacher_c")
+    if video_c:
+        st.video(video_c)
+    else:
+        st.image("https://via.placeholder.com/640x360?text=Teacher+C+Video", use_container_width=True)
+        st.info("Waiting for Teacher C to speak...")
+    
+    # Status indicator
+    status_c = st.empty()
+    status_c.info("🟢 Ready")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Second row: Teachers D and E
 with col4:
     st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
     st.header(f"👨‍🏫 {teacher_d_name}")
@@ -179,6 +199,24 @@ with col4:
     # Status indicator
     status_d = st.empty()
     status_d.info("🟢 Ready")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col5:
+    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
+    st.header(f"👨‍🏫 {teacher_e_name}")
+    
+    # Video player for Teacher E
+    video_e = get_video_stream("teacher_e")
+    if video_e:
+        st.video(video_e)
+    else:
+        st.image("https://via.placeholder.com/640x360?text=Teacher+E+Video", use_container_width=True)
+        st.info("Waiting for Teacher E to speak...")
+    
+    # Status indicator
+    status_e = st.empty()
+    status_e.info("🟢 Ready")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
