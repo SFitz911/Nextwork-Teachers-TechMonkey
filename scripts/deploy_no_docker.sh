@@ -76,6 +76,19 @@ echo "Starting all services in tmux..."
 bash scripts/run_no_docker_tmux.sh
 
 echo ""
+echo "Waiting for services to start..."
+sleep 5
+
+echo ""
+echo "🔄 Importing and activating n8n workflow..."
+if bash scripts/import_and_activate_workflow.sh 2>&1; then
+    echo "✅ Workflow imported and activated!"
+else
+    echo "⚠️  Workflow import/activation had issues"
+    echo "   You can manually import: n8n/workflows/five-teacher-workflow.json"
+fi
+
+echo ""
 echo "=========================================="
 echo "✅ No-Docker deploy complete"
 echo "=========================================="

@@ -45,6 +45,17 @@ echo ""
 echo "✅ Verifying services..."
 ps aux | grep -E "n8n|streamlit|python.*tts|python.*animation" | grep -v grep || echo "⚠️  Some services may not be running"
 
+# Import and activate workflow automatically
+echo ""
+echo "🔄 Importing and activating n8n workflow..."
+sleep 3 # Give n8n a moment to fully start
+if bash scripts/import_and_activate_workflow.sh 2>&1; then
+    echo "✅ Workflow imported and activated!"
+else
+    echo "⚠️  Workflow import/activation had issues, but services are running"
+    echo "   You can manually import: n8n/workflows/five-teacher-workflow.json"
+fi
+
 echo ""
 echo "=========================================="
 echo "✅ Sync and restart complete!"

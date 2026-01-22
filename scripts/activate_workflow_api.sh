@@ -90,12 +90,34 @@ for wf in data.get('data', []):
 fi
 
 if [[ -z "$WORKFLOW_ID" ]]; then
-    echo "⚠️  No workflow found. You may need to import it first:"
-    echo "   1. Go to http://localhost:5678"
-    echo "   2. Import: n8n/workflows/five-teacher-workflow.json"
+    echo "⚠️  No workflow found. Attempting to import automatically..."
     echo ""
-    echo "Available workflows:"
-    echo "$WORKFLOWS_JSON" | python3 -c "
+    
+    # Try to import the workflow automatically
+    if bash scripts/import_and_activate_workflow.sh; then
+        echo ""
+        echo "✅ Workflow imported and activated! Re-running activation check..."
+        # Re-fetch workflows to get the new ID
+        WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+        
+        WORKFLOW_ID=$(echo "$WORKFLOWS_JSON" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for wf in data.get('data', []):
+    if 'Five Teacher' in wf.get('name', '') or 'AI Virtual Classroom' in wf.get('name', ''):
+        print(wf.get('id', ''))
+        sys.exit(0)
+" 2>/dev/null)
+        
+        if [[ -n "$WORKFLOW_ID" ]]; then
+            echo "✅ Found workflow after import (ID: $WORKFLOW_ID)"
+            # Continue with activation below
+        else
+            echo "❌ Failed to find workflow after import"
+            echo "Available workflows:"
+            echo "$WORKFLOWS_JSON" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -104,7 +126,27 @@ try:
 except:
     print('  (Could not parse workflow list)')
 " 2>/dev/null || echo "  (Could not list workflows)"
-    exit 1
+            exit 1
+        fi
+    else
+        echo "❌ Failed to import workflow automatically"
+        echo ""
+        echo "Manual steps:"
+        echo "   1. Go to http://localhost:5678"
+        echo "   2. Import: n8n/workflows/five-teacher-workflow.json"
+        echo ""
+        echo "Available workflows:"
+        echo "$WORKFLOWS_JSON" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        print(f\"  - {wf.get('name', 'Unknown')} (ID: {wf.get('id', 'N/A')}, Active: {wf.get('active', False)})\")
+except:
+    print('  (Could not parse workflow list)')
+" 2>/dev/null || echo "  (Could not list workflows)"
+        exit 1
+    fi
 fi
 
 # Check if already active
