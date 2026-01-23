@@ -2,13 +2,13 @@
 
 ## 🎯 Key Decisions Made
 
-### 1. Storage: On Vast.ai Instance (Local to Instance)
-- **All storage is on the Vast.ai instance** (not your desktop)
-- Store in `~/ai-teacher-storage/` on Vast.ai instance
-- PostgreSQL + pgvector for RAG (runs on Vast.ai instance)
-- Cached sections (videos/audio) stored on Vast.ai instance disk
-- **No Redis** - using PostgreSQL + instance disk storage
-- **Later**: Can migrate to Vast.ai volume if needed
+### 1. Storage: Vast.ai Storage Volume (Persistent Volume)
+- **Create Vast.ai storage volume** when launching new instance
+- **Attach volume to instance** (mounts at `/mnt/vast-storage/` or similar)
+- PostgreSQL + pgvector data stored on volume
+- Cached sections (videos/audio) stored on volume
+- **No Redis** - using PostgreSQL + Vast.ai storage volume
+- **Persistent** - survives instance restarts, can detach/reattach
 
 ### 2. Database: PostgreSQL + pgvector (Self-hosted)
 - No Supabase Cloud (keep everything on instance)
@@ -30,23 +30,26 @@
 
 ## 🚀 Next Steps (Implementation Order)
 
-1. **Set up storage directories** on existing instance
-2. **Install PostgreSQL + pgvector**
-3. **Create database schema** (sessions, sections, embeddings, processed_sections)
-4. **Update Coordinator API** to use database
-5. **Implement caching** (check before processing)
-6. **Add page segmentation** service
-7. **Implement RAG** with vector search
+1. **Create new Vast.ai instance** with storage volume (200-500 GB recommended)
+2. **Attach volume to instance** (will auto-mount or mount manually)
+3. **Set up storage directories** on volume (`/mnt/vast-storage/`)
+4. **Install PostgreSQL + pgvector** on instance
+5. **Configure PostgreSQL** to use volume for data directory
+6. **Create database schema** (sessions, sections, embeddings, processed_sections)
+7. **Update Coordinator API** to use database
+8. **Implement caching** (check before processing, store on volume)
+9. **Add page segmentation** service
+10. **Implement RAG** with vector search
 
 ---
 
 ## 📝 Quick Reference
 
-**Storage Path**: `~/ai-teacher-storage/` (on Vast.ai instance)
-**Database**: PostgreSQL on Vast.ai instance (localhost:5432)
+**Storage Path**: `/mnt/vast-storage/` (Vast.ai storage volume - persistent)
+**Database**: PostgreSQL on Vast.ai instance (localhost:5432), data on volume
 **Cache Check**: Before LLM/TTS/Video generation
 **RAG**: pgvector (PostgreSQL extension)
-**Location**: Everything runs on Vast.ai instance - no external cloud storage
+**Setup**: Create volume when launching new instance, attach to instance
 
 ---
 
