@@ -194,20 +194,22 @@ except:
         continue
     fi
     
-    # Clean workflow JSON for import
+    # Clean workflow JSON for import (remove read-only fields)
     CLEANED_WORKFLOW=$(python3 <<EOF
 import json, sys
 try:
     with open('$workflow_path', 'r') as f:
         workflow = json.load(f)
     
+    # Only include fields that n8n API accepts for import
+    # Exclude: tags (read-only), id, updatedAt, createdAt, versionId, etc.
     cleaned = {
         "name": workflow.get("name", ""),
         "nodes": workflow.get("nodes", []),
         "connections": workflow.get("connections", {}),
         "settings": workflow.get("settings", {}),
         "staticData": workflow.get("staticData", {}),
-        "tags": workflow.get("tags", []),
+        # DO NOT include "tags" - it's read-only and causes import to fail
     }
     
     print(json.dumps(cleaned))

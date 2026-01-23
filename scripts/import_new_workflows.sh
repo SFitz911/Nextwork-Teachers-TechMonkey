@@ -48,13 +48,14 @@ try:
         workflow = json.load(f)
     
     # Keep only fields that n8n API accepts for import
+    # Exclude: tags (read-only), id, updatedAt, createdAt, versionId, etc.
     cleaned = {
         "name": workflow.get("name", ""),
         "nodes": workflow.get("nodes", []),
         "connections": workflow.get("connections", {}),
         "settings": workflow.get("settings", {}),
         "staticData": workflow.get("staticData", {}),
-        "tags": workflow.get("tags", []),
+        # DO NOT include "tags" - it's read-only and causes import to fail
     }
     
     print(json.dumps(cleaned))
