@@ -34,6 +34,16 @@ if ! command -v ollama &> /dev/null; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 
+# Start Ollama service
+echo "   Starting Ollama service..."
+ollama serve > /tmp/ollama.log 2>&1 &
+sleep 5
+
+# Install mistral:7b model
+echo "   Installing mistral:7b model (this may take 5-10 minutes)..."
+ollama pull mistral:7b
+echo "✅ mistral:7b model installed"
+
 # Step 3: Install conda if not present
 if ! command -v conda &> /dev/null; then
     echo "Step 3: Installing Miniconda..."

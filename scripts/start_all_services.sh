@@ -63,6 +63,29 @@ if [[ "$OLLAMA_READY" != "true" ]]; then
     exit 1
 fi
 echo "✅ Ollama is ready"
+
+# Check if mistral:7b model is installed
+echo "   Checking if mistral:7b model is installed..."
+MODEL_INSTALLED=$(curl -s http://localhost:11434/api/tags | python3 -c "import json, sys; d=json.load(sys.stdin); models=[m.get('name') for m in d.get('models', [])]; print('yes' if 'mistral:7b' in models else 'no')" 2>/dev/null || echo "no")
+
+if [[ "$MODEL_INSTALLED" != "yes" ]]; then
+    echo "   ⚠️  mistral:7b model not found, installing..."
+    echo "   This may take 5-10 minutes (model is ~4GB)..."
+    ollama pull mistral:7b
+    
+    # Verify installation
+    sleep 2
+    MODEL_INSTALLED=$(curl -s http://localhost:11434/api/tags | python3 -c "import json, sys; d=json.load(sys.stdin); models=[m.get('name') for m in d.get('models', [])]; print('yes' if 'mistral:7b' in models else 'no')" 2>/dev/null || echo "no")
+    
+    if [[ "$MODEL_INSTALLED" == "yes" ]]; then
+        echo "✅ mistral:7b model installed"
+    else
+        echo "❌ Failed to install mistral:7b model"
+        echo "   You can install it manually: ollama pull mistral:7b"
+    fi
+else
+    echo "✅ mistral:7b model is already installed"
+fi
 echo ""
 
 # Step 2: Start other services in tmux
