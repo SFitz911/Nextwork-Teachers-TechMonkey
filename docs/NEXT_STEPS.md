@@ -16,16 +16,22 @@ source ~/ai-teacher-venv/bin/activate
 pip install fastapi uvicorn httpx
 ```
 
-### 3. Import New n8n Workflows
+### 3. Reconfigure n8n (IMPORTANT!)
 
 ```bash
-bash scripts/import_new_workflows.sh
+bash scripts/reconfigure_n8n_for_2teacher.sh
 ```
 
-This will import:
-- Session Start workflow
-- Left Worker workflow  
-- Right Worker workflow
+This script will:
+- ✅ Deactivate the old 5-teacher workflow (prevents conflicts)
+- ✅ Import the 3 new 2-teacher workflows:
+  - Session Start workflow (`/webhook/session/start`)
+  - Left Worker workflow (`/webhook/worker/left/run`)
+  - Right Worker workflow (`/webhook/worker/right/run`)
+- ✅ Activate all new workflows
+- ✅ Verify webhook endpoints are working
+
+**This is critical** - the old workflow uses `/webhook/chat-webhook` which conflicts with the new system!
 
 ### 4. Start All Services (Includes Coordinator Now)
 
