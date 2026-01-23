@@ -214,7 +214,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"avatar_id\": \"{{ $json.avatar_id }}\",\n  \"audio_url\": \"{{ $json.audio_url }}\",\n  \"text_prompt\": \"{{ $json.text_prompt }}\",\n  \"resolution\": \"480p\",\n  \"num_segments\": 1\n}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
       },
       "id": "animation-generate",
       "name": "LongCat-Video Generate",
@@ -224,7 +232,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format response for frontend\nconst longcatResponse = $input.item.json;\n\n// Get text and teacher from execution context\n// Try to get from Select Response by Teacher node (previous in chain)\nlet text = 'Hello! I am ready to help.';\nlet teacher = 'teacher_a';\n\ntry {\n  // Access the Select Response by Teacher node through execution context\n  const selectResponseData = $('Select Response by Teacher').first();\n  if (selectResponseData && selectResponseData.json) {\n    text = selectResponseData.json.text || text;\n    teacher = selectResponseData.json.teacher || teacher;\n  }\n} catch (e) {\n  // If that fails, try to get from Select Teacher node\n  try {\n    const selectTeacherData = $('Select Teacher (Round-Robin)').first();\n    if (selectTeacherData && selectTeacherData.json) {\n      teacher = selectTeacherData.json.selectedTeacher || teacher;\n    }\n  } catch (e2) {\n    // Use defaults\n  }\n}\n\n// LongCat-Video returns video_url, video_path, job_id, status\n// If status is 'processing', we return the job_id for polling\n// If status is 'completed', we return the video_url\nlet videoUrl = '';\nlet jobId = '';\n\nif (longcatResponse && (longcatResponse.status === 'processing' || longcatResponse.status === 'completed')) {\n  // Construct full video URL if we have a job_id\n  if (longcatResponse.job_id) {\n    jobId = longcatResponse.job_id;\n    // Video URL format: http://localhost:8003/video/{job_id}\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (longcatResponse.video_url) {\n    videoUrl = longcatResponse.video_url;\n  } else if (longcatResponse.video_path) {\n    // If we only have a path, construct URL\n    videoUrl = longcatResponse.video_path;\n  }\n}\n\n// Always return a valid response, even if some data is missing\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: videoUrl || '',\n    job_id: jobId || longcatResponse?.job_id || '',\n    status: longcatResponse?.status || 'unknown'\n  }\n};"
+        "jsCode": "// Format response for frontend\n// CRITICAL: This node MUST always return valid JSON, otherwise webhook returns empty\nconst longcatResponse = $input.item.json || {};\n\n// Default values - these will be used if execution context access fails\nlet text = 'Hello! I am ready to help you today.';\nlet teacher = 'teacher_a';\n\n// Try to get text and teacher from execution context\n// Note: Execution context may not work in all n8n versions/configurations\ntry {\n  const selectResponseData = $('Select Response by Teacher').first();\n  if (selectResponseData && selectResponseData.json) {\n    if (selectResponseData.json.text) text = selectResponseData.json.text;\n    if (selectResponseData.json.teacher) teacher = selectResponseData.json.teacher;\n  }\n} catch (e) {\n  // Execution context access failed - use defaults\n  // This is OK - we'll still return a valid response\n}\n\n// Extract LongCat-Video response data\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (longcatResponse) {\n  // Get status\n  if (longcatResponse.status) {\n    status = longcatResponse.status;\n  }\n  \n  // Get job_id\n  if (longcatResponse.job_id) {\n    jobId = String(longcatResponse.job_id);\n  }\n  \n  // Construct video URL\n  if (status === 'processing' || status === 'completed') {\n    if (jobId) {\n      videoUrl = `http://localhost:8003/video/${jobId}`;\n    } else if (longcatResponse.video_url) {\n      videoUrl = String(longcatResponse.video_url);\n    } else if (longcatResponse.video_path) {\n      videoUrl = String(longcatResponse.video_path);\n    }\n  }\n}\n\n// CRITICAL: Always return a valid JSON object\n// This ensures the webhook always gets a response\nconst response = {\n  response: String(text),\n  teacher: String(teacher),\n  video_url: String(videoUrl || ''),\n  job_id: String(jobId || ''),\n  status: String(status)\n};\n\nreturn { json: response };"
       },
       "id": "format-response",
       "name": "Format Response",
