@@ -4,17 +4,24 @@ Handles text-to-speech conversion with chunking support
 """
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 import io
 import os
+import uuid
+import base64
 from typing import Optional
+from pathlib import Path
 
 app = FastAPI(title="AI Teacher TTS Service")
 
 # Model selection: "piper" or "coqui"
 TTS_MODEL = os.getenv("TTS_MODEL", "piper")
 TTS_VOICE = os.getenv("TTS_VOICE", "en_US-lessac-medium")
+
+# Audio storage directory
+AUDIO_DIR = os.getenv("AUDIO_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "outputs", "tts"))
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
 class TTSRequest(BaseModel):
@@ -95,6 +102,17 @@ def chunk_audio(audio_data: str, chunk_duration: float = 2.0) -> list:
     """
     # TODO: Implement audio chunking
     return [audio_data]  # Placeholder
+
+
+@app.get("/audio/{filename}")
+async def get_audio(filename: str):
+    """
+    Serve audio files
+    """
+    audio_path = os.path.join(AUDIO_DIR, filename)
+    if not os.path.exists(audio_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(audio_path, media_type="audio/wav")
 
 
 @app.get("/voices")
