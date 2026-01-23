@@ -18,13 +18,16 @@ fi
 
 N8N_URL="${N8N_URL:-http://localhost:5678}"
 WEBHOOK_URL="${N8N_URL}/webhook/chat-webhook"
-MESSAGE="${1:-Hello, can you introduce yourself?}"
-MODE="${2:-simple}"
 
 # Parse arguments
-if [[ "$1" == "--full" ]] || [[ "$1" == "--verbose" ]]; then
-    MODE="$1"
+MODE="simple"
+MESSAGE="Hello, can you introduce yourself?"
+
+if [[ "${1:-}" == "--full" ]] || [[ "${1:-}" == "--verbose" ]]; then
+    MODE="${1}"
     MESSAGE="${2:-Hello, can you introduce yourself?}"
+elif [[ -n "${1:-}" ]]; then
+    MESSAGE="${1}"
 fi
 
 echo "=========================================="
