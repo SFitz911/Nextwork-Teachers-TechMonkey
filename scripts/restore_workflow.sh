@@ -153,9 +153,12 @@ EOF
     RESTORE_FILE="$TEMP_WORKFLOW"
     echo "✅ Extracted workflow from backup"
     echo ""
+else
+    # Not a backup, so no temp file needed
+    TEMP_WORKFLOW=""
 fi
 
-# Clean workflow JSON for import (remove n8n-specific fields)
+# Clean workflow JSON for import (remove n8n-specific fields, but keep settings)
 echo "Cleaning workflow JSON for import..."
 CLEANED_WORKFLOW=$(python3 <<EOF
 import json, sys
@@ -164,13 +167,25 @@ try:
         workflow = json.load(f)
     
     # Remove fields that n8n doesn't want in import
-    fields_to_remove = ['id', 'updatedAt', 'createdAt', 'staticData', 'settings']
+    fields_to_remove = ['id', 'updatedAt', 'createdAt', 'staticData']
     for field in fields_to_remove:
         workflow.pop(field, None)
     
     # Ensure name is set
     if 'name' not in workflow:
         workflow['name'] = 'AI Virtual Classroom - Five Teacher Workflow'
+    
+    # Ensure settings exists (required by n8n API)
+    if 'settings' not in workflow:
+        workflow['settings'] = {}
+    
+    # Ensure nodes array exists
+    if 'nodes' not in workflow:
+        workflow['nodes'] = []
+    
+    # Ensure connections exists
+    if 'connections' not in workflow:
+        workflow['connections'] = {}
     
     print(json.dumps(workflow))
 except Exception as e:
@@ -255,7 +270,10 @@ else
 fi
 
 # Cleanup
-rm -f "$CLEANED_FILE" "$TEMP_WORKFLOW" 2>/dev/null
+rm -f "$CLEANED_FILE" 2>/dev/null
+if [[ -n "${TEMP_WORKFLOW:-}" ]] && [[ -f "$TEMP_WORKFLOW" ]]; then
+    rm -f "$TEMP_WORKFLOW" 2>/dev/null
+fi
 
 echo ""
 echo "=========================================="
