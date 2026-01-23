@@ -33,22 +33,74 @@
               "value1": "={{ $json.selectedTeacher }}",
               "operation": "equals",
               "value2": "teacher_a"
-            },
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher-0",
+      "name": "Switch Teacher 0",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
             {
               "value1": "={{ $json.selectedTeacher }}",
               "operation": "equals",
               "value2": "teacher_b"
-            },
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher-1",
+      "name": "Switch Teacher 1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
             {
               "value1": "={{ $json.selectedTeacher }}",
               "operation": "equals",
               "value2": "teacher_c"
-            },
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher-2",
+      "name": "Switch Teacher 2",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
             {
               "value1": "={{ $json.selectedTeacher }}",
               "operation": "equals",
               "value2": "teacher_d"
-            },
+            }
+          ]
+        }
+      },
+      "id": "switch-teacher-3",
+      "name": "Switch Teacher 3",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
             {
               "value1": "={{ $json.selectedTeacher }}",
               "operation": "equals",
@@ -57,11 +109,11 @@
           ]
         }
       },
-      "id": "switch-teacher",
-      "name": "Switch Teacher",
+      "id": "switch-teacher-4",
+      "name": "Switch Teacher 4",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [650, 500]
     },
     {
       "parameters": {
@@ -86,11 +138,127 @@
         },
         "options": {}
       },
-      "id": "llm-generate",
+      "id": "llm-generate-0",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 100]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-1",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-2",
       "name": "LLM Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-3",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-generate-4",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 500]
     },
     {
       "parameters": {
@@ -201,14 +369,34 @@
       "main": [
         [
           {
-            "node": "Switch Teacher",
+            "node": "Switch Teacher 0",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Teacher 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Teacher 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Teacher 3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Teacher 4",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher": {
+    "Switch Teacher 0": {
       "main": [
         [
           {
@@ -216,28 +404,44 @@
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Switch Teacher 1": {
+      "main": [
         [
           {
             "node": "LLM Generate",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Switch Teacher 2": {
+      "main": [
         [
           {
             "node": "LLM Generate",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Switch Teacher 3": {
+      "main": [
         [
           {
             "node": "LLM Generate",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Switch Teacher 4": {
+      "main": [
         [
           {
             "node": "LLM Generate",
