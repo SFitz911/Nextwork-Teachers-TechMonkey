@@ -55,7 +55,7 @@ TTS_RESPONSE=$(curl -s -X POST http://localhost:8001/tts \
     -H "Content-Type: application/json" \
     -d '{"text": "Test audio for LongCat", "voice": "en_US-lessac-medium"}' 2>&1)
 
-AUDIO_URL=$(echo "$TTS_RESPONSE" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('audio_url', ''))" 2>/dev/null || echo "")
+AUDIO_URL=$(echo "$TTS_RESPONSE" | python3 -c "import sys, json; d=json.load(sys.stdin); url=d.get('audio_url'); print(url if url and url != 'None' and url != 'null' else '')" 2>/dev/null || echo "")
 
 if [[ -n "$AUDIO_URL" ]]; then
     echo "✅ TTS returned audio_url: $AUDIO_URL"

@@ -90,14 +90,22 @@ async def generate_speech(request: TTSRequest):
             # Placeholder - create empty file
             audio_bytes = b""  # Will be replaced when actual TTS is implemented
         
-        # Save audio file
+        # Save audio file (even if empty, so we have a file to serve)
         with open(audio_path, 'wb') as f:
             f.write(audio_bytes)
         
-        # Return URL (prioritize audio_url for LongCat-Video compatibility)
+        # ALWAYS return a valid audio_url (required for LongCat-Video)
+        # Use absolute path to ensure it works
         audio_url = f"http://localhost:8001/audio/{audio_filename}"
         
-        return TTSResponse(audio_url=audio_url, audio_base64=audio_data)
+        # Ensure audio_url is never None or empty
+        if not audio_url or audio_url == "None":
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to generate audio_url. AUDIO_DIR: {AUDIO_DIR}, filename: {audio_filename}"
+            )
+        
+        return TTSResponse(audio_url=audio_url, audio_base64=audio_data if audio_data else None)
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
