@@ -47,18 +47,28 @@ if [[ "$RESTORE_SOURCE" == "original" ]]; then
         exit 1
     fi
 elif [[ "$RESTORE_SOURCE" == "latest" ]]; then
-    # Find latest backup
+    # Find latest VALID backup (skip empty or invalid ones)
     if [[ -d "$BACKUP_DIR" ]]; then
-        LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.json 2>/dev/null | head -1)
-        if [[ -n "$LATEST_BACKUP" ]] && [[ -f "$LATEST_BACKUP" ]]; then
-            RESTORE_FILE="$LATEST_BACKUP"
-            echo "Using latest backup: $LATEST_BACKUP"
-        else
-            echo "⚠️  No backups found, using original workflow file"
+        # Try backups in reverse chronological order, skip invalid ones
+        for BACKUP in $(ls -t "$BACKUP_DIR"/*.json 2>/dev/null); do
+            if [[ -f "$BACKUP" ]] && [[ -s "$BACKUP" ]]; then
+                # Check if it's valid JSON
+                if python3 -c "import json; json.load(open('$BACKUP'))" 2>/dev/null; then
+                    RESTORE_FILE="$BACKUP"
+                    echo "Using latest valid backup: $BACKUP"
+                    break
+                else
+                    echo "⚠️  Skipping invalid backup: $BACKUP"
+                fi
+            fi
+        done
+        
+        if [[ -z "$RESTORE_FILE" ]]; then
+            echo "⚠️  No valid backups found, using original workflow file"
             if [[ -f "$WORKFLOW_FILE" ]]; then
                 RESTORE_FILE="$WORKFLOW_FILE"
             else
-                echo "❌ No backups and original file not found!"
+                echo "❌ No valid backups and original file not found!"
                 exit 1
             fi
         fi
