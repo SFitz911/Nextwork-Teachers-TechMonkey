@@ -166,8 +166,13 @@ try:
     with open('$RESTORE_FILE', 'r') as f:
         workflow = json.load(f)
     
-    # Remove fields that n8n doesn't want in import
-    fields_to_remove = ['id', 'updatedAt', 'createdAt', 'staticData']
+    # Remove ALL fields that n8n doesn't want in API import
+    # Keep only: name, nodes, connections, settings, tags
+    fields_to_remove = [
+        'id', 'updatedAt', 'createdAt', 'staticData', 
+        'versionId', 'triggerCount', 'pinData', 'active',
+        'nodesLastUpdated', 'meta', 'tags'
+    ]
     for field in fields_to_remove:
         workflow.pop(field, None)
     
@@ -175,19 +180,41 @@ try:
     if 'name' not in workflow:
         workflow['name'] = 'AI Virtual Classroom - Five Teacher Workflow'
     
-    # Ensure settings exists (required by n8n API)
+    # Ensure settings exists (required by n8n API) - but make it minimal
     if 'settings' not in workflow:
         workflow['settings'] = {}
+    else:
+        # Clean settings - remove any extra fields
+        workflow['settings'] = {}
     
-    # Ensure nodes array exists
+    # Ensure nodes array exists and clean each node
     if 'nodes' not in workflow:
         workflow['nodes'] = []
+    else:
+        # Remove unwanted fields from each node
+        for node in workflow['nodes']:
+            node.pop('id', None)
+            node.pop('webhookId', None)
+            node.pop('credentials', None)
+            # Keep: name, type, typeVersion, position, parameters
     
     # Ensure connections exists
     if 'connections' not in workflow:
         workflow['connections'] = {}
     
-    print(json.dumps(workflow))
+    # Remove tags if present (can cause issues)
+    if 'tags' in workflow:
+        workflow['tags'] = []
+    
+    # Create minimal valid workflow structure
+    cleaned = {
+        'name': workflow.get('name', 'AI Virtual Classroom - Five Teacher Workflow'),
+        'nodes': workflow.get('nodes', []),
+        'connections': workflow.get('connections', {}),
+        'settings': workflow.get('settings', {})
+    }
+    
+    print(json.dumps(cleaned))
 except Exception as e:
     print(f"ERROR: {e}", file=sys.stderr)
     sys.exit(1)
