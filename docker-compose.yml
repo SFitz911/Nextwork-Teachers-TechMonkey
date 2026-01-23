@@ -90,6 +90,45 @@ services:
       - ANIMATION_MODEL=lam
       - AVATAR_PATH=/app/avatars
 
+  # Coordinator API - Session State Management
+  coordinator:
+    build:
+      context: ./services/coordinator
+      dockerfile: Dockerfile
+    container_name: ai-teacher-coordinator
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PORT=8004
+    depends_on:
+      - redis
+
+  # LongCat-Video-Avatar Service
+  longcat-video:
+    build:
+      context: ./services/longcat_video
+      dockerfile: Dockerfile
+    container_name: ai-teacher-longcat-video
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./LongCat-Video:/app/longcat-video:ro
+      - ./outputs/longcat:/app/output
+      - ./Nextwork-Teachers:/app/avatars:ro
+    environment:
+      - LONGCAT_VIDEO_DIR=/app/longcat-video
+      - CHECKPOINT_DIR=/app/longcat-video/weights/LongCat-Video-Avatar
+      - AVATAR_IMAGES_DIR=/app/avatars
+      - OUTPUT_DIR=/app/output
+      - PORT=8003
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
   # Frontend (Streamlit)
   frontend:
     build:
@@ -101,10 +140,14 @@ services:
     volumes:
       - ./frontend:/app
       - ./services/animation/output:/app/video_cache
+      - ./outputs/longcat:/app/video_cache/longcat
     environment:
       - N8N_WEBHOOK_URL=http://localhost:5678/webhook/chat
       - TTS_API_URL=http://localhost:8001
       - ANIMATION_API_URL=http://localhost:8002
+      - COORDINATOR_API_URL=http://localhost:8004
+    depends_on:
+      - coordinator
 
   # Redis for state management (optional)
   redis:
