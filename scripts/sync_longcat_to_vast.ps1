@@ -44,13 +44,13 @@ Write-Host ""
 
 # Check if local directory exists
 if (-not (Test-Path $LOCAL_LONGCAT_DIR)) {
-    Write-Host "❌ LongCat-Video directory not found locally" -ForegroundColor Red
+    Write-Host "[ERROR] LongCat-Video directory not found locally" -ForegroundColor Red
     Write-Host "   Please clone it first:" -ForegroundColor Yellow
     Write-Host "   git clone --single-branch --branch main https://github.com/meituan-longcat/LongCat-Video" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "📦 Syncing LongCat-Video directory..." -ForegroundColor Yellow
+Write-Host "Syncing LongCat-Video directory..." -ForegroundColor Yellow
 Write-Host "   Method: $Method" -ForegroundColor Gray
 Write-Host "   From: $LOCAL_LONGCAT_DIR" -ForegroundColor Gray
 Write-Host "   To: $($SSH_CONFIG.User)@$($SSH_CONFIG.Host):$REMOTE_LONGCAT_DIR" -ForegroundColor Gray
@@ -60,7 +60,7 @@ Write-Host ""
 $rsyncAvailable = Get-Command rsync -ErrorAction SilentlyContinue
 
 if (-not $rsyncAvailable) {
-    Write-Host "⚠️  rsync not found. Using SCP instead (slower but works)..." -ForegroundColor Yellow
+    Write-Host "[WARNING] rsync not found. Using SCP instead (slower but works)..." -ForegroundColor Yellow
     Write-Host ""
     
     # Use SCP instead
@@ -115,6 +115,6 @@ try {
         exit 1
     }
 } catch {
-    Write-Host "❌ Error during sync: $_" -ForegroundColor Red
+    Write-Host "Error during sync: $_" -ForegroundColor Red
     exit 1
 }
