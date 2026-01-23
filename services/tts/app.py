@@ -69,8 +69,30 @@ async def generate_speech(request: TTSRequest):
             chunks = chunk_audio(audio_data)
             return TTSResponse(chunks=chunks)
         
-        # Return full audio
-        return TTSResponse(audio_base64=audio_data)
+        # Save audio to file and return URL
+        audio_id = str(uuid.uuid4())
+        audio_filename = f"{audio_id}.wav"
+        audio_path = os.path.join(AUDIO_DIR, audio_filename)
+        
+        # If audio_data is base64, decode it
+        if isinstance(audio_data, str) and not audio_data.startswith("piper_") and not audio_data.startswith("coqui_"):
+            try:
+                audio_bytes = base64.b64decode(audio_data)
+            except:
+                # If not base64, treat as placeholder and create empty file for now
+                audio_bytes = b""  # Placeholder - will be replaced when TTS is implemented
+        else:
+            # Placeholder - create empty file
+            audio_bytes = b""  # Will be replaced when actual TTS is implemented
+        
+        # Save audio file
+        with open(audio_path, 'wb') as f:
+            f.write(audio_bytes)
+        
+        # Return URL (prioritize audio_url for LongCat-Video compatibility)
+        audio_url = f"http://localhost:8001/audio/{audio_filename}"
+        
+        return TTSResponse(audio_url=audio_url, audio_base64=audio_data)
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
