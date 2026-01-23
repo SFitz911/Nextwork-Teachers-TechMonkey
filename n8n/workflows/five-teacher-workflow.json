@@ -139,7 +139,7 @@
         "options": {}
       },
       "id": "llm-generate-0",
-      "name": "LLM Generate",
+      "name": "LLM Generate 0",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 100]
@@ -168,7 +168,7 @@
         "options": {}
       },
       "id": "llm-generate-1",
-      "name": "LLM Generate",
+      "name": "LLM Generate 1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 200]
@@ -197,7 +197,7 @@
         "options": {}
       },
       "id": "llm-generate-2",
-      "name": "LLM Generate",
+      "name": "LLM Generate 2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 300]
@@ -226,7 +226,7 @@
         "options": {}
       },
       "id": "llm-generate-3",
-      "name": "LLM Generate",
+      "name": "LLM Generate 3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 400]
@@ -255,7 +255,7 @@
         "options": {}
       },
       "id": "llm-generate-4",
-      "name": "LLM Generate",
+      "name": "LLM Generate 4",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [850, 500]
@@ -400,7 +400,7 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "LLM Generate 0",
             "type": "main",
             "index": 0
           }
@@ -411,7 +411,7 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "LLM Generate 1",
             "type": "main",
             "index": 0
           }
@@ -422,7 +422,7 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "LLM Generate 2",
             "type": "main",
             "index": 0
           }
@@ -433,7 +433,7 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "LLM Generate 3",
             "type": "main",
             "index": 0
           }
@@ -444,14 +444,58 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "LLM Generate 4",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate": {
+    "LLM Generate 0": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate 1": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate 2": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate 3": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate 4": {
       "main": [
         [
           {
