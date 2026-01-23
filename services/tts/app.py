@@ -21,7 +21,12 @@ TTS_VOICE = os.getenv("TTS_VOICE", "en_US-lessac-medium")
 
 # Audio storage directory
 AUDIO_DIR = os.getenv("AUDIO_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "outputs", "tts"))
-os.makedirs(AUDIO_DIR, exist_ok=True)
+try:
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+except Exception as e:
+    # Fallback to absolute path if relative path fails
+    AUDIO_DIR = os.path.join("/tmp", "tts_audio")
+    os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
 class TTSRequest(BaseModel):
