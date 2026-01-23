@@ -1,47 +1,74 @@
 """
-Streamlit Frontend for AI Virtual Classroom
-Dual teacher video display with chat interface
+Streamlit Frontend for 2-Teacher Live Classroom
+Left Avatar + Center Website + Right Avatar layout with SSE event streaming
 """
 
 import streamlit as st
 import requests
 import os
 import json
-from typing import Optional
+from typing import Optional, Dict, List
 import time
+import threading
+import queue
+from datetime import datetime
 
 # Configuration
-N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/chat-webhook")
-TTS_API_URL = os.getenv("TTS_API_URL", "http://localhost:8001")
-ANIMATION_API_URL = os.getenv("ANIMATION_API_URL", "http://localhost:8002")
+COORDINATOR_API_URL = os.getenv("COORDINATOR_API_URL", "http://localhost:8004")
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/session/start")
+
+# Teacher mapping
+TEACHERS = {
+    "teacher_a": {"name": "Maya", "image": "Nextwork-Teachers/Maya.png"},
+    "teacher_b": {"name": "Maximus", "image": "Nextwork-Teachers/Maximus.png"},
+    "teacher_c": {"name": "Krishna", "image": "Nextwork-Teachers/krishna.png"},
+    "teacher_d": {"name": "TechMonkey Steve", "image": "Nextwork-Teachers/TechMonkey Steve.png"},
+    "teacher_e": {"name": "Pano Bieber", "image": "Nextwork-Teachers/Pano Bieber.png"}
+}
 
 # Page config
 st.set_page_config(
-    page_title="AI Virtual Classroom",
+    page_title="AI Virtual Classroom - 2 Teacher Live",
     page_icon="👨‍🏫",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for classroom theme
+# Custom CSS for 2-teacher layout
 st.markdown("""
     <style>
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1rem;
     }
-    .teacher-container {
+    .teacher-panel {
         background: white;
         border-radius: 10px;
         padding: 20px;
-        margin: 10px 0;
+        margin: 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        height: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
-    .chat-message {
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 5px;
-        background: #f0f0f0;
+    .center-panel {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        height: 600px;
+        overflow-y: auto;
+    }
+    .speaking {
+        border: 3px solid #4CAF50;
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    }
+    .rendering {
+        border: 3px solid #FF9800;
+        opacity: 0.8;
     }
     .stButton>button {
         width: 100%;
@@ -53,324 +80,366 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-def send_chat_message(message: str) -> dict:
-    """
-    Send chat message to n8n webhook
-    """
+# Session state management
+if "session_id" not in st.session_state:
+    st.session_state.session_id = None
+if "selected_teachers" not in st.session_state:
+    st.session_state.selected_teachers = []
+if "speaker" not in st.session_state:
+    st.session_state.speaker = None
+if "renderer" not in st.session_state:
+    st.session_state.renderer = None
+if "clips" not in st.session_state:
+    st.session_state.clips = {}  # teacher_id -> clip data
+if "current_clip" not in st.session_state:
+    st.session_state.current_clip = None  # Currently playing clip
+if "event_queue" not in st.session_state:
+    st.session_state.event_queue = queue.Queue()
+if "sse_thread" not in st.session_state:
+    st.session_state.sse_thread = None
+
+
+def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
+    """Start a new session with 2 teachers"""
     try:
         response = requests.post(
-            N8N_WEBHOOK_URL,
-            json={"message": message, "timestamp": time.time()},
-            timeout=30
+            f"{COORDINATOR_API_URL}/session/start",
+            json={
+                "selectedTeachers": selected_teachers,
+                "lessonUrl": lesson_url
+            },
+            timeout=5
         )
         response.raise_for_status()
-        
-        # Check if response has content
-        if not response.text:
-            st.error("❌ Error: Empty response from webhook")
-            st.warning("""
-            **The workflow executed but didn't return a response.**
-            
-            This usually means the workflow is failing before reaching the 'Respond to Webhook' node.
-            
-            **To diagnose:**
-            1. Open n8n UI: http://localhost:5678
-            2. Go to 'Workflows' → 'AI Virtual Classroom - Five Teacher Workflow'
-            3. Click the 'Executions' tab
-            4. Check the latest execution to see which node failed
-            
-            **Common issues:**
-            - Workflow not activated (check green toggle in n8n)
-            - Ollama service not running
-            - Code node syntax error
-            - Service timeout
-            """)
-            return {}
-        
-        # Try to parse JSON
-        try:
-            return response.json()
-        except ValueError as e:
-            st.error(f"Error parsing response: {str(e)}")
-            st.error(f"Response was: {response.text[:200]}")
-            return {}
-    except requests.exceptions.Timeout:
-        st.error("❌ Request timed out after 30 seconds")
-        st.warning("The workflow may be taking too long. Check if Ollama and other services are running.")
-        return {}
-    except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to webhook")
-        st.warning(f"""
-        **Connection failed to:** {N8N_WEBHOOK_URL}
-        
-        **Possible causes:**
-        1. Port forwarding not active - Run: `.\connect-vast.ps1`
-        2. n8n service not running
-        3. Wrong webhook URL
-        
-        **Check port forwarding:** Run `.\scripts\check_port_forwarding.ps1`
-        """)
-        return {}
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error sending message: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            st.error(f"HTTP Status: {e.response.status_code}")
-        return {}
+        data = response.json()
+        return data.get("sessionId")
     except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
-        return {}
-
-
-def get_video_stream(teacher_id: str) -> Optional[str]:
-    """
-    Get video stream URL for teacher
-    TODO: Implement WebSocket or SSE for real-time streaming
-    """
-    # Placeholder - implement actual video streaming
-    return None
-
-
-def get_avatar_image(teacher_id: str) -> Optional[str]:
-    """
-    Get avatar image URL for teacher from animation API
-    """
-    try:
-        # Get from animation API
-        return f"{ANIMATION_API_URL}/avatar/{teacher_id}"
-    except:
+        st.error(f"Failed to start session: {e}")
         return None
 
 
-# Main UI
-st.title("👨‍🏫 AI Virtual Classroom")
-st.markdown("Ask questions in the chat below, and our AI teachers will respond!")
+def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: str = "", selected_text: str = ""):
+    """Update current section snapshot"""
+    try:
+        requests.post(
+            f"{COORDINATOR_API_URL}/session/{session_id}/section",
+            json={
+                "sessionId": session_id,
+                "sectionId": f"sec-{int(time.time())}",
+                "url": url,
+                "scrollY": scroll_y,
+                "visibleText": visible_text,
+                "selectedText": selected_text
+            },
+            timeout=2
+        )
+    except Exception as e:
+        st.warning(f"Failed to update section: {e}")
 
-# Sidebar for settings
-with st.sidebar:
-    st.header("⚙️ Settings")
-    teacher_a_name = st.text_input("Teacher A Name", value="Maya")
-    teacher_b_name = st.text_input("Teacher B Name", value="Maximus")
-    teacher_c_name = st.text_input("Teacher C Name", value="Krishna")
-    teacher_d_name = st.text_input("Teacher D Name", value="TechMonkey Steve")
-    teacher_e_name = st.text_input("Teacher E Name", value="Pano Bieber")
-    
-    st.header("📊 Status")
-    if st.button("Check Services"):
-        # Check service health
-        services = {
-            "n8n": N8N_WEBHOOK_URL,
-            "TTS": TTS_API_URL,
-            "Animation": ANIMATION_API_URL
-        }
-        for name, url in services.items():
-            try:
-                response = requests.get(url.replace("/webhook/chat", ""), timeout=2)
-                st.success(f"✅ {name}: Online")
-            except:
-                st.error(f"❌ {name}: Offline")
 
-# Five-teacher layout (3 on top, 2 on bottom)
-col1, col2, col3 = st.columns(3)
-col4, col5 = st.columns(2)
+def notify_speech_ended(session_id: str, clip_id: str):
+    """Notify coordinator that clip finished playing"""
+    try:
+        requests.post(
+            f"{COORDINATOR_API_URL}/session/{session_id}/speech-ended",
+            json={
+                "sessionId": session_id,
+                "clipId": clip_id
+            },
+            timeout=2
+        )
+    except Exception as e:
+        st.warning(f"Failed to notify speech ended: {e}")
 
-with col1:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_a_name}")
-    
-    # Video player for Teacher A
-    video_a = get_video_stream("teacher_a")
-    if video_a:
-        st.video(video_a)
-    else:
-        # Show avatar image if available
-        avatar_a = get_avatar_image("teacher_a")
-        if avatar_a:
-            try:
-                st.image(avatar_a, use_container_width=True)
-            except:
-                st.image("https://via.placeholder.com/640x360?text=Maya", use_container_width=True)
-        else:
-            st.image("https://via.placeholder.com/640x360?text=Maya", use_container_width=True)
-        st.info("Waiting for Teacher A to speak...")
-    
-    # Status indicator
-    status_a = st.empty()
-    status_a.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
-with col2:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_b_name}")
-    
-    # Video player for Teacher B
-    video_b = get_video_stream("teacher_b")
-    if video_b:
-        st.video(video_b)
-    else:
-        # Show avatar image if available
-        avatar_b = get_avatar_image("teacher_b")
-        if avatar_b:
-            try:
-                st.image(avatar_b, use_container_width=True)
-            except:
-                st.image("https://via.placeholder.com/640x360?text=Maximus", use_container_width=True)
-        else:
-            st.image("https://via.placeholder.com/640x360?text=Maximus", use_container_width=True)
-        st.info("Waiting for Teacher B to speak...")
-    
-    # Status indicator
-    status_b = st.empty()
-    status_b.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+def listen_to_events(session_id: str, event_queue: queue.Queue):
+    """Listen to SSE events from Coordinator"""
+    try:
+        response = requests.get(
+            f"{COORDINATOR_API_URL}/session/{session_id}/events",
+            stream=True,
+            timeout=None
+        )
+        
+        for line in response.iter_lines():
+            if line:
+                line_str = line.decode('utf-8')
+                if line_str.startswith('data: '):
+                    try:
+                        event_data = json.loads(line_str[6:])  # Remove 'data: ' prefix
+                        event_queue.put(event_data)
+                    except json.JSONDecodeError:
+                        pass
+    except Exception as e:
+        event_queue.put({"type": "ERROR", "message": str(e)})
 
-with col3:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_c_name}")
-    
-    # Video player for Teacher C
-    video_c = get_video_stream("teacher_c")
-    if video_c:
-        st.video(video_c)
-    else:
-        # Show avatar image if available
-        avatar_c = get_avatar_image("teacher_c")
-        if avatar_c:
-            try:
-                st.image(avatar_c, use_container_width=True)
-            except:
-                st.image("https://via.placeholder.com/640x360?text=Krishna", use_container_width=True)
-        else:
-            st.image("https://via.placeholder.com/640x360?text=Krishna", use_container_width=True)
-        st.info("Waiting for Teacher C to speak...")
-    
-    # Status indicator
-    status_c = st.empty()
-    status_c.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# Second row: Teachers D and E
-with col4:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_d_name}")
-    
-    # Video player for Teacher D
-    video_d = get_video_stream("teacher_d")
-    if video_d:
-        st.video(video_d)
-    else:
-        # Show avatar image if available
-        avatar_d = get_avatar_image("teacher_d")
-        if avatar_d:
-            try:
-                st.image(avatar_d, use_container_width=True)
-            except:
-                st.image("https://via.placeholder.com/640x360?text=TechMonkey+Steve", use_container_width=True)
-        else:
-            st.image("https://via.placeholder.com/640x360?text=TechMonkey+Steve", use_container_width=True)
-        st.info("Waiting for Teacher D to speak...")
-    
-    # Status indicator
-    status_d = st.empty()
-    status_d.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col5:
-    st.markdown(f'<div class="teacher-container">', unsafe_allow_html=True)
-    st.header(f"👨‍🏫 {teacher_e_name}")
-    
-    # Video player for Teacher E
-    video_e = get_video_stream("teacher_e")
-    if video_e:
-        st.video(video_e)
-    else:
-        # Show avatar image if available
-        avatar_e = get_avatar_image("teacher_e")
-        if avatar_e:
-            try:
-                st.image(avatar_e, use_container_width=True)
-            except:
-                st.image("https://via.placeholder.com/640x360?text=Pano+Bieber", use_container_width=True)
-        else:
-            st.image("https://via.placeholder.com/640x360?text=Pano+Bieber", use_container_width=True)
-        st.info("Waiting for Teacher E to speak...")
-    
-    # Status indicator
-    status_e = st.empty()
-    status_e.info("🟢 Ready")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# Chat interface
-st.markdown("---")
-st.header("💬 Ask a Question")
-
-# Chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-# Display chat history
-with st.expander("📜 Chat History", expanded=False):
-    for msg in st.session_state.chat_history:
-        st.markdown(f'<div class="chat-message"><strong>You:</strong> {msg["question"]}</div>', 
-                   unsafe_allow_html=True)
-        if "response" in msg:
-            st.markdown(f'<div class="chat-message"><strong>Teachers:</strong> {msg["response"]}</div>', 
-                       unsafe_allow_html=True)
-
-# Chat input
-user_input = st.text_input(
-    "Type your question here:",
-    placeholder="e.g., What is the theory of relativity?",
-    key="chat_input"
-)
-
-col_send, col_clear = st.columns([4, 1])
-
-with col_send:
-    if st.button("🚀 Send Question", type="primary"):
-        if user_input:
-            # Add to chat history
-            st.session_state.chat_history.append({"question": user_input})
+def process_events():
+    """Process events from the queue"""
+    while not st.session_state.event_queue.empty():
+        try:
+            event = st.session_state.event_queue.get_nowait()
+            event_type = event.get("type")
             
-            # Show loading
-            with st.spinner("Teachers are thinking..."):
-                # Send to n8n webhook
-                result = send_chat_message(user_input)
+            if event_type == "SESSION_STARTED":
+                st.session_state.session_id = event.get("sessionId")
+                st.session_state.speaker = event.get("speaker")
+                st.session_state.renderer = event.get("renderer")
+                st.rerun()
+            
+            elif event_type == "CLIP_READY":
+                teacher = event.get("teacher")
+                clip = event.get("clip")
+                st.session_state.clips[teacher] = clip
                 
-                if result:
-                    st.session_state.chat_history[-1]["response"] = result.get("response", "Processing...")
+                # If this is the speaker's clip, start playing it
+                if teacher == st.session_state.speaker:
+                    st.session_state.current_clip = clip
                     st.rerun()
-                else:
-                    st.error("❌ Failed to get response. Please check service status.")
-                    st.info("""
-                    💡 **To diagnose:**
-                    
-                    **1. Check port forwarding** (Desktop PowerShell):
-                       `.\scripts\check_port_forwarding.ps1`
-                    
-                    **2. Run diagnostic** (VAST Terminal):
-                       `bash scripts/diagnose_webhook_issue.sh`
-                    
-                    **3. Check which node failed** (VAST Terminal):
-                       `bash scripts/debug_webhook_execution.sh`
-                    """)
+            
+            elif event_type == "SPEAKER_CHANGED":
+                st.session_state.speaker = event.get("speaker")
+                st.session_state.renderer = event.get("renderer")
+                
+                # Check if new speaker has a ready clip
+                if st.session_state.speaker in st.session_state.clips:
+                    st.session_state.current_clip = st.session_state.clips[st.session_state.speaker]
+                    st.rerun()
+            
+            elif event_type == "ERROR":
+                st.error(f"Error: {event.get('message', 'Unknown error')}")
+        
+        except queue.Empty:
+            break
 
-with col_clear:
-    if st.button("🗑️ Clear"):
-        st.session_state.chat_history = []
-        st.rerun()
 
-# Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: #666; padding: 20px;'>
-        <p>AI Virtual Classroom Teacher Agent | Built with ❤️ using n8n, Ollama, and open-source AI</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Main UI
+st.title("👨‍🏫 AI Virtual Classroom - 2 Teacher Live")
+
+# Sidebar for session management
+with st.sidebar:
+    st.header("🎯 Session Control")
+    
+    # Teacher selection (must choose exactly 2)
+    st.subheader("Select 2 Teachers")
+    available_teachers = list(TEACHERS.keys())
+    
+    teacher_1 = st.selectbox(
+        "Teacher 1 (Left)",
+        available_teachers,
+        format_func=lambda x: TEACHERS[x]["name"],
+        key="teacher_1"
+    )
+    
+    teacher_2_options = [t for t in available_teachers if t != teacher_1]
+    teacher_2 = st.selectbox(
+        "Teacher 2 (Right)",
+        teacher_2_options,
+        format_func=lambda x: TEACHERS[x]["name"],
+        key="teacher_2"
+    )
+    
+    lesson_url = st.text_input("Lesson URL (optional)", value="")
+    
+    if st.button("🚀 Start Session", type="primary"):
+        selected = [teacher_1, teacher_2]
+        session_id = start_session(selected, lesson_url if lesson_url else None)
+        
+        if session_id:
+            st.session_state.session_id = session_id
+            st.session_state.selected_teachers = selected
+            
+            # Start SSE listener thread
+            if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
+                st.session_state.sse_thread = threading.Thread(
+                    target=listen_to_events,
+                    args=(session_id, st.session_state.event_queue),
+                    daemon=True
+                )
+                st.session_state.sse_thread.start()
+            
+            st.success(f"✅ Session started: {session_id[:8]}...")
+            st.rerun()
+    
+    if st.session_state.session_id:
+        st.markdown("---")
+        st.subheader("📊 Session Status")
+        st.info(f"**Session ID:** {st.session_state.session_id[:16]}...")
+        if st.session_state.speaker:
+            st.success(f"**Speaking:** {TEACHERS[st.session_state.speaker]['name']}")
+        if st.session_state.renderer:
+            st.info(f"**Rendering:** {TEACHERS[st.session_state.renderer]['name']}")
+        
+        if st.button("🛑 End Session"):
+            st.session_state.session_id = None
+            st.session_state.selected_teachers = []
+            st.session_state.speaker = None
+            st.session_state.renderer = None
+            st.session_state.clips = {}
+            st.session_state.current_clip = None
+            st.rerun()
+
+# Process events
+if st.session_state.session_id:
+    process_events()
+
+# Main layout: Left Avatar | Center Website | Right Avatar
+if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    
+    left_teacher = st.session_state.selected_teachers[0]
+    right_teacher = st.session_state.selected_teachers[1]
+    
+    # Left Teacher Panel
+    with col_left:
+        left_speaking = (st.session_state.speaker == left_teacher)
+        left_rendering = (st.session_state.renderer == left_teacher)
+        
+        panel_class = "teacher-panel"
+        if left_speaking:
+            panel_class += " speaking"
+        elif left_rendering:
+            panel_class += " rendering"
+        
+        st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
+        st.header(f"👨‍🏫 {TEACHERS[left_teacher]['name']}")
+        
+        # Show video if clip is ready and this is the speaker
+        if left_speaking and st.session_state.current_clip:
+            clip = st.session_state.current_clip
+            if clip.get("videoUrl"):
+                st.video(clip["videoUrl"])
+                st.caption(clip.get("text", ""))
+            elif clip.get("audioUrl"):
+                st.audio(clip["audioUrl"])
+                st.caption(clip.get("text", ""))
+        else:
+            # Show avatar image
+            try:
+                st.image(TEACHERS[left_teacher]["image"], use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/400x300", use_container_width=True)
+            
+            if left_speaking:
+                st.info("🎤 Speaking...")
+            elif left_rendering:
+                st.info("⏳ Rendering next clip...")
+            else:
+                st.info("💤 Idle")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Center Panel (Website/Learning Project)
+    with col_center:
+        st.markdown('<div class="center-panel">', unsafe_allow_html=True)
+        st.header("📚 Learning Content")
+        
+        # URL input for website
+        website_url = st.text_input("Website URL", value=lesson_url or "https://example.com", key="website_url")
+        
+        # Embed website (using iframe)
+        if website_url:
+            st.components.v1.iframe(website_url, height=500, scrolling=True)
+        
+        # Section snapshot controls
+        st.markdown("---")
+        st.subheader("📸 Section Snapshot")
+        if st.button("📷 Capture Current Section"):
+            # Extract visible text (simplified - in production, use browser extension)
+            visible_text = st.text_area("Visible Text (paste from browser)", height=100)
+            selected_text = st.text_input("Selected Text (if any)", "")
+            scroll_y = st.number_input("Scroll Position", value=0, min_value=0)
+            
+            if st.session_state.session_id:
+                update_section(
+                    st.session_state.session_id,
+                    website_url,
+                    int(scroll_y),
+                    visible_text,
+                    selected_text
+                )
+                st.success("✅ Section snapshot sent to teachers!")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Right Teacher Panel
+    with col_right:
+        right_speaking = (st.session_state.speaker == right_teacher)
+        right_rendering = (st.session_state.renderer == right_teacher)
+        
+        panel_class = "teacher-panel"
+        if right_speaking:
+            panel_class += " speaking"
+        elif right_rendering:
+            panel_class += " rendering"
+        
+        st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
+        st.header(f"👨‍🏫 {TEACHERS[right_teacher]['name']}")
+        
+        # Show video if clip is ready and this is the speaker
+        if right_speaking and st.session_state.current_clip:
+            clip = st.session_state.current_clip
+            if clip.get("videoUrl"):
+                st.video(clip["videoUrl"])
+                st.caption(clip.get("text", ""))
+            elif clip.get("audioUrl"):
+                st.audio(clip["audioUrl"])
+                st.caption(clip.get("text", ""))
+        else:
+            # Show avatar image
+            try:
+                st.image(TEACHERS[right_teacher]["image"], use_container_width=True)
+            except:
+                st.image("https://via.placeholder.com/400x300", use_container_width=True)
+            
+            if right_speaking:
+                st.info("🎤 Speaking...")
+            elif right_rendering:
+                st.info("⏳ Rendering next clip...")
+            else:
+                st.info("💤 Idle")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Bottom controls
+    st.markdown("---")
+    col_controls = st.columns(4)
+    
+    with col_controls[0]:
+        if st.button("⏸️ Pause"):
+            st.info("Pause functionality - coming soon")
+    
+    with col_controls[1]:
+        if st.button("⏭️ Next Section"):
+            st.info("Next section - coming soon")
+    
+    with col_controls[2]:
+        if st.button("🔄 Swap Teachers"):
+            st.info("Swap teachers - coming soon")
+    
+    with col_controls[3]:
+        if st.button("⚙️ Settings"):
+            st.info("Settings - coming soon")
+
+else:
+    # Welcome screen - no session active
+    st.info("👆 **Start a session** using the sidebar to begin the 2-teacher live classroom!")
+    st.markdown("""
+    ### How it works:
+    1. **Select 2 teachers** from the sidebar
+    2. **Click "Start Session"** to begin
+    3. **Load a website** in the center panel
+    4. **Capture section snapshots** to send context to teachers
+    5. Teachers will **alternate turns** automatically, with one speaking while the other renders
+    
+    ### Features:
+    - 🎥 **Live video** from LongCat-Video-Avatar
+    - 🔄 **Automatic turn-taking** (no waiting)
+    - 📚 **Website context** awareness
+    - 🎯 **Real-time events** via SSE
+    """)
+
+# Auto-refresh for event processing
+if st.session_state.session_id:
+    time.sleep(0.5)  # Small delay to allow events to process
+    st.rerun()

@@ -41,6 +41,13 @@ else
     echo "❌ Animation service is NOT running"
 fi
 
+# Coordinator API
+if pgrep -f "python.*coordinator/app.py" > /dev/null; then
+    echo "✅ Coordinator API is running (PID: $(pgrep -f 'python.*coordinator/app.py' | head -1))"
+else
+    echo "❌ Coordinator API is NOT running"
+fi
+
 # Frontend
 if pgrep -f streamlit > /dev/null; then
     echo "✅ Frontend (Streamlit) is running (PID: $(pgrep -f streamlit | head -1))"
@@ -57,12 +64,13 @@ echo ""
 
 # Test localhost connections
 PORT_FORWARDING_NEEDED=false
-for port in 11434 5678 8001 8002 8501; do
+for port in 11434 5678 8001 8002 8004 8501; do
     case $port in
         11434) name="Ollama" ;;
         5678) name="n8n" ;;
         8001) name="TTS" ;;
         8002) name="Animation" ;;
+        8004) name="Coordinator API" ;;
         8501) name="Frontend" ;;
     esac
     

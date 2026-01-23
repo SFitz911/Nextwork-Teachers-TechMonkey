@@ -5,7 +5,7 @@
 # This script:
 # 1. Starts Ollama (if not running)
 # 2. Waits for Ollama to be ready
-# 3. Starts n8n, TTS, Animation, Frontend in tmux
+# 3. Starts Coordinator API, n8n, TTS, Animation, Frontend in tmux
 # 4. Waits for n8n to be fully ready
 # 5. Verifies all services are running
 
@@ -89,7 +89,7 @@ fi
 echo ""
 
 # Step 2: Start other services in tmux
-echo "Step 2: Starting n8n, TTS, Animation, and Frontend..."
+echo "Step 2: Starting Coordinator API, n8n, TTS, Animation, and Frontend..."
 if ! tmux has-session -t "$SESSION" 2>/dev/null; then
     echo "   Creating tmux session..."
     bash scripts/run_no_docker_tmux.sh
@@ -149,11 +149,12 @@ if bash scripts/check_all_services_status.sh; then
     echo "=========================================="
     echo ""
     echo "Services are available at:"
-    echo "  n8n:       http://localhost:5678"
-    echo "  frontend:  http://localhost:8501"
-    echo "  TTS:       http://localhost:8001"
-    echo "  animation: http://localhost:8002"
-    echo "  Ollama:    http://localhost:11434"
+    echo "  coordinator: http://localhost:8004"
+    echo "  n8n:         http://localhost:5678"
+    echo "  frontend:    http://localhost:8501"
+    echo "  TTS:         http://localhost:8001"
+    echo "  animation:   http://localhost:8002"
+    echo "  Ollama:      http://localhost:11434"
     echo ""
     echo "To attach to tmux session: tmux attach -t $SESSION"
     exit 0

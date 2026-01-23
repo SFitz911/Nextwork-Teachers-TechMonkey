@@ -66,11 +66,18 @@ tmux send-keys -t "$SESSION":animation \
    mkdir -p '$PROJECT_DIR/services/animation/output' && \
    python services/animation/app.py 2>&1 | tee logs/animation.log" C-m
 
-# Window 3: Frontend
+# Window 3: Coordinator API
+tmux new-window -t "$SESSION" -n coordinator
+tmux send-keys -t "$SESSION":coordinator \
+  "cd '$PROJECT_DIR' && source '$VENV_DIR/bin/activate' && \
+   python services/coordinator/app.py 2>&1 | tee logs/coordinator.log" C-m
+
+# Window 4: Frontend
 tmux new-window -t "$SESSION" -n frontend
 tmux send-keys -t "$SESSION":frontend \
   "cd '$PROJECT_DIR' && source '$VENV_DIR/bin/activate' && \
-   export N8N_WEBHOOK_URL='http://localhost:5678/webhook/chat-webhook' && \
+   export COORDINATOR_API_URL='http://localhost:8004' && \
+   export N8N_WEBHOOK_URL='http://localhost:5678/webhook/session/start' && \
    export TTS_API_URL='http://localhost:8001' && \
    export ANIMATION_API_URL='http://localhost:8002' && \
    streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee logs/frontend.log" C-m
