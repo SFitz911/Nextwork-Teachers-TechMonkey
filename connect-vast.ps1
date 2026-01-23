@@ -67,15 +67,16 @@ Write-Host '==========================================' -ForegroundColor Cyan
 Write-Host 'SSH Port Forwarding Window' -ForegroundColor Cyan
 Write-Host '==========================================' -ForegroundColor Cyan
 Write-Host ''
-Write-Host '⚠️  DO NOT CLOSE THIS WINDOW ⚠️' -ForegroundColor Red
+Write-Host 'DO NOT CLOSE THIS WINDOW' -ForegroundColor Red
 Write-Host 'Port forwarding will stop if you close this window!' -ForegroundColor Yellow
 Write-Host ''
 Write-Host 'Ports being forwarded:' -ForegroundColor White
-Write-Host '  - 5678  → n8n (http://localhost:5678)' -ForegroundColor White
-Write-Host '  - 8501  → Frontend (http://localhost:8501)' -ForegroundColor White
-Write-Host '  - 8001  → TTS' -ForegroundColor White
-Write-Host '  - 8002  → Animation' -ForegroundColor White
-Write-Host '  - 11434 → Ollama' -ForegroundColor White
+Write-Host '  - 5678  -> n8n (http://localhost:5678)' -ForegroundColor White
+Write-Host '  - 8501  -> Frontend (http://localhost:8501)' -ForegroundColor White
+Write-Host '  - 8001  -> TTS' -ForegroundColor White
+Write-Host '  - 8002  -> Animation' -ForegroundColor White
+Write-Host '  - 8003  -> LongCat-Video' -ForegroundColor White
+Write-Host '  - 11434 -> Ollama' -ForegroundColor White
 Write-Host ''
 Write-Host 'Connecting to VAST.ai...' -ForegroundColor Green
 Write-Host ''
@@ -103,7 +104,7 @@ Start-Sleep -Seconds 60
 Write-Host ''
 Write-Host 'Closing window in 5 seconds...' -ForegroundColor Yellow
 Start-Sleep -Seconds 5
-"@
+"@ -replace "`$", "`$`$"
 
 Set-Content -Path $tempScript -Value $scriptContent -Encoding UTF8
 
