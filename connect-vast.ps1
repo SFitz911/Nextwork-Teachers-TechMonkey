@@ -104,7 +104,7 @@ Start-Sleep -Seconds 60
 Write-Host ''
 Write-Host 'Closing window in 5 seconds...' -ForegroundColor Yellow
 Start-Sleep -Seconds 5
-"@ -replace "`$", "`$`$"
+"@
 
 Set-Content -Path $tempScript -Value $scriptContent -Encoding UTF8
 
