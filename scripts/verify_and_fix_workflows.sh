@@ -152,11 +152,20 @@ if [[ ${#INACTIVE_WORKFLOWS[@]} -gt 0 ]]; then
     echo ""
 fi
 
-# Final verification
+# Final verification - Re-fetch workflows to get updated status
 echo "=========================================="
 echo "Final Verification"
 echo "=========================================="
 echo ""
+
+# Re-fetch workflows list to get updated status after import/activation
+if [[ -n "${N8N_API_KEY:-}" ]]; then
+    WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+else
+    WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+fi
 
 ALL_GOOD=true
 
