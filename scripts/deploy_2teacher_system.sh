@@ -73,11 +73,32 @@ fi
 echo "Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
 
-echo "Installing/updating Coordinator API dependencies..."
+echo "Installing/updating all service dependencies..."
 pip install -q --upgrade pip
+
+# Install Coordinator API dependencies
+echo "   Installing Coordinator API dependencies..."
 pip install -q fastapi uvicorn httpx pydantic
 
-echo "✅ Python environment ready"
+# Install Frontend dependencies
+if [[ -f "frontend/requirements.txt" ]]; then
+    echo "   Installing Frontend dependencies..."
+    pip install -q -r frontend/requirements.txt
+fi
+
+# Install TTS dependencies
+if [[ -f "services/tts/requirements.txt" ]]; then
+    echo "   Installing TTS dependencies..."
+    pip install -q -r services/tts/requirements.txt
+fi
+
+# Install Animation dependencies
+if [[ -f "services/animation/requirements.txt" ]]; then
+    echo "   Installing Animation dependencies..."
+    pip install -q -r services/animation/requirements.txt
+fi
+
+echo "✅ Python environment ready with all dependencies"
 echo ""
 
 # Step 3: Reconfigure n8n
