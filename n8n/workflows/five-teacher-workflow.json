@@ -269,42 +269,32 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get audio URL from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: selectedTeacher,\n    text: $('Select Response by Teacher').item.json.text\n  }\n};"
+        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\nconst responseText = $('Select Response by Teacher').item.json.text;\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n}\n\n// Teacher-specific text prompts for LongCat-Video\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator with expertise in making complex topics relatable. Speaking naturally and conversationally.',\n  'teacher_b': 'A technical expert with deep knowledge in advanced topics. Speaking precisely and analytically.',\n  'teacher_c': 'An enthusiastic and knowledgeable educator with extensive teaching experience. Speaking clearly and engagingly.',\n  'teacher_d': 'An innovative and creative educator who makes learning fun. Speaking energetically and creatively.',\n  'teacher_e': 'A knowledgeable and adaptable educator. Speaking clearly and supportively.'\n};\n\nconst textPrompt = teacherPrompts[selectedTeacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: selectedTeacher,\n    text_prompt: textPrompt,\n    text: responseText\n  }\n};"
       },
       "id": "prepare-animation",
-      "name": "Prepare Animation",
+      "name": "Prepare LongCat-Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1650, 300]
     },
     {
       "parameters": {
-        "url": "http://localhost:8002/animate",
+        "url": "http://localhost:8003/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "audio_url",
-              "value": "={{ $json.audio_url }}"
-            },
-            {
-              "name": "avatar_id",
-              "value": "={{ $json.avatar_id }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"avatar_id\": \"{{ $json.avatar_id }}\",\n  \"audio_url\": \"{{ $json.audio_url }}\",\n  \"text_prompt\": \"{{ $json.text_prompt }}\",\n  \"resolution\": \"480p\",\n  \"num_segments\": 1\n}",
         "options": {}
       },
       "id": "animation-generate",
-      "name": "Animation Generate",
+      "name": "LongCat-Video Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1850, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Format response for frontend\nconst animationResponse = $input.item.json;\nconst text = $('Select Response by Teacher').item.json.text;\nconst teacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: animationResponse.video_url || animationResponse.video_path || '',\n    job_id: animationResponse.job_id || ''\n  }\n};"
+        "jsCode": "// Format response for frontend\nconst longcatResponse = $input.item.json;\nconst text = $('Select Response by Teacher').item.json.text;\nconst teacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\n// LongCat-Video returns video_url, video_path, job_id, status\n// If status is 'processing', we return the job_id for polling\n// If status is 'completed', we return the video_url\nlet videoUrl = '';\nlet jobId = '';\n\nif (longcatResponse.status === 'processing' || longcatResponse.status === 'completed') {\n  // Construct full video URL if we have a job_id\n  if (longcatResponse.job_id) {\n    jobId = longcatResponse.job_id;\n    // Video URL format: http://localhost:8003/video/{job_id}\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (longcatResponse.video_url) {\n    videoUrl = longcatResponse.video_url;\n  } else if (longcatResponse.video_path) {\n    // If we only have a path, construct URL\n    videoUrl = longcatResponse.video_path;\n  }\n}\n\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: videoUrl,\n    job_id: jobId || longcatResponse.job_id || '',\n    status: longcatResponse.status || 'unknown'\n  }\n};"
       },
       "id": "format-response",
       "name": "Format Response",
@@ -511,18 +501,18 @@
         ]
       ]
     },
-    "Prepare Animation": {
+    "Prepare LongCat-Video": {
       "main": [
         [
           {
-            "node": "Animation Generate",
+            "node": "LongCat-Video Generate",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Animation Generate": {
+    "LongCat-Video Generate": {
       "main": [
         [
           {
