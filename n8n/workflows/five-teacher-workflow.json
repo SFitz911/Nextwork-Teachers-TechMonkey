@@ -27,248 +27,220 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "value1": "={{ $json.selectedTeacher }}",
-              "operation": "equals",
-              "value2": "teacher_a"
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are Maya, a warm and approachable educator. Keep responses concise (2-3 sentences) and conversational. User message: {{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "switch-teacher-0",
-      "name": "Switch Teacher 0",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
+      "id": "llm-teacher-a",
+      "name": "LLM Generate - Teacher A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [650, 100]
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "value1": "={{ $json.selectedTeacher }}",
-              "operation": "equals",
-              "value2": "teacher_b"
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are Maximus, a technical expert. Keep responses concise (2-3 sentences) and informative. User message: {{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "switch-teacher-1",
-      "name": "Switch Teacher 1",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
+      "id": "llm-teacher-b",
+      "name": "LLM Generate - Teacher B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [650, 200]
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "value1": "={{ $json.selectedTeacher }}",
-              "operation": "equals",
-              "value2": "teacher_c"
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are Krishna, an enthusiastic educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "switch-teacher-2",
-      "name": "Switch Teacher 2",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
+      "id": "llm-teacher-c",
+      "name": "LLM Generate - Teacher C",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [650, 300]
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "value1": "={{ $json.selectedTeacher }}",
-              "operation": "equals",
-              "value2": "teacher_d"
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are TechMonkey Steve, an innovative educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "switch-teacher-3",
-      "name": "Switch Teacher 3",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
+      "id": "llm-teacher-d",
+      "name": "LLM Generate - Teacher D",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [650, 400]
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "value1": "={{ $json.selectedTeacher }}",
-              "operation": "equals",
-              "value2": "teacher_e"
+              "name": "model",
+              "value": "mistral:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are Pano Bieber, a knowledgeable educator. Keep responses concise (2-3 sentences) and helpful. User message: {{ $json.message }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "switch-teacher-4",
-      "name": "Switch Teacher 4",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
+      "id": "llm-teacher-e",
+      "name": "LLM Generate - Teacher E",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [650, 500]
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Add teacher identifier to each LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response;\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse;\n} else if (llmResponse.text) {\n  responseText = llmResponse.text;\n}\n\n// Determine which teacher this is based on node name\nconst nodeName = $node.name;\nlet teacherId = 'teacher_a';\nif (nodeName.includes('Teacher B')) teacherId = 'teacher_b';\nelse if (nodeName.includes('Teacher C')) teacherId = 'teacher_c';\nelse if (nodeName.includes('Teacher D')) teacherId = 'teacher_d';\nelse if (nodeName.includes('Teacher E')) teacherId = 'teacher_e';\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    teacher: teacherId,\n    message: $('Select Teacher (Round-Robin)').item.json.message,\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
       },
-      "id": "llm-generate-0",
-      "name": "LLM Generate 0",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "extract-teacher-a",
+      "name": "Extract Response - Teacher A",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 100]
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Add teacher identifier to each LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response;\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse;\n} else if (llmResponse.text) {\n  responseText = llmResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    teacher: 'teacher_b',\n    message: $('Select Teacher (Round-Robin)').item.json.message,\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
       },
-      "id": "llm-generate-1",
-      "name": "LLM Generate 1",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "extract-teacher-b",
+      "name": "Extract Response - Teacher B",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 200]
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Add teacher identifier to each LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response;\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse;\n} else if (llmResponse.text) {\n  responseText = llmResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    teacher: 'teacher_c',\n    message: $('Select Teacher (Round-Robin)').item.json.message,\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
       },
-      "id": "llm-generate-2",
-      "name": "LLM Generate 2",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "extract-teacher-c",
+      "name": "Extract Response - Teacher C",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 300]
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Add teacher identifier to each LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response;\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse;\n} else if (llmResponse.text) {\n  responseText = llmResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    teacher: 'teacher_d',\n    message: $('Select Teacher (Round-Robin)').item.json.message,\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
       },
-      "id": "llm-generate-3",
-      "name": "LLM Generate 3",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "extract-teacher-d",
+      "name": "Extract Response - Teacher D",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 400]
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Add teacher identifier to each LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response;\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse;\n} else if (llmResponse.text) {\n  responseText = llmResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    teacher: 'teacher_e',\n    message: $('Select Teacher (Round-Robin)').item.json.message,\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
       },
-      "id": "llm-generate-4",
-      "name": "LLM Generate 4",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "extract-teacher-e",
+      "name": "Extract Response - Teacher E",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [850, 500]
     },
     {
       "parameters": {
-        "jsCode": "// Extract response text from Ollama\nconst ollamaResponse = $input.item.json;\nlet responseText = '';\n\nif (ollamaResponse.response) {\n  responseText = ollamaResponse.response;\n} else if (typeof ollamaResponse === 'string') {\n  responseText = ollamaResponse;\n} else if (ollamaResponse.text) {\n  responseText = ollamaResponse.text;\n}\n\nreturn {\n  json: {\n    text: responseText || 'Hello! I am ready to help.',\n    selectedTeacher: $('Select Teacher (Round-Robin)').item.json.selectedTeacher\n  }\n};"
+        "mode": "combine",
+        "combinationMode": "mergeByIndex",
+        "options": {}
       },
-      "id": "extract-response",
-      "name": "Extract LLM Response",
+      "id": "merge-responses",
+      "name": "Merge All Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Select the response from the teacher that was selected by round-robin\nconst allResponses = $input.all();\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\n// Find the response from the selected teacher\nconst selectedResponse = allResponses.find(item => item.json.teacher === selectedTeacher);\n\nif (selectedResponse) {\n  return selectedResponse.json;\n} else {\n  // Fallback to first response if selected teacher not found\n  return allResponses[0].json;\n}\n"
+      },
+      "id": "select-response",
+      "name": "Select Response by Teacher",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [1250, 300]
     },
     {
       "parameters": {
@@ -293,17 +265,17 @@
       "name": "TTS Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1250, 300]
+      "position": [1450, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Get audio URL from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: selectedTeacher,\n    text: $('Extract LLM Response').item.json.text\n  }\n};"
+        "jsCode": "// Get audio URL from TTS response\nconst ttsResponse = $input.item.json;\nconst selectedTeacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nlet audioUrl = '';\n\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n}\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: selectedTeacher,\n    text: $('Select Response by Teacher').item.json.text\n  }\n};"
       },
       "id": "prepare-animation",
       "name": "Prepare Animation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1450, 300]
+      "position": [1650, 300]
     },
     {
       "parameters": {
@@ -328,17 +300,17 @@
       "name": "Animation Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1650, 300]
+      "position": [1850, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Format response for frontend\nconst animationResponse = $input.item.json;\nconst text = $('Extract LLM Response').item.json.text;\nconst teacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: animationResponse.video_url || animationResponse.video_path || '',\n    job_id: animationResponse.job_id || ''\n  }\n};"
+        "jsCode": "// Format response for frontend\nconst animationResponse = $input.item.json;\nconst text = $('Select Response by Teacher').item.json.text;\nconst teacher = $('Select Teacher (Round-Robin)').item.json.selectedTeacher;\n\nreturn {\n  json: {\n    response: text,\n    teacher: teacher,\n    video_url: animationResponse.video_url || animationResponse.video_path || '',\n    job_id: animationResponse.job_id || ''\n  }\n};"
       },
       "id": "format-response",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1850, 300]
+      "position": [2050, 300]
     },
     {
       "parameters": {
@@ -350,7 +322,7 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2050, 300]
+      "position": [2250, 300]
     }
   ],
   "connections": {
@@ -369,144 +341,155 @@
       "main": [
         [
           {
-            "node": "Switch Teacher 0",
+            "node": "LLM Generate - Teacher A",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Switch Teacher 1",
+            "node": "LLM Generate - Teacher B",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Switch Teacher 2",
+            "node": "LLM Generate - Teacher C",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Switch Teacher 3",
+            "node": "LLM Generate - Teacher D",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Switch Teacher 4",
+            "node": "LLM Generate - Teacher E",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher 0": {
+    "LLM Generate - Teacher A": {
       "main": [
         [
           {
-            "node": "LLM Generate 0",
+            "node": "Extract Response - Teacher A",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher 1": {
+    "LLM Generate - Teacher B": {
       "main": [
         [
           {
-            "node": "LLM Generate 1",
+            "node": "Extract Response - Teacher B",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher 2": {
+    "LLM Generate - Teacher C": {
       "main": [
         [
           {
-            "node": "LLM Generate 2",
+            "node": "Extract Response - Teacher C",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher 3": {
+    "LLM Generate - Teacher D": {
       "main": [
         [
           {
-            "node": "LLM Generate 3",
+            "node": "Extract Response - Teacher D",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Switch Teacher 4": {
+    "LLM Generate - Teacher E": {
       "main": [
         [
           {
-            "node": "LLM Generate 4",
+            "node": "Extract Response - Teacher E",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate 0": {
+    "Extract Response - Teacher A": {
       "main": [
         [
           {
-            "node": "Extract LLM Response",
+            "node": "Merge All Responses",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate 1": {
+    "Extract Response - Teacher B": {
       "main": [
         [
           {
-            "node": "Extract LLM Response",
+            "node": "Merge All Responses",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate 2": {
+    "Extract Response - Teacher C": {
       "main": [
         [
           {
-            "node": "Extract LLM Response",
+            "node": "Merge All Responses",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate 3": {
+    "Extract Response - Teacher D": {
       "main": [
         [
           {
-            "node": "Extract LLM Response",
+            "node": "Merge All Responses",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "LLM Generate 4": {
+    "Extract Response - Teacher E": {
       "main": [
         [
           {
-            "node": "Extract LLM Response",
+            "node": "Merge All Responses",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract LLM Response": {
+    "Merge All Responses": {
+      "main": [
+        [
+          {
+            "node": "Select Response by Teacher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Response by Teacher": {
       "main": [
         [
           {
@@ -571,4 +554,6 @@
   "triggerCount": 0,
   "updatedAt": "2026-01-22T00:00:00.000Z",
   "versionId": "1"
+}
+
 }
