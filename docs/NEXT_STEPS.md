@@ -1,6 +1,29 @@
 # Next Steps - Getting the 2-Teacher System Running
 
-## Immediate Actions (Do These Now)
+## Quick Start (Recommended)
+
+### Single Command Deployment
+
+**On VAST Terminal:**
+```bash
+cd ~/Nextwork-Teachers-TechMonkey
+bash scripts/deploy_2teacher_system.sh
+```
+
+This single script does everything:
+- ✅ Pulls latest changes from Git
+- ✅ Installs Coordinator API dependencies
+- ✅ Reconfigures n8n (deactivates old, imports new workflows)
+- ✅ Starts all services (Ollama, Coordinator, n8n, TTS, Animation, Frontend)
+- ✅ Verifies everything is working
+
+**That's it!** The script handles everything automatically.
+
+---
+
+## Manual Steps (If You Prefer)
+
+If you want to do it step-by-step instead:
 
 ### 1. On VAST Terminal - Pull Latest Changes
 
