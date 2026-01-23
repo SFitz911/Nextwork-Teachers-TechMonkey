@@ -30,22 +30,8 @@
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "=You are Maya, a warm and approachable educator. Keep responses concise (2-3 sentences) and conversational. User message: {{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are Maya, a warm and approachable educator. Keep responses concise (2-3 sentences) and conversational. User message: {{ $json.message }}\",\n  \"stream\": false\n}",
         "options": {}
       },
       "id": "llm-teacher-a",
@@ -59,22 +45,8 @@
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "=You are Maximus, a technical expert. Keep responses concise (2-3 sentences) and informative. User message: {{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are Maximus, a technical expert. Keep responses concise (2-3 sentences) and informative. User message: {{ $json.message }}\",\n  \"stream\": false\n}",
         "options": {}
       },
       "id": "llm-teacher-b",
@@ -88,22 +60,8 @@
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "=You are Krishna, an enthusiastic educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are Krishna, an enthusiastic educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}\",\n  \"stream\": false\n}",
         "options": {}
       },
       "id": "llm-teacher-c",
@@ -117,22 +75,8 @@
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "=You are TechMonkey Steve, an innovative educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are TechMonkey Steve, an innovative educator. Keep responses concise (2-3 sentences) and engaging. User message: {{ $json.message }}\",\n  \"stream\": false\n}",
         "options": {}
       },
       "id": "llm-teacher-d",
@@ -146,22 +90,8 @@
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "mistral:7b"
-            },
-            {
-              "name": "prompt",
-              "value": "=You are Pano Bieber, a knowledgeable educator. Keep responses concise (2-3 sentences) and helpful. User message: {{ $json.message }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are Pano Bieber, a knowledgeable educator. Keep responses concise (2-3 sentences) and helpful. User message: {{ $json.message }}\",\n  \"stream\": false\n}",
         "options": {}
       },
       "id": "llm-teacher-e",
