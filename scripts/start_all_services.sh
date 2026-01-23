@@ -22,7 +22,7 @@ fi
 
 # Default API key (hardcoded fallback) - use if not in .env
 if [[ -z "${N8N_API_KEY:-}" ]]; then
-    export N8N_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmNzRkZjc2OC0wZTVhLTQ2OGQtODFiYS1iYTZiMGFiNjAwY2EiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MTQzMDY3fQ.JQU3yyBofIJBX-50Zjdc9GnW7xLMf1QcZrVlgJ-OdbA"
+    export N8N_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkMzYyNDIxYy01OTdlLTRiYzItODFmYS1lMjBhZDY5YTMwZWUiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MTkxNjY2fQ.n7uVf-8G4T3lk_afYqQc9DT-OlMMO99-jg0L_ZoR2iM"
 fi
 
 SESSION="ai-teacher"
