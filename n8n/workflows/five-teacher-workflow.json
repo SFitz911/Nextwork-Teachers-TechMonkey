@@ -494,7 +494,7 @@
       "main": [
         [
           {
-            "node": "Prepare Animation",
+            "node": "Prepare LongCat-Video",
             "type": "main",
             "index": 0
           }
