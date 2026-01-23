@@ -16,7 +16,23 @@ apt-get upgrade -y
 
 # Step 2: Install essential tools
 echo "Step 2: Installing essential tools..."
-apt-get install -y git curl wget vim tmux
+apt-get install -y git curl wget vim tmux python3 python3-pip python3-venv
+
+# Step 2a: Install Node.js and n8n
+echo "Step 2a: Installing Node.js and n8n..."
+if ! command -v node &> /dev/null; then
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+fi
+if ! command -v n8n &> /dev/null; then
+    npm install -g n8n
+fi
+
+# Step 2b: Install Ollama
+echo "Step 2b: Installing Ollama..."
+if ! command -v ollama &> /dev/null; then
+    curl -fsSL https://ollama.com/install.sh | sh
+fi
 
 # Step 3: Install conda if not present
 if ! command -v conda &> /dev/null; then
