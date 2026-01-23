@@ -33,18 +33,26 @@ echo "Activating conda environment..."
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate longcat-video
 
-# Install PyTorch
+# Install PyTorch FIRST (required for flash-attn)
 echo "Installing PyTorch..."
 pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Install flash-attn
-echo "Installing Flash Attention..."
+# Install build dependencies for flash-attn
+echo "Installing build dependencies..."
 pip install ninja psutil packaging
-pip install flash_attn==2.7.4.post1 || echo "⚠️  Flash Attention installation may have failed, continuing..."
 
-# Install requirements
-echo "Installing requirements..."
-pip install -r requirements.txt
+# Install requirements EXCEPT flash-attn (we'll install it separately)
+echo "Installing requirements (excluding flash-attn)..."
+pip install -r requirements.txt --no-deps || true
+# Reinstall without --no-deps to get dependencies
+pip install $(grep -v "flash-attn" requirements.txt | grep -v "^#" | grep -v "^$" | tr '\n' ' ') || true
+
+# Install flash-attn separately (needs PyTorch to be installed first)
+echo "Installing Flash Attention..."
+pip install flash_attn==2.7.4.post1 || echo "[WARNING] Flash Attention installation may have failed, continuing..."
+
+# Install avatar requirements
+echo "Installing avatar requirements..."
 pip install -r requirements_avatar.txt
 
 # Install audio processing tools
