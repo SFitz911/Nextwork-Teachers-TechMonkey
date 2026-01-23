@@ -2,12 +2,13 @@
 
 ## 🎯 Key Decisions Made
 
-### 1. Storage: Use Existing Instance Disk (For Now)
-- Store in `~/ai-teacher-storage/`
-- PostgreSQL + pgvector for RAG
-- Cached sections (videos/audio)
-- Redis for session cache
-- **Later**: Migrate to Vast.ai volume on new instance
+### 1. Storage: On Vast.ai Instance (Local to Instance)
+- **All storage is on the Vast.ai instance** (not your desktop)
+- Store in `~/ai-teacher-storage/` on Vast.ai instance
+- PostgreSQL + pgvector for RAG (runs on Vast.ai instance)
+- Cached sections (videos/audio) stored on Vast.ai instance disk
+- **No Redis** - using PostgreSQL + instance disk storage
+- **Later**: Can migrate to Vast.ai volume if needed
 
 ### 2. Database: PostgreSQL + pgvector (Self-hosted)
 - No Supabase Cloud (keep everything on instance)
@@ -41,10 +42,11 @@
 
 ## 📝 Quick Reference
 
-**Storage Path**: `~/ai-teacher-storage/`
-**Database**: PostgreSQL on localhost:5432
+**Storage Path**: `~/ai-teacher-storage/` (on Vast.ai instance)
+**Database**: PostgreSQL on Vast.ai instance (localhost:5432)
 **Cache Check**: Before LLM/TTS/Video generation
-**RAG**: ChromaDB or pgvector (TBD)
+**RAG**: pgvector (PostgreSQL extension)
+**Location**: Everything runs on Vast.ai instance - no external cloud storage
 
 ---
 
