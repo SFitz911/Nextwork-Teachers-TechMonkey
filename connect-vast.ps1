@@ -27,11 +27,11 @@ Write-Host ""
 Write-Host "Opening SSH connection in new window..." -ForegroundColor Green
 Write-Host ""
 
-if ($Method -eq "direct") {
-    $sshArgs = "-p 41085 root@50.217.254.161 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 11434:localhost:11434"
-} else {
-    $sshArgs = "-p 29105 root@ssh5.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 11434:localhost:11434"
-}
+       if ($Method -eq "direct") {
+           $sshArgs = "-p 41085 root@50.217.254.161 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
+       } else {
+           $sshArgs = "-p 29105 root@ssh5.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
+       }
 
 # Test connection first (but don't fail - just warn)
 Write-Host "Testing SSH connection..." -ForegroundColor Yellow
@@ -75,8 +75,9 @@ Write-Host '  - 5678  -> n8n (http://localhost:5678)' -ForegroundColor White
 Write-Host '  - 8501  -> Frontend (http://localhost:8501)' -ForegroundColor White
 Write-Host '  - 8001  -> TTS' -ForegroundColor White
 Write-Host '  - 8002  -> Animation' -ForegroundColor White
-Write-Host '  - 8003  -> LongCat-Video' -ForegroundColor White
-Write-Host '  - 11434 -> Ollama' -ForegroundColor White
+       Write-Host '  - 8003  -> LongCat-Video' -ForegroundColor White
+       Write-Host '  - 8004  -> Coordinator API' -ForegroundColor White
+       Write-Host '  - 11434 -> Ollama' -ForegroundColor White
 Write-Host ''
 Write-Host 'Connecting to VAST.ai...' -ForegroundColor Green
 Write-Host ''

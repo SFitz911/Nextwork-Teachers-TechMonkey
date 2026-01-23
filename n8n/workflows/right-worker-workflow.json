@@ -1,0 +1,326 @@
+{
+  "name": "Right Worker - Teacher Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "worker/right/run",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "worker-right-run"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract job payload\nconst inputData = $input.item.json;\nlet body = inputData.body || inputData;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    body = {};\n  }\n}\n\nconst sessionId = body.sessionId || '';\nconst teacher = body.teacher || '';\nconst coTeacher = body.coTeacher || '';\nconst role = body.role || 'renderer';\nconst sectionPayload = body.sectionPayload || {};\nconst turn = body.turn || 0;\n\nif (!sessionId || !teacher) {\n  throw new Error('Missing sessionId or teacher');\n}\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    coTeacher: coTeacher,\n    role: role,\n    sectionPayload: sectionPayload,\n    turn: turn\n  }\n};"
+      },
+      "id": "extract-payload",
+      "name": "Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:8004/session/{{ $json.sessionId }}/state",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-session-state",
+      "name": "Get Session State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "teacher-active",
+              "leftValue": "={{ $json.activeTeachers }}",
+              "rightValue": "={{ $('Extract Payload').item.json.teacher }}",
+              "operator": {
+                "type": "array",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "role-valid",
+              "leftValue": "={{ $('Extract Payload').item.json.role }}",
+              "rightValue": "renderer",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-active",
+      "name": "Validate Still Active",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n\\nResponse:\",\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "llm-generate",
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and normalize LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n}\n\n// Safety: ensure minimum length\nif (responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(' ');\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
+      },
+      "id": "extract-response",
+      "name": "Extract Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8001/tts",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "voice",
+              "value": "en_US-lessac-medium"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tts-generate",
+      "name": "TTS Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n} else {\n  throw new Error('No audio URL found in TTS response');\n}\n\n// Teacher-specific text prompts\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator speaking naturally.',\n  'teacher_b': 'A technical expert speaking precisely.',\n  'teacher_c': 'An enthusiastic educator speaking clearly.',\n  'teacher_d': 'An innovative educator speaking energetically.',\n  'teacher_e': 'A knowledgeable educator speaking supportively.'\n};\n\nconst textPrompt = teacherPrompts[teacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: String(teacher),\n    text_prompt: textPrompt,\n    text: text,\n    sessionId: $('Extract Response').item.json.sessionId,\n    turn: $('Extract Response').item.json.turn\n  }\n};"
+      },
+      "id": "prepare-video",
+      "name": "Prepare Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8003/generate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"avatar_id\": \"{{ $json.avatar_id }}\",\n  \"audio_url\": \"{{ $json.audio_url }}\",\n  \"text_prompt\": \"{{ $json.text_prompt }}\",\n  \"resolution\": \"480p\",\n  \"num_segments\": 1\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "video-generate",
+      "name": "Video Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format clip data for Coordinator\nconst videoResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (videoResponse) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  }\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: $('TTS Generate').item.json.audio_url || '',\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
+      },
+      "id": "format-clip",
+      "name": "Format Clip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8004/session/{{ $json.sessionId }}/clip-ready",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sessionId\": \"{{ $json.sessionId }}\",\n  \"teacher\": \"{{ $json.teacher }}\",\n  \"clip\": {{ $json.clip }}\n}",
+        "options": {}
+      },
+      "id": "post-clip-ready",
+      "name": "POST Clip Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "firstItemJson",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payload": {
+      "main": [
+        [
+          {
+            "node": "Get Session State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session State": {
+      "main": [
+        [
+          {
+            "node": "Validate Still Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Still Active": {
+      "main": [
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Generate": {
+      "main": [
+        [
+          {
+            "node": "Extract Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Response": {
+      "main": [
+        [
+          {
+            "node": "TTS Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS Generate": {
+      "main": [
+        [
+          {
+            "node": "Prepare Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Video": {
+      "main": [
+        [
+          {
+            "node": "Video Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Generate": {
+      "main": [
+        [
+          {
+            "node": "Format Clip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Clip": {
+      "main": [
+        [
+          {
+            "node": "POST Clip Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Clip Ready": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-23T00:00:00.000Z",
+  "versionId": "1"
+}

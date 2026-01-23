@@ -1,0 +1,100 @@
+{
+  "name": "Session Start - Fast Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "session/start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "session-start"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate payload and extract data\nconst inputData = $input.item.json;\n\n// Extract body (could be in body field or direct)\nlet body = inputData.body || inputData;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    body = {};\n  }\n}\n\nconst selectedTeachers = body.selectedTeachers || [];\nconst lessonUrl = body.lessonUrl || null;\n\n// Validate exactly 2 teachers\nif (!Array.isArray(selectedTeachers) || selectedTeachers.length !== 2) {\n  throw new Error('Must select exactly 2 teachers');\n}\n\n// Validate teacher IDs\nconst validTeachers = ['teacher_a', 'teacher_b', 'teacher_c', 'teacher_d', 'teacher_e'];\nfor (const teacher of selectedTeachers) {\n  if (!validTeachers.includes(teacher)) {\n    throw new Error(`Invalid teacher ID: ${teacher}`);\n  }\n}\n\nreturn {\n  json: {\n    selectedTeachers: selectedTeachers,\n    lessonUrl: lessonUrl\n  }\n};"
+      },
+      "id": "validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8004/session/start",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"selectedTeachers\": {{ $json.selectedTeachers }},\n  \"lessonUrl\": {{ $json.lessonUrl }}\n}",
+        "options": {}
+      },
+      "id": "create-session",
+      "name": "Create Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "firstItemJson",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Session": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-23T00:00:00.000Z",
+  "versionId": "1"
+}
