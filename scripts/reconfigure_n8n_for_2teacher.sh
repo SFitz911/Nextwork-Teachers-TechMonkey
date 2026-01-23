@@ -75,6 +75,43 @@ if [[ -n "$OLD_WORKFLOW_ID" ]]; then
     else
         echo "   ✅ Old workflow already deactivated"
     fi
+    
+    # Ask if user wants to delete the old workflow
+    echo ""
+    echo "   Do you want to DELETE the old 5-teacher workflow? (y/n)"
+    echo "   (Recommended: yes, to avoid confusion)"
+    read -r DELETE_OLD
+    
+    if [[ "$DELETE_OLD" == "y" ]] || [[ "$DELETE_OLD" == "Y" ]]; then
+        echo "   Deleting old workflow..."
+        if [[ -n "${N8N_API_KEY:-}" ]]; then
+            DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${OLD_ID}" 2>/dev/null || echo "")
+        else
+            DELETE_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+                -X DELETE \
+                "${N8N_URL}/api/v1/workflows/${OLD_ID}" 2>/dev/null || echo "")
+        fi
+        
+        # Verify deletion
+        sleep 1
+        if [[ -n "${N8N_API_KEY:-}" ]]; then
+            CHECK_RESPONSE=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${OLD_ID}" 2>/dev/null || echo '{"code":404}')
+        else
+            CHECK_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+                "${N8N_URL}/api/v1/workflows/${OLD_ID}" 2>/dev/null || echo '{"code":404}')
+        fi
+        
+        if echo "$CHECK_RESPONSE" | grep -q "404\|not found"; then
+            echo "   ✅ Old workflow deleted"
+        else
+            echo "   ⚠️  Deletion may have failed (workflow still exists)"
+        fi
+    else
+        echo "   ℹ️  Keeping old workflow (deactivated)"
+    fi
 else
     echo "✅ No old 5-teacher workflow found (or already removed)"
 fi
