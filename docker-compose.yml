@@ -100,8 +100,7 @@ services:
     network_mode: host
     environment:
       - PORT=8004
-    depends_on:
-      - redis
+    # depends_on: removed Redis - using PostgreSQL + local storage instead
 
   # LongCat-Video-Avatar Service
   longcat-video:
@@ -149,16 +148,17 @@ services:
     depends_on:
       - coordinator
 
-  # Redis for state management (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: ai-teacher-redis
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - redis_data:/data
+  # Redis removed - using PostgreSQL + local storage instead
+  # If you need Redis later, uncomment:
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ai-teacher-redis
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   volumes:
+  #     - redis_data:/data
 
 volumes:
   n8n_data:
-  ollama_data:
-  redis_data:
+  ollama_data
+  # redis_data: removed - not using Redis (using PostgreSQL + local storage)

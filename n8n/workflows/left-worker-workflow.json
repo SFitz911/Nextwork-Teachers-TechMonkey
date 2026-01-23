@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract job payload\nconst inputData = $input.item.json;\nlet body = inputData.body || inputData;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    body = {};\n  }\n}\n\nconst sessionId = body.sessionId || '';\nconst teacher = body.teacher || '';\nconst coTeacher = body.coTeacher || '';\nconst role = body.role || 'renderer';\nconst sectionPayload = body.sectionPayload || {};\nconst turn = body.turn || 0;\n\nif (!sessionId || !teacher) {\n  throw new Error('Missing sessionId or teacher');\n}\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    coTeacher: coTeacher,\n    role: role,\n    sectionPayload: sectionPayload,\n    turn: turn\n  }\n};"
+        "jsCode": "// Extract job payload\nconst inputData = $input.item.json;\nlet body = inputData.body || inputData;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    body = {};\n  }\n}\n\nconst sessionId = body.sessionId || '';\nconst teacher = body.teacher || '';\nconst coTeacher = body.coTeacher || '';\nconst role = body.role || 'renderer';\nconst sectionPayload = body.sectionPayload || {};\nconst language = body.language || 'English';\nconst turn = body.turn || 0;\n\nif (!sessionId || !teacher) {\n  throw new Error('Missing sessionId or teacher');\n}\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    coTeacher: coTeacher,\n    role: role,\n    sectionPayload: sectionPayload,\n    language: language,\n    turn: turn\n  }\n};"
       },
       "id": "extract-payload",
       "name": "Extract Payload",
@@ -102,6 +102,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Map language to TTS voice\nconst language = $('Extract Payload').item.json.language || 'English';\nconst text = $('Extract Response').item.json.text;\n\n// Language to voice mapping (Piper TTS voices)\nconst languageVoices = {\n  'English': 'en_US-lessac-medium',\n  'Spanish': 'es_ES-sharvard-medium',\n  'French': 'fr_FR-siwis-medium',\n  'German': 'de_DE-thorsten-medium',\n  'Chinese (Simplified)': 'zh_CN-huayan-medium',\n  'Japanese': 'ja_JP-natsumi-medium',\n  'Korean': 'ko_KR-kyungha-medium',\n  'Portuguese': 'pt_BR-faber-medium',\n  'Italian': 'it_IT-riccardo-medium',\n  'Russian': 'ru_RU-ruslan-medium'\n};\n\nconst voice = languageVoices[language] || 'en_US-lessac-medium';\n\nreturn {\n  json: {\n    text: text,\n    voice: voice,\n    language: language\n  }\n};"
+      },
+      "id": "map-voice",
+      "name": "Map Voice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
         "url": "http://localhost:8001/tts",
         "method": "POST",
         "sendBody": true,
@@ -114,7 +124,7 @@
             },
             {
               "name": "voice",
-              "value": "en_US-lessac-medium"
+              "value": "={{ $json.voice }}"
             }
           ]
         },
@@ -124,11 +134,11 @@
       "name": "TTS Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1450, 200]
+      "position": [1550, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n} else {\n  throw new Error('No audio URL found in TTS response');\n}\n\n// Teacher-specific text prompts\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator speaking naturally.',\n  'teacher_b': 'A technical expert speaking precisely.',\n  'teacher_c': 'An enthusiastic educator speaking clearly.',\n  'teacher_d': 'An innovative educator speaking energetically.',\n  'teacher_e': 'A knowledgeable educator speaking supportively.'\n};\n\nconst textPrompt = teacherPrompts[teacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: String(teacher),\n    text_prompt: textPrompt,\n    text: text,\n    sessionId: $('Extract Response').item.json.sessionId,\n    turn: $('Extract Response').item.json.turn\n  }\n};"
+        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst language = $('Extract Payload').item.json.language || 'English';\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n} else if (ttsResponse.file_url) {\n  audioUrl = ttsResponse.file_url;\n} else if (typeof ttsResponse === 'string') {\n  audioUrl = ttsResponse;\n} else {\n  throw new Error(`No audio URL found in TTS response. Response keys: ${Object.keys(ttsResponse).join(', ')}`);\n}\n\n// Ensure audioUrl is a full URL, not just a path\nif (audioUrl && !audioUrl.startsWith('http')) {\n  audioUrl = `http://localhost:8001${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;\n}\n\n// Teacher-specific text prompts\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator speaking naturally.',\n  'teacher_b': 'A technical expert speaking precisely.',\n  'teacher_c': 'An enthusiastic educator speaking clearly.',\n  'teacher_d': 'An innovative educator speaking energetically.',\n  'teacher_e': 'A knowledgeable educator speaking supportively.'\n};\n\nconst textPrompt = teacherPrompts[teacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: String(teacher),\n    text_prompt: textPrompt,\n    text: text,\n    language: language,\n    sessionId: $('Extract Response').item.json.sessionId,\n    turn: $('Extract Response').item.json.turn\n  }\n};"
       },
       "id": "prepare-video",
       "name": "Prepare Video",
@@ -248,6 +258,17 @@
       ]
     },
     "Extract Response": {
+      "main": [
+        [
+          {
+            "node": "Map Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Voice": {
       "main": [
         [
           {

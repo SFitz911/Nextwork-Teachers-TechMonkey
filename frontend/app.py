@@ -97,6 +97,12 @@ if "event_queue" not in st.session_state:
     st.session_state.event_queue = queue.Queue()
 if "sse_thread" not in st.session_state:
     st.session_state.sse_thread = None
+if "selected_language" not in st.session_state:
+    st.session_state.selected_language = "English"
+if "chat_message" not in st.session_state:
+    st.session_state.chat_message = ""
+if "push_to_talk_active" not in st.session_state:
+    st.session_state.push_to_talk_active = False
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -118,7 +124,7 @@ def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None
         return None
 
 
-def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: str = "", selected_text: str = ""):
+def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: str = "", selected_text: str = "", user_question: Optional[str] = None, language: Optional[str] = None):
     """Update current section snapshot"""
     try:
         requests.post(
@@ -129,7 +135,9 @@ def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: s
                 "url": url,
                 "scrollY": scroll_y,
                 "visibleText": visible_text,
-                "selectedText": selected_text
+                "selectedText": selected_text,
+                "userQuestion": user_question,
+                "language": language
             },
             timeout=2
         )
@@ -241,6 +249,29 @@ with st.sidebar:
     
     lesson_url = st.text_input("Lesson URL (optional)", value="")
     
+    # Language selection
+    st.markdown("---")
+    st.subheader("🌐 Language")
+    languages = {
+        "English": "en",
+        "Spanish": "es",
+        "French": "fr",
+        "German": "de",
+        "Chinese (Simplified)": "zh-CN",
+        "Japanese": "ja",
+        "Korean": "ko",
+        "Portuguese": "pt",
+        "Italian": "it",
+        "Russian": "ru"
+    }
+    selected_language = st.selectbox(
+        "Select Language",
+        options=list(languages.keys()),
+        index=0,
+        key="language_selectbox"
+    )
+    st.session_state.selected_language = selected_language
+    
     if st.button("🚀 Start Session", type="primary"):
         selected = [teacher_1, teacher_2]
         session_id = start_session(selected, lesson_url if lesson_url else None)
@@ -339,7 +370,62 @@ if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
         
         # Embed website (using iframe)
         if website_url:
-            st.components.v1.iframe(website_url, height=500, scrolling=True)
+            st.components.v1.iframe(website_url, height=400, scrolling=True)
+        
+        # Chat box with push-to-talk, send, and clear
+        st.markdown("---")
+        st.subheader("💬 Chat with Teachers")
+        
+        # Chat input area
+        chat_col1, chat_col2, chat_col3, chat_col4 = st.columns([3, 1, 1, 1])
+        
+        with chat_col1:
+            chat_message = st.text_input(
+                "Type your question or message",
+                value=st.session_state.chat_message,
+                key="chat_input",
+                placeholder="Ask the teachers a question or provide feedback..."
+            )
+            st.session_state.chat_message = chat_message
+        
+        with chat_col2:
+            # Push-to-talk button
+            push_to_talk = st.button("🎤 Push to Talk", key="push_to_talk", use_container_width=True)
+            if push_to_talk:
+                st.session_state.push_to_talk_active = not st.session_state.push_to_talk_active
+                if st.session_state.push_to_talk_active:
+                    st.info("🎤 Recording... (Release to stop)")
+                else:
+                    st.info("⏹️ Recording stopped")
+        
+        with chat_col3:
+            # Send button
+            send_chat = st.button("📤 Send", key="send_chat", type="primary", use_container_width=True)
+            if send_chat and chat_message and st.session_state.session_id:
+                # Send chat message as user question with section update
+                update_section(
+                    st.session_state.session_id,
+                    website_url,
+                    0,
+                    "",  # visible_text - can be empty for chat-only
+                    "",  # selected_text
+                    chat_message,  # user_question
+                    st.session_state.selected_language
+                )
+                st.success(f"✅ Message sent: {chat_message[:50]}...")
+                st.session_state.chat_message = ""  # Clear after sending
+                st.rerun()
+        
+        with chat_col4:
+            # Clear button
+            clear_chat = st.button("🗑️ Clear", key="clear_chat", use_container_width=True)
+            if clear_chat:
+                st.session_state.chat_message = ""
+                st.rerun()
+        
+        # Show push-to-talk status
+        if st.session_state.push_to_talk_active:
+            st.warning("🎤 Push-to-talk is active - This feature requires browser microphone access (coming soon)")
         
         # Section snapshot controls
         st.markdown("---")
@@ -356,7 +442,9 @@ if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
                     website_url,
                     int(scroll_y),
                     visible_text,
-                    selected_text
+                    selected_text,
+                    None,  # user_question - can add separate field if needed
+                    st.session_state.selected_language
                 )
                 st.success("✅ Section snapshot sent to teachers!")
         

@@ -42,6 +42,7 @@ class SectionUpdateRequest(BaseModel):
     visibleText: Optional[str] = ""
     selectedText: Optional[str] = ""
     userQuestion: Optional[str] = None
+    language: Optional[str] = None  # Language preference (e.g., "English", "Spanish")
     domDigest: Optional[str] = None
 
 
@@ -80,6 +81,7 @@ def create_session(selected_teachers: List[str], lesson_url: Optional[str] = Non
         "currentSectionId": None,
         "currentSnapshot": None,
         "lessonUrl": lesson_url,
+        "language": "English",  # Default language
         "queues": {
             left_teacher: {"status": "idle", "nextClipId": None},
             right_teacher: {"status": "idle", "nextClipId": None}
@@ -190,8 +192,12 @@ async def update_section(session_id: str, request: SectionUpdateRequest):
         "visibleText": request.visibleText,
         "selectedText": request.selectedText,
         "userQuestion": request.userQuestion,
+        "language": request.language,
         "domDigest": request.domDigest
     }
+    # Store language preference in session
+    if request.language:
+        session["language"] = request.language
     
     # Emit SECTION_UPDATED event
     emit_event(session_id, "SECTION_UPDATED", {
@@ -341,6 +347,7 @@ async def enqueue_render_job(session_id: str, teacher: str, co_teacher: str):
         "coTeacher": co_teacher,
         "role": "renderer" if teacher == session["renderer"] else "speaker",
         "sectionPayload": session.get("currentSnapshot", {}),
+        "language": session.get("language", "English"),  # Include language preference
         "turn": session["turn"]
     }
     
