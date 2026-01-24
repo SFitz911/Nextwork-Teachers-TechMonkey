@@ -102,8 +102,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Mount Vast.ai storage volume if available
+      # Mount Vast.ai storage volume for persistent data
       - ${VAST_STORAGE_PATH:-./storage}/postgresql:/var/lib/postgresql/data:rw
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_teacher}"]
@@ -189,6 +188,4 @@ services:
 volumes:
   n8n_data:
   ollama_data:
-  postgres_data:
-    # If VAST_STORAGE_PATH is set, this will use the volume
-    # Otherwise uses Docker volume (not persistent across restarts)
+  # postgres_data: Using bind mount to Vast.ai storage volume instead
