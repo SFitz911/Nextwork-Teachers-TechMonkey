@@ -65,7 +65,7 @@ echo ""
 # Check latest execution
 echo "4. Checking latest n8n execution..."
 if command -v python3 > /dev/null; then
-    LATEST_EXEC=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmNzRkZjc2OC0wZTVhLTQ2OGQtODFiYS1iYTZiMGFiNjAwY2EiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MTQzMDY3fQ.JQU3yyBofIJBX-50Zjdc9GnW7xLMf1QcZrVlgJ-OdbA}" \
+    LATEST_EXEC=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmMTQ0MTQ2Ny0zOTdlLTRlNjUtOGZlNi1kZTQwOWIzODljYWQiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MjI1MzE3fQ.tU1VEaQCrymcz8MIkAWuWfpBJoT9O7R8olTeBe42JJ0}" \
         "http://localhost:5678/api/v1/executions?limit=1" 2>/dev/null | \
         python3 -c "import sys, json; d=json.load(sys.stdin); execs=d.get('data',[]); print(execs[0].get('id','') if execs else '')" 2>/dev/null || echo "")
     
