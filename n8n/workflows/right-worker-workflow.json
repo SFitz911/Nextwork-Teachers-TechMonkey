@@ -43,39 +43,11 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "teacher-active",
-              "leftValue": "={{ $json.activeTeachers }}",
-              "rightValue": "={{ $('Extract Payload').item.json.teacher }}",
-              "operator": {
-                "type": "array",
-                "operation": "contains"
-              }
-            },
-            {
-              "id": "role-valid",
-              "leftValue": "={{ $('Extract Payload').item.json.role }}",
-              "rightValue": "renderer",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "// Validate teacher is still active and role is valid\nconst sessionState = $input.item.json;\nconst payload = $('Extract Payload').item.json;\nconst teacher = payload.teacher;\n\n// Check if teacher is in active teachers\nconst isActive = sessionState.activeTeachers && sessionState.activeTeachers.includes(teacher);\n\n// Check if teacher is current speaker or renderer\nconst isSpeaker = sessionState.speaker === teacher;\nconst isRenderer = sessionState.renderer === teacher;\nconst hasValidRole = isSpeaker || isRenderer;\n\n// Both conditions must be true\nconst isValid = isActive && hasValidRole;\n\nif (!isValid) {\n  throw new Error(`Teacher ${teacher} is not active or role is invalid. Active: ${isActive}, Speaker: ${isSpeaker}, Renderer: ${isRenderer}`);\n}\n\n// Pass through session state for next node\nreturn {\n  json: {\n    ...sessionState,\n    validated: true,\n    teacher: teacher\n  }\n};"
       },
       "id": "validate-active",
       "name": "Validate Still Active",
-      "type": "n8n-nodes-base.if",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [850, 300]
     },
@@ -147,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst language = $('Extract Payload').item.json.language || 'English';\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response (try multiple possible fields)\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n} else if (ttsResponse.file_url) {\n  audioUrl = ttsResponse.file_url;\n} else if (typeof ttsResponse === 'string') {\n  audioUrl = ttsResponse;\n} else {\n  throw new Error(`No audio URL found in TTS response. Response keys: ${Object.keys(ttsResponse).join(', ')}`);\n}\n\n// Ensure audioUrl is a full URL, not just a path\nif (audioUrl && !audioUrl.startsWith('http')) {\n  audioUrl = `http://localhost:8001${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;\n}\n\n// Teacher-specific text prompts\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator speaking naturally.',\n  'teacher_b': 'A technical expert speaking precisely.',\n  'teacher_c': 'An enthusiastic educator speaking clearly.',\n  'teacher_d': 'An innovative educator speaking energetically.',\n  'teacher_e': 'A knowledgeable educator speaking supportively.'\n};\n\nconst textPrompt = teacherPrompts[teacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: String(teacher),\n    text_prompt: textPrompt,\n    text: text,\n    language: language,\n    sessionId: $('Extract Response').item.json.sessionId,\n    turn: $('Extract Response').item.json.turn\n  }\n};"
+        "jsCode": "// Prepare data for LongCat-Video-Avatar API\nconst ttsResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst language = $('Extract Payload').item.json.language || 'English';\n\nlet audioUrl = '';\n\n// Extract audio URL from TTS response (try multiple possible fields)\nif (ttsResponse.audio_url) {\n  audioUrl = ttsResponse.audio_url;\n} else if (ttsResponse.url) {\n  audioUrl = ttsResponse.url;\n} else if (ttsResponse.audio) {\n  audioUrl = ttsResponse.audio;\n} else if (ttsResponse.file_url) {\n  audioUrl = ttsResponse.file_url;\n} else if (typeof ttsResponse === 'string') {\n  audioUrl = ttsResponse;\n} else {\n  throw new Error(`No audio URL found in TTS response. Response keys: ${Object.keys(ttsResponse).join(', ')}`);\n}\n\n// Ensure audioUrl is a full URL, not just a path\nif (audioUrl && !audioUrl.startsWith('http')) {\n  audioUrl = `http://localhost:8001${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;\n}\n\n// Teacher-specific text prompts\nconst teacherPrompts = {\n  'teacher_a': 'A warm and approachable educator speaking naturally.',\n  'teacher_b': 'A technical expert speaking precisely.',\n  'teacher_c': 'An enthusiastic educator speaking clearly.',\n  'teacher_d': 'An innovative educator speaking energetically.',\n  'teacher_e': 'A knowledgeable educator speaking supportively.'\n};\n\nconst textPrompt = teacherPrompts[teacher] || 'A person speaking naturally';\n\nreturn {\n  json: {\n    audio_url: audioUrl,\n    avatar_id: String(teacher),\n    text_prompt: textPrompt,\n    text: text,\n    language: language,\n    sessionId: $('Extract Response').item.json.sessionId,\n    turn: $('Extract Response').item.json.turn,\n    audioUrl: audioUrl\n  }\n};"
       },
       "id": "prepare-video",
       "name": "Prepare Video",
@@ -167,14 +139,15 @@
         }
       },
       "id": "video-generate",
-      "name": "LongCat Generator",
+      "name": "Video Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1950, 200]
+      "position": [1950, 200],
+      "continueOnFail": false
     },
     {
       "parameters": {
-        "jsCode": "// Format clip data for Coordinator\nconst videoResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (videoResponse) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  }\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: $('TTS Generate').item.json.audio_url || '',\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
+        "jsCode": "// Format clip data for Coordinator\nconst videoResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Get audio URL from Prepare Video node (stored there)\nconst audioUrl = $('Prepare Video').item.json.audioUrl || $('Prepare Video').item.json.audio_url || '';\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (videoResponse) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || videoResponse.jobId || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  } else if (videoResponse.videoUrl) {\n    videoUrl = videoResponse.videoUrl;\n  }\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: audioUrl,\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
       },
       "id": "format-clip",
       "name": "Format Clip",
@@ -269,7 +242,7 @@
       "error": [
         [
           {
-            "node": "Respond",
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
@@ -280,7 +253,7 @@
       "main": [
         [
           {
-            "node": "LLM Generate",
+            "node": "Hugging Face Inference",
             "type": "main",
             "index": 0
           }
@@ -296,9 +269,29 @@
             "index": 0
           }
         ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Response": {
+      "main": [
+        [
+          {
+            "node": "Map Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Voice": {
       "main": [
         [
           {
@@ -318,6 +311,15 @@
             "index": 0
           }
         ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare Video": {
@@ -331,11 +333,20 @@
         ]
       ]
     },
-    "LongCat Generator": {
+    "Video Generate": {
       "main": [
         [
           {
             "node": "Format Clip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
@@ -369,6 +380,15 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
