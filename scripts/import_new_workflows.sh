@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Import the new 2-teacher architecture workflows into n8n
+# This script DELETES all existing workflows first, then imports only the 3 correct ones
 # Usage: bash scripts/import_new_workflows.sh
 
 set -euo pipefail
@@ -19,8 +20,76 @@ N8N_API_KEY="${N8N_API_KEY:-$DEFAULT_API_KEY}"
 N8N_URL="${N8N_URL:-http://localhost:5678}"
 
 echo "=========================================="
-echo "Importing New 2-Teacher Architecture Workflows"
+echo "Cleaning and Importing 2-Teacher Workflows"
 echo "=========================================="
+echo ""
+
+# Step 1: Get all existing workflows
+echo "Step 1: Fetching all existing workflows..."
+WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+    "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+
+# Check if API key works
+if echo "$WORKFLOWS_JSON" | grep -q "unauthorized\|401\|403"; then
+    echo "❌ API key authentication failed"
+    echo "   Please check your N8N_API_KEY in .env"
+    echo "   Or get a new API key from n8n UI: http://localhost:5678 → Settings → API"
+    exit 1
+fi
+
+# Extract all workflow IDs
+ALL_WORKFLOW_IDS=$(echo "$WORKFLOWS_JSON" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        wf_id = wf.get('id', '')
+        wf_name = wf.get('name', '')
+        if wf_id:
+            print(f\"{wf_id}|{wf_name}\")
+except Exception as e:
+    print('', file=sys.stderr)
+" 2>/dev/null || echo "")
+
+WORKFLOW_COUNT=$(echo "$ALL_WORKFLOW_IDS" | grep -c "|" || echo "0")
+
+if [[ "$WORKFLOW_COUNT" -gt 0 ]]; then
+    echo "   Found $WORKFLOW_COUNT existing workflow(s)"
+    echo ""
+    echo "Step 2: Deleting all existing workflows..."
+    
+    # Delete each workflow
+    while IFS='|' read -r wf_id wf_name; do
+        if [[ -n "$wf_id" ]]; then
+            echo "   Deleting: $wf_name (ID: $wf_id)..."
+            
+            # Deactivate first if active
+            curl -s -X POST \
+                -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${wf_id}/deactivate" > /dev/null 2>&1 || true
+            
+            # Delete workflow
+            DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${wf_id}" 2>/dev/null || echo "")
+            
+            echo "   ✅ Deleted: $wf_name"
+        fi
+    done <<< "$ALL_WORKFLOW_IDS"
+    
+    echo ""
+    echo "✅ All existing workflows deleted"
+    echo ""
+    
+    # Wait a moment for n8n to process deletions
+    sleep 2
+else
+    echo "   No existing workflows found"
+    echo ""
+fi
+
+# Step 3: Import the 3 correct workflows
+echo "Step 3: Importing correct workflows..."
 echo ""
 
 WORKFLOWS=(
@@ -28,6 +97,8 @@ WORKFLOWS=(
     "left-worker-workflow.json:Left Worker - Teacher Pipeline"
     "right-worker-workflow.json:Right Worker - Teacher Pipeline"
 )
+
+IMPORTED_COUNT=0
 
 for workflow_entry in "${WORKFLOWS[@]}"; do
     IFS=':' read -r filename display_name <<< "$workflow_entry"
@@ -77,29 +148,37 @@ EOF
         -d "$CLEANED_WORKFLOW" \
         "${N8N_URL}/api/v1/workflows")
     
-    HTTP_CODE=$(echo "$RESPONSE" | python3 -c "import json, sys; d=json.load(sys.stdin); print(d.get('id', 'error'))" 2>/dev/null || echo "error")
+    WORKFLOW_ID=$(echo "$RESPONSE" | python3 -c "import json, sys; d=json.load(sys.stdin); print(d.get('id', 'error'))" 2>/dev/null || echo "error")
     
-    if [[ "$HTTP_CODE" != "error" ]] && [[ -n "$HTTP_CODE" ]]; then
-        echo "✅ Imported: $display_name (ID: $HTTP_CODE)"
+    if [[ "$WORKFLOW_ID" != "error" ]] && [[ -n "$WORKFLOW_ID" ]]; then
+        echo "   ✅ Imported: $display_name (ID: $WORKFLOW_ID)"
         
         # Activate workflow
         ACTIVATE_RESPONSE=$(curl -s -X POST \
             -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-            "${N8N_URL}/api/v1/workflows/${HTTP_CODE}/activate")
+            "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}/activate" 2>/dev/null || echo "")
         
-        echo "   Activated: $display_name"
+        echo "   ✅ Activated: $display_name"
+        IMPORTED_COUNT=$((IMPORTED_COUNT + 1))
     else
-        echo "❌ Failed to import: $display_name"
+        echo "   ❌ Failed to import: $display_name"
         echo "   Response: $RESPONSE"
     fi
     echo ""
 done
 
 echo "=========================================="
-echo "✅ Workflow import complete!"
+if [[ "$IMPORTED_COUNT" -eq 3 ]]; then
+    echo "✅ All workflows imported successfully!"
+else
+    echo "⚠️  Imported $IMPORTED_COUNT out of 3 workflows"
+fi
 echo "=========================================="
 echo ""
-echo "Next steps:"
-echo "1. Start Coordinator API: python services/coordinator/app.py"
-echo "2. Test session start: curl -X POST http://localhost:8004/session/start -H 'Content-Type: application/json' -d '{\"selectedTeachers\": [\"teacher_a\", \"teacher_d\"]}'"
-echo "3. Update frontend UI for 2-teacher layout and SSE event handling"
+echo "Expected workflows:"
+echo "  1. Session Start - Fast Webhook"
+echo "  2. Left Worker - Teacher Pipeline"
+echo "  3. Right Worker - Teacher Pipeline"
+echo ""
+echo "Verify in n8n UI: http://localhost:5678"
+echo ""
