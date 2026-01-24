@@ -39,7 +39,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [650, 300],
-      "continueOnFail": true
+      "continueOnFail": false
     },
     {
       "parameters": {
@@ -107,7 +107,7 @@
       "name": "Map Voice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1550, 200]
+      "position": [1650, 200]
     },
     {
       "parameters": {
@@ -184,7 +184,7 @@
       "name": "Prepare Clip Ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2450, 200]
+      "position": [2550, 200]
     },
     {
       "parameters": {
@@ -201,7 +201,7 @@
       "name": "POST Clip Ready",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2750, 200],
+      "position": [2650, 200],
       "continueOnFail": false
     },
     {
@@ -214,7 +214,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2950, 200]
+      "position": [2850, 200]
     },
     {
       "parameters": {
@@ -275,6 +275,15 @@
         [
           {
             "node": "Prepare LLM Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
