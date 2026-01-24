@@ -133,8 +133,23 @@ else
     echo ""
 fi
 
-# Step 2: Import the 3 correct workflows
-echo "Step 2: Importing 3 correct workflows..."
+# Step 2: Final verification before import
+echo "Step 2: Final verification..."
+FINAL_CHECK=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+    "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+
+FINAL_COUNT=$(echo "$FINAL_CHECK" | python3 -c "import json, sys; data=json.load(sys.stdin); print(len(data.get('data', [])))" 2>/dev/null || echo "0")
+
+if [[ "$FINAL_COUNT" -gt 0 ]]; then
+    echo "⚠️  WARNING: $FINAL_COUNT workflow(s) still remain!"
+    echo "   Running nuclear delete to remove them..."
+    bash scripts/nuclear_delete_all_workflows.sh
+    sleep 2
+fi
+
+# Step 3: Import the 3 correct workflows
+echo ""
+echo "Step 3: Importing 3 correct workflows..."
 echo ""
 
 # Force import by setting FORCE_IMPORT
