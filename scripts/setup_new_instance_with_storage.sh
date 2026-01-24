@@ -190,21 +190,104 @@ fi
 
 # Create PostgreSQL data directory on volume
 PG_DATA_DIR="$VAST_STORAGE/postgresql/data"
+PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "14")
+PG_BIN="/usr/lib/postgresql/${PG_VERSION}/bin"
+
+echo "PostgreSQL version detected: ${PG_VERSION}"
+echo "PostgreSQL bin path: ${PG_BIN}"
+
 if [ ! -d "$PG_DATA_DIR" ] || [ -z "$(ls -A $PG_DATA_DIR 2>/dev/null)" ]; then
     echo "Initializing PostgreSQL data directory on volume..."
     mkdir -p "$PG_DATA_DIR"
     chown -R postgres:postgres "$PG_DATA_DIR"
     
-    # Initialize database
-    sudo -u postgres /usr/lib/postgresql/*/bin/initdb -D "$PG_DATA_DIR" 2>/dev/null || {
-        echo "⚠️  PostgreSQL init may have failed. You may need to configure manually."
-        echo "   Default PostgreSQL will use /var/lib/postgresql instead."
-    }
+    # Stop PostgreSQL if running (using default location)
+    systemctl stop postgresql 2>/dev/null || true
     
-    echo "✅ PostgreSQL data directory initialized on volume"
+    # Find initdb binary
+    INITDB_CMD=""
+    if [ -f "${PG_BIN}/initdb" ]; then
+        INITDB_CMD="${PG_BIN}/initdb"
+    elif command -v initdb &> /dev/null; then
+        INITDB_CMD="initdb"
+    else
+        # Try to find it
+        INITDB_CMD=$(find /usr -name initdb -type f 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$INITDB_CMD" ] || [ ! -f "$INITDB_CMD" ]; then
+        echo "⚠️  Could not find initdb binary"
+        echo "   PostgreSQL may need to be installed first"
+        echo "   Run: apt-get install -y postgresql postgresql-contrib"
+        echo "   Then re-run this script"
+    else
+        echo "Using initdb: $INITDB_CMD"
+        
+        # Initialize database with checksums enabled (better data integrity)
+        echo "Initializing database (this may take a minute)..."
+        sudo -u postgres "$INITDB_CMD" \
+            -D "$PG_DATA_DIR" \
+            --data-checksums \
+            --encoding=UTF8 \
+            --locale=en_US.UTF-8 \
+            --auth-host=scram-sha-256 \
+            --auth-local=peer \
+            || {
+            echo ""
+            echo "⚠️  PostgreSQL initialization failed!"
+            echo "   Attempting without checksums (may be faster)..."
+            sudo -u postgres "$INITDB_CMD" \
+                -D "$PG_DATA_DIR" \
+                --encoding=UTF8 \
+                --locale=en_US.UTF-8 \
+                || {
+                echo "❌ PostgreSQL initialization failed completely"
+                echo "   You may need to configure PostgreSQL manually"
+                echo "   Default location: /var/lib/postgresql/${PG_VERSION}/main"
+                exit 1
+            }
+        }
+        
+        # Create PostgreSQL configuration file
+        PG_CONF="$PG_DATA_DIR/postgresql.conf"
+        if [ -f "$PG_CONF" ]; then
+            echo "Configuring PostgreSQL for better performance..."
+            # Update configuration for our use case
+            sed -i "s|#listen_addresses = 'localhost'|listen_addresses = 'localhost'|g" "$PG_CONF"
+            sed -i "s|#shared_buffers = 128MB|shared_buffers = 256MB|g" "$PG_CONF"
+            sed -i "s|#max_connections = 100|max_connections = 200|g" "$PG_CONF"
+            echo "✅ PostgreSQL configuration updated"
+        fi
+        
+        echo "✅ PostgreSQL data directory initialized on volume: $PG_DATA_DIR"
+    fi
 else
     echo "✅ PostgreSQL data directory already exists on volume"
 fi
+
+# Configure PostgreSQL systemd service to use custom data directory
+echo ""
+echo "Configuring PostgreSQL service to use volume..."
+PG_SERVICE_FILE="/etc/systemd/system/postgresql.service.d/custom-data-dir.conf"
+mkdir -p "$(dirname "$PG_SERVICE_FILE")"
+
+cat > "$PG_SERVICE_FILE" << EOF
+[Service]
+Environment="PGDATA=$PG_DATA_DIR"
+EOF
+
+# Also update postgresql@*.service if it exists
+if systemctl list-unit-files | grep -q "postgresql@"; then
+    PG_AT_SERVICE_FILE="/etc/systemd/system/postgresql@.service.d/custom-data-dir.conf"
+    mkdir -p "$(dirname "$PG_AT_SERVICE_FILE")"
+    cat > "$PG_AT_SERVICE_FILE" << EOF
+[Service]
+Environment="PGDATA=$PG_DATA_DIR"
+EOF
+fi
+
+systemctl daemon-reload
+echo "✅ PostgreSQL service configured to use volume"
 
 # Step 9: Create Python virtual environment
 echo ""
@@ -281,8 +364,13 @@ echo ""
 echo "1. Review and copy environment file:"
 echo "   cp $PROJECT_DIR/.env.storage $PROJECT_DIR/.env"
 echo ""
-echo "2. Start PostgreSQL (if not running):"
+echo "2. Start PostgreSQL with custom data directory:"
 echo "   sudo systemctl start postgresql"
+echo "   sudo systemctl enable postgresql"
+echo ""
+echo "   If PostgreSQL fails to start, check:"
+echo "   sudo journalctl -u postgresql -n 50"
+echo "   sudo -u postgres $PG_BIN/pg_ctl -D $PG_DATA_DIR start"
 echo ""
 echo "3. Create database and user:"
 echo "   sudo -u postgres psql -c \"CREATE DATABASE ai_teacher;\""
