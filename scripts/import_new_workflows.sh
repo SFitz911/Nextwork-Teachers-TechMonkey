@@ -24,7 +24,7 @@ echo "Cleaning and Importing 2-Teacher Workflows"
 echo "=========================================="
 echo ""
 
-# Step 1: Delete ALL existing workflows first
+# Step 1: Delete ALL existing workflows first (ALWAYS delete, even if FORCE_IMPORT is not set)
 echo "Step 1: Deleting ALL existing workflows..."
 echo ""
 
@@ -54,19 +54,18 @@ except:
 PYEOF
 )
 
-WORKFLOW_COUNT=$(echo "$ALL_WORKFLOW_IDS" | wc -l | tr -d ' ' || echo "0")
+WORKFLOW_COUNT=$(echo "$ALL_WORKFLOW_IDS" | grep -v '^$' | wc -l | tr -d ' ' || echo "0")
 
 if [[ "$WORKFLOW_COUNT" -gt 0 ]]; then
-    echo "   Found $WORKFLOW_COUNT existing workflow(s) - deleting all..."
+    echo "   Found $WORKFLOW_COUNT existing workflow(s) - deleting ALL..."
     echo ""
     
-    # Delete each workflow
+    # Delete each workflow (loop to ensure all are deleted)
+    DELETED_COUNT=0
     for wf_id in $ALL_WORKFLOW_IDS; do
         if [[ -n "$wf_id" ]]; then
             # Get workflow name for display
             WF_NAME=$(echo "$WORKFLOWS_JSON" | python3 -c "import json, sys; data=json.load(sys.stdin); [print(wf.get('name', 'Unknown')) for wf in data.get('data', []) if wf.get('id') == '$wf_id']" 2>/dev/null || echo "Unknown")
-            
-            echo "   Deleting: $WF_NAME (ID: $wf_id)..."
             
             # Deactivate first
             curl -s -X POST \
@@ -74,27 +73,73 @@ if [[ "$WORKFLOW_COUNT" -gt 0 ]]; then
                 "${N8N_URL}/api/v1/workflows/${wf_id}/deactivate" > /dev/null 2>&1 || true
             
             # Delete workflow
-            DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+            HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null -X DELETE \
                 -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-                "${N8N_URL}/api/v1/workflows/${wf_id}" 2>/dev/null || echo "")
+                "${N8N_URL}/api/v1/workflows/${wf_id}" 2>/dev/null || echo "000")
             
-            HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n 1)
             if [[ "$HTTP_CODE" == "200" ]] || [[ "$HTTP_CODE" == "204" ]]; then
                 echo "   ✅ Deleted: $WF_NAME"
+                DELETED_COUNT=$((DELETED_COUNT + 1))
             else
-                echo "   ⚠️  Delete may have failed (HTTP $HTTP_CODE)"
+                echo "   ⚠️  Failed to delete: $WF_NAME (HTTP $HTTP_CODE)"
             fi
         fi
     done
     
     echo ""
-    echo "✅ Deletion complete - waiting 3 seconds for n8n to process..."
-    sleep 3
+    echo "   Deleted $DELETED_COUNT out of $WORKFLOW_COUNT workflow(s)"
+    echo "   Waiting 5 seconds for n8n to process deletions..."
+    sleep 5
+    
+    # Verify deletion - retry if needed
+    VERIFY_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+    
+    REMAINING_COUNT=$(echo "$VERIFY_JSON" | python3 -c "import json, sys; data=json.load(sys.stdin); print(len(data.get('data', [])))" 2>/dev/null || echo "0")
+    
+    if [[ "$REMAINING_COUNT" -gt 0 ]]; then
+        echo "   ⚠️  $REMAINING_COUNT workflow(s) still remain - retrying deletion..."
+        
+        # Retry deletion for remaining workflows
+        REMAINING_IDS=$(echo "$VERIFY_JSON" | python3 <<'PYEOF'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        wf_id = wf.get('id', '')
+        if wf_id:
+            print(wf_id)
+except:
+    pass
+PYEOF
+)
+        
+        for wf_id in $REMAINING_IDS; do
+            if [[ -n "$wf_id" ]]; then
+                curl -s -X POST \
+                    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                    "${N8N_URL}/api/v1/workflows/${wf_id}/deactivate" > /dev/null 2>&1 || true
+                
+                curl -s -X DELETE \
+                    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                    "${N8N_URL}/api/v1/workflows/${wf_id}" > /dev/null 2>&1 || true
+            fi
+        done
+        
+        sleep 3
+    fi
+    
+    echo ""
+    echo "✅ Deletion complete"
     echo ""
 else
     echo "   No existing workflows found"
     echo ""
 fi
+
+# Refresh workflows JSON after deletion
+WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+    "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
 
 # Step 2: Check if correct workflows already exist
 echo "Step 2: Checking if correct workflows already exist..."
@@ -131,14 +176,16 @@ done
 
 echo ""
 
-# If all 3 workflows exist, skip import unless forced
+# Note: We already deleted all workflows in Step 1, so we should always import
+# But check anyway in case deletion failed
 if [[ "$EXISTING_COUNT" -eq 3 ]] && [[ "${FORCE_IMPORT:-}" != "true" ]]; then
-    echo "✅ All 3 correct workflows already exist!"
+    echo "⚠️  All 3 correct workflows already exist (deletion may have failed)"
     echo ""
-    echo "   To force re-import (delete and recreate), run:"
-    echo "   FORCE_IMPORT=true bash scripts/import_new_workflows.sh"
+    echo "   To force re-import, run:"
+    echo "   bash scripts/force_clean_workflows.sh"
     echo ""
-    exit 0
+    echo "   Or continue with import anyway..."
+    echo ""
 fi
 
 # Step 3: Import the 3 correct workflows
