@@ -164,11 +164,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [2250, 200],
-      "continueOnFail": false
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Format clip data for Coordinator\nconst videoResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Get audio URL from Prepare Video node (stored there)\nconst audioUrl = $('Prepare Video').item.json.audioUrl || $('Prepare Video').item.json.audio_url || '';\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (videoResponse) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || videoResponse.jobId || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  } else if (videoResponse.videoUrl) {\n    videoUrl = videoResponse.videoUrl;\n  }\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: audioUrl,\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
+        "jsCode": "// Format clip data for Coordinator\n// Handle both success and failure cases from Video Generate\nconst input = $input.item;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Get audio URL from Prepare Video node (stored there)\nconst audioUrl = $('Prepare Video').item.json.audioUrl || $('Prepare Video').item.json.audio_url || '';\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Check if Video Generate succeeded or failed\nlet videoResponse = null;\nlet hasError = false;\nlet errorMessage = '';\n\nif (input.error) {\n  // Video generation failed\n  hasError = true;\n  errorMessage = input.error.message || 'Video generation service unavailable';\n  console.log(`Video generation failed: ${errorMessage}`);\n} else {\n  // Video generation succeeded\n  videoResponse = input.json;\n}\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = hasError ? 'error' : 'processing';\n\nif (videoResponse && !hasError) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || videoResponse.jobId || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  } else if (videoResponse.videoUrl) {\n    videoUrl = videoResponse.videoUrl;\n  }\n}\n\n// If video generation failed, still create clip with audio-only\n// The UI can handle audio-only clips with a placeholder video\nif (hasError && !videoUrl) {\n  // Fallback: use audio URL as video URL (UI will handle audio-only playback)\n  videoUrl = audioUrl;\n  status = 'audio_only';\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: audioUrl,\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn,\n  error: hasError ? errorMessage : null\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
       },
       "id": "format-clip",
       "name": "Format Clip",
@@ -390,15 +390,6 @@
         [
           {
             "node": "Format Clip",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
