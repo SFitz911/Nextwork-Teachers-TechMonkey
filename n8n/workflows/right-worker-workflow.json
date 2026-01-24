@@ -63,11 +63,21 @@
     },
     {
       "parameters": {
+        "jsCode": "// Prepare Ollama API request body\nconst input = $input.item.json;\n\nconst requestBody = {\n  model: input.model || 'mistral:7b',\n  prompt: input.prompt,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    top_p: 0.9,\n    num_predict: 150\n  }\n};\n\nreturn {\n  json: {\n    ...input,\n    requestBody: requestBody\n  }\n};"
+      },
+      "id": "prepare-llm-body",
+      "name": "Prepare LLM Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 200]
+    },
+    {
+      "parameters": {
         "url": "http://localhost:11434/api/generate",
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"{{ $json.prompt.replace(/\\\"/g, '\\\\\"') }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"top_p\": 0.9,\n    \"num_predict\": 150\n  }\n}",
+        "jsonBody": "={{ $json.requestBody }}",
         "options": {
           "timeout": 60000
         }
@@ -76,7 +86,7 @@
       "name": "LLM Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1250, 200],
+      "position": [1350, 200],
       "continueOnFail": false
     },
     {
@@ -87,7 +97,7 @@
       "name": "Extract Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1450, 200]
+      "position": [1550, 200]
     },
     {
       "parameters": {
@@ -125,7 +135,7 @@
       "name": "TTS Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1750, 200],
+      "position": [1850, 200],
       "continueOnFail": false
     },
     {
@@ -136,7 +146,7 @@
       "name": "Prepare Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1950, 200]
+      "position": [2050, 200]
     },
     {
       "parameters": {
@@ -153,7 +163,7 @@
       "name": "Video Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2150, 200],
+      "position": [2250, 200],
       "continueOnFail": false
     },
     {
@@ -164,7 +174,7 @@
       "name": "Format Clip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2350, 200]
+      "position": [2450, 200]
     },
     {
       "parameters": {
@@ -191,7 +201,7 @@
       "name": "POST Clip Ready",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2650, 200],
+      "position": [2750, 200],
       "continueOnFail": false
     },
     {
@@ -204,7 +214,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2850, 200]
+      "position": [2950, 200]
     },
     {
       "parameters": {
@@ -272,6 +282,17 @@
       ]
     },
     "Prepare LLM Request": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Body": {
       "main": [
         [
           {
