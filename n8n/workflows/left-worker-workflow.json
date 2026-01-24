@@ -81,25 +81,24 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "method": "POST",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nIMPORTANT: The user's preferred language is {{ $('Extract Payload').item.json.language || 'English' }}. You must respond in this language.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url || 'a webpage' }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText || 'No text visible' }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText || 'None' }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) in {{ $('Extract Payload').item.json.language || 'English' }} that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n- Responds in the user's preferred language\\n\\nResponse:\",\n  \"stream\": false\n}",
+        "model": "mistralai/Mistral-7B-Instruct-v0.2",
         "options": {
-          "timeout": 30000
-        }
+          "max_new_tokens": 150,
+          "temperature": 0.7,
+          "top_p": 0.9
+        },
+        "inputs": "=You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nIMPORTANT: The user's preferred language is {{ $('Extract Payload').item.json.language || 'English' }}. You must respond in this language.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url || 'a webpage' }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText || 'No text visible' }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText || 'None' }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) in {{ $('Extract Payload').item.json.language || 'English' }} that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n- Responds in the user's preferred language\\n\\nResponse:"
       },
       "id": "llm-generate",
-      "name": "LLM Generate",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "Hugging Face Inference",
+      "type": "@n8n/n8n-nodes-langchain.huggingFaceInference",
+      "typeVersion": 1,
       "position": [1050, 200],
       "continueOnFail": false
     },
     {
       "parameters": {
-        "jsCode": "// Extract and normalize LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\n// Handle Ollama API response format\nif (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.message && llmResponse.message.content) {\n  responseText = llmResponse.message.content.trim();\n} else if (Array.isArray(llmResponse) && llmResponse.length > 0) {\n  // Handle streaming response array\n  responseText = llmResponse.map(item => item.response || item.text || '').join('').trim();\n} else {\n  // Fallback: try to extract from any text field\n  responseText = JSON.stringify(llmResponse).substring(0, 200);\n}\n\n// Safety: ensure minimum length\nif (!responseText || responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(/\\s+/).filter(w => w.length > 0);\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
+        "jsCode": "// Extract and normalize LLM response (Hugging Face format)\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\n// Handle Hugging Face Inference API response format\nif (llmResponse.generated_text) {\n  responseText = llmResponse.generated_text.trim();\n} else if (Array.isArray(llmResponse) && llmResponse.length > 0) {\n  // Handle array response\n  responseText = llmResponse[0].generated_text || llmResponse[0].text || '';\n  responseText = responseText.trim();\n} else if (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.message && llmResponse.message.content) {\n  responseText = llmResponse.message.content.trim();\n} else {\n  // Fallback: try to extract from any text field\n  responseText = JSON.stringify(llmResponse).substring(0, 200);\n}\n\n// Safety: ensure minimum length\nif (!responseText || responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(/\\s+/).filter(w => w.length > 0);\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
       },
       "id": "extract-response",
       "name": "Extract Response",
@@ -288,7 +287,7 @@
         ]
       ]
     },
-    "LLM Generate": {
+    "Hugging Face Inference": {
       "main": [
         [
           {
@@ -343,7 +342,7 @@
         ]
       ]
     },
-    "Video Generate": {
+    "LongCat Generator": {
       "main": [
         [
           {
