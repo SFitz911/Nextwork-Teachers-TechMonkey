@@ -59,8 +59,12 @@ if [ -z "$VAST_STORAGE" ]; then
     fi
 fi
 
+# Export for use in this script and child processes
+export VAST_STORAGE
+
 echo ""
 echo "Using storage path: $VAST_STORAGE"
+echo "   (Exported as VAST_STORAGE environment variable)"
 echo ""
 
 # Step 2: Set up storage directories
