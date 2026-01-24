@@ -200,34 +200,105 @@ CLEANED_FILE="/tmp/cleaned_workflow_$$.json"
 echo "$CLEANED_WORKFLOW" > "$CLEANED_FILE"
 echo "✅ Workflow cleaned"
 
-# Import workflow
-echo ""
-echo "Importing workflow..."
-IMPORT_RESPONSE=$(curl -s -w "\n%{http_code}" \
-    -X POST \
-    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d @"$CLEANED_FILE" \
-    "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+# Get workflow name from cleaned workflow
+WORKFLOW_NAME=$(echo "$CLEANED_WORKFLOW" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data.get('name', ''))
+except:
+    pass
+" 2>/dev/null)
 
-HTTP_CODE=$(echo "$IMPORT_RESPONSE" | tail -1)
-IMPORT_BODY=$(echo "$IMPORT_RESPONSE" | head -n -1)
-
-if [[ "$HTTP_CODE" != "200" ]] && [[ "$HTTP_CODE" != "201" ]]; then
-    echo "❌ Failed to import workflow (HTTP $HTTP_CODE)"
-    echo "Response:"
-    echo "$IMPORT_BODY" | head -20
-    echo ""
-    echo "Troubleshooting:"
-    echo "  1. Check API key: bash scripts/validate_config.sh"
-    echo "  2. Check n8n is running: curl http://localhost:5678"
-    echo "  3. Try manual import: Open http://localhost:5678 → Import workflow"
-    rm -f "$CLEANED_FILE" "$TEMP_WORKFLOW" 2>/dev/null
-    exit 1
+if [[ -z "$WORKFLOW_NAME" ]]; then
+    WORKFLOW_NAME="AI Virtual Classroom - Five Teacher Workflow"
 fi
 
-# Get workflow ID
-NEW_WORKFLOW_ID=$(echo "$IMPORT_BODY" | python3 -c "
+echo ""
+echo "Checking for existing workflow: $WORKFLOW_NAME..."
+
+# Check if workflow already exists
+EXISTING_WORKFLOWS=$(curl -s -w "\n%{http_code}" \
+    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+    -H "Content-Type: application/json" \
+    "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+
+HTTP_CODE_CHECK=$(echo "$EXISTING_WORKFLOWS" | tail -1)
+WORKFLOWS_BODY=$(echo "$EXISTING_WORKFLOWS" | head -n -1)
+
+EXISTING_WORKFLOW_ID=$(echo "$WORKFLOWS_BODY" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    workflows = data.get('data', [])
+    for wf in workflows:
+        if wf.get('name', '') == '$WORKFLOW_NAME':
+            print(wf.get('id', ''))
+            sys.exit(0)
+except:
+    pass
+" 2>/dev/null || echo "")
+
+if [[ -n "$EXISTING_WORKFLOW_ID" ]]; then
+    echo "   Found existing workflow (ID: $EXISTING_WORKFLOW_ID)"
+    echo "   Updating existing workflow instead of creating new one..."
+    
+    # Update existing workflow
+    UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -X PUT \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d @"$CLEANED_FILE" \
+        "${N8N_URL}/api/v1/workflows/${EXISTING_WORKFLOW_ID}" 2>/dev/null)
+    
+    UPDATE_HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -1)
+    UPDATE_BODY=$(echo "$UPDATE_RESPONSE" | head -n -1)
+    
+    if [[ "$UPDATE_HTTP_CODE" != "200" ]] && [[ "$UPDATE_HTTP_CODE" != "201" ]]; then
+        echo "❌ Failed to update workflow (HTTP $UPDATE_HTTP_CODE)"
+        echo "Response:"
+        echo "$UPDATE_BODY" | head -20
+        echo ""
+        echo "Falling back to creating new workflow..."
+        # Fall through to create new workflow
+        EXISTING_WORKFLOW_ID=""
+    else
+        NEW_WORKFLOW_ID="$EXISTING_WORKFLOW_ID"
+        echo "✅ Workflow updated successfully (ID: $NEW_WORKFLOW_ID)"
+    fi
+else
+    echo "   No existing workflow found"
+fi
+
+# Import workflow (only if we didn't update an existing one)
+if [[ -z "$NEW_WORKFLOW_ID" ]]; then
+    echo ""
+    echo "Importing workflow..."
+    IMPORT_RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d @"$CLEANED_FILE" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    
+    HTTP_CODE=$(echo "$IMPORT_RESPONSE" | tail -1)
+    IMPORT_BODY=$(echo "$IMPORT_RESPONSE" | head -n -1)
+    
+    if [[ "$HTTP_CODE" != "200" ]] && [[ "$HTTP_CODE" != "201" ]]; then
+        echo "❌ Failed to import workflow (HTTP $HTTP_CODE)"
+        echo "Response:"
+        echo "$IMPORT_BODY" | head -20
+        echo ""
+        echo "Troubleshooting:"
+        echo "  1. Check API key: bash scripts/validate_config.sh"
+        echo "  2. Check n8n is running: curl http://localhost:5678"
+        echo "  3. Try manual import: Open http://localhost:5678 → Import workflow"
+        rm -f "$CLEANED_FILE" "$TEMP_WORKFLOW" 2>/dev/null
+        exit 1
+    fi
+    
+    # Get workflow ID
+    NEW_WORKFLOW_ID=$(echo "$IMPORT_BODY" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -237,13 +308,14 @@ try:
 except:
     pass
 " 2>/dev/null)
-
-if [[ -z "$NEW_WORKFLOW_ID" ]]; then
-    echo "⚠️  Workflow imported but couldn't get ID"
-    echo "Response:"
-    echo "$IMPORT_BODY" | head -10
-else
-    echo "✅ Workflow imported successfully (ID: $NEW_WORKFLOW_ID)"
+    
+    if [[ -z "$NEW_WORKFLOW_ID" ]]; then
+        echo "⚠️  Workflow imported but couldn't get ID"
+        echo "Response:"
+        echo "$IMPORT_BODY" | head -10
+    else
+        echo "✅ Workflow imported successfully (ID: $NEW_WORKFLOW_ID)"
+    fi
 fi
 
 # Activate workflow
