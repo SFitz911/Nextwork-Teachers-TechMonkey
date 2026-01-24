@@ -24,8 +24,11 @@ echo "Cleaning and Importing 2-Teacher Workflows"
 echo "=========================================="
 echo ""
 
-# Step 1: Get all existing workflows
-echo "Step 1: Fetching all existing workflows..."
+# Step 1: Delete ALL existing workflows first
+echo "Step 1: Deleting ALL existing workflows..."
+echo ""
+
+# Get all workflows
 WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
     "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
 
@@ -38,58 +41,63 @@ if echo "$WORKFLOWS_JSON" | grep -q "unauthorized\|401\|403"; then
 fi
 
 # Extract all workflow IDs
-ALL_WORKFLOW_IDS=$(echo "$WORKFLOWS_JSON" | python3 -c "
+ALL_WORKFLOW_IDS=$(echo "$WORKFLOWS_JSON" | python3 <<'PYEOF'
 import json, sys
 try:
     data = json.load(sys.stdin)
     for wf in data.get('data', []):
         wf_id = wf.get('id', '')
-        wf_name = wf.get('name', '')
         if wf_id:
-            print(f\"{wf_id}|{wf_name}\")
-except Exception as e:
-    print('', file=sys.stderr)
-" 2>/dev/null || echo "")
+            print(wf_id)
+except:
+    pass
+PYEOF
+)
 
-WORKFLOW_COUNT=$(echo "$ALL_WORKFLOW_IDS" | grep -c "|" || echo "0")
+WORKFLOW_COUNT=$(echo "$ALL_WORKFLOW_IDS" | wc -l | tr -d ' ' || echo "0")
 
 if [[ "$WORKFLOW_COUNT" -gt 0 ]]; then
-    echo "   Found $WORKFLOW_COUNT existing workflow(s)"
+    echo "   Found $WORKFLOW_COUNT existing workflow(s) - deleting all..."
     echo ""
-    echo "Step 2: Deleting all existing workflows..."
     
     # Delete each workflow
-    while IFS='|' read -r wf_id wf_name; do
+    for wf_id in $ALL_WORKFLOW_IDS; do
         if [[ -n "$wf_id" ]]; then
-            echo "   Deleting: $wf_name (ID: $wf_id)..."
+            # Get workflow name for display
+            WF_NAME=$(echo "$WORKFLOWS_JSON" | python3 -c "import json, sys; data=json.load(sys.stdin); [print(wf.get('name', 'Unknown')) for wf in data.get('data', []) if wf.get('id') == '$wf_id']" 2>/dev/null || echo "Unknown")
             
-            # Deactivate first if active
+            echo "   Deleting: $WF_NAME (ID: $wf_id)..."
+            
+            # Deactivate first
             curl -s -X POST \
                 -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
                 "${N8N_URL}/api/v1/workflows/${wf_id}/deactivate" > /dev/null 2>&1 || true
             
             # Delete workflow
-            DELETE_RESPONSE=$(curl -s -X DELETE \
+            DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
                 -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
                 "${N8N_URL}/api/v1/workflows/${wf_id}" 2>/dev/null || echo "")
             
-            echo "   ✅ Deleted: $wf_name"
+            HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n 1)
+            if [[ "$HTTP_CODE" == "200" ]] || [[ "$HTTP_CODE" == "204" ]]; then
+                echo "   ✅ Deleted: $WF_NAME"
+            else
+                echo "   ⚠️  Delete may have failed (HTTP $HTTP_CODE)"
+            fi
         fi
-    done <<< "$ALL_WORKFLOW_IDS"
+    done
     
     echo ""
-    echo "✅ All existing workflows deleted"
+    echo "✅ Deletion complete - waiting 3 seconds for n8n to process..."
+    sleep 3
     echo ""
-    
-    # Wait a moment for n8n to process deletions
-    sleep 2
 else
     echo "   No existing workflows found"
     echo ""
 fi
 
-# Step 3: Import the 3 correct workflows
-echo "Step 3: Importing correct workflows..."
+# Step 2: Import the 3 correct workflows
+echo "Step 2: Importing correct workflows..."
 echo ""
 
 WORKFLOWS=(
