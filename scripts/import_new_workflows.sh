@@ -96,8 +96,53 @@ else
     echo ""
 fi
 
-# Step 2: Import the 3 correct workflows
-echo "Step 2: Importing correct workflows..."
+# Step 2: Check if correct workflows already exist
+echo "Step 2: Checking if correct workflows already exist..."
+echo ""
+
+EXPECTED_WORKFLOWS=(
+    "Session Start - Fast Webhook"
+    "Left Worker - Teacher Pipeline"
+    "Right Worker - Teacher Pipeline"
+)
+
+EXISTING_COUNT=0
+for wf_name in "${EXPECTED_WORKFLOWS[@]}"; do
+    EXISTS=$(echo "$WORKFLOWS_JSON" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        if wf.get('name', '') == '$wf_name':
+            print('yes')
+            sys.exit(0)
+except:
+    pass
+print('no')
+" 2>/dev/null || echo "no")
+    
+    if [[ "$EXISTS" == "yes" ]]; then
+        echo "   ✅ Found: $wf_name"
+        EXISTING_COUNT=$((EXISTING_COUNT + 1))
+    else
+        echo "   ❌ Missing: $wf_name"
+    fi
+done
+
+echo ""
+
+# If all 3 workflows exist, skip import unless forced
+if [[ "$EXISTING_COUNT" -eq 3 ]] && [[ "${FORCE_IMPORT:-}" != "true" ]]; then
+    echo "✅ All 3 correct workflows already exist!"
+    echo ""
+    echo "   To force re-import (delete and recreate), run:"
+    echo "   FORCE_IMPORT=true bash scripts/import_new_workflows.sh"
+    echo ""
+    exit 0
+fi
+
+# Step 3: Import the 3 correct workflows
+echo "Step 3: Importing correct workflows..."
 echo ""
 
 WORKFLOWS=(
@@ -114,6 +159,25 @@ for workflow_entry in "${WORKFLOWS[@]}"; do
     
     if [[ ! -f "$workflow_path" ]]; then
         echo "❌ Workflow file not found: $workflow_path"
+        continue
+    fi
+    
+    # Check if this specific workflow already exists
+    EXISTING_ID=$(echo "$WORKFLOWS_JSON" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for wf in data.get('data', []):
+        if wf.get('name', '') == '$display_name':
+            print(wf.get('id', ''))
+            sys.exit(0)
+except:
+    pass
+" 2>/dev/null || echo "")
+    
+    if [[ -n "$EXISTING_ID" ]] && [[ "${FORCE_IMPORT:-}" != "true" ]]; then
+        echo "   ⚠️  Already exists: $display_name (ID: $EXISTING_ID) - skipping"
+        echo "   (Use FORCE_IMPORT=true to replace)"
         continue
     fi
     

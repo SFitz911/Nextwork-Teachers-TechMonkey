@@ -70,21 +70,13 @@ fi
 echo "✅ n8n is ready"
 echo ""
 
-# Step 4: Import and activate workflow
-echo "Step 4: Importing and activating workflow..."
-
-if bash scripts/clean_and_import_workflow.sh; then
-    echo "✅ Workflow imported and activated"
-else
-    echo "❌ Failed to import workflow"
-    echo ""
-    echo "   Troubleshooting steps:"
-    echo "   1. Verify API key is valid: bash scripts/validate_config.sh"
-    echo "   2. Check n8n is accessible: curl http://localhost:5678"
-    echo "   3. Try manual import: Open http://localhost:5678 → Import workflow"
-    echo "   4. Check backup: ls -lt backups/workflows/"
-    exit 1
-fi
+# Step 4: Check workflows (don't auto-import to prevent duplicates)
+echo "Step 4: Checking n8n workflows..."
+echo ""
+echo "⚠️  Workflows are NOT auto-imported to prevent duplicates."
+echo "   If you need to import/update workflows, run manually:"
+echo "   bash scripts/import_new_workflows.sh"
+echo ""
 
 echo ""
 echo "Step 5: Verifying everything works..."
