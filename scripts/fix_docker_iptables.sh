@@ -17,9 +17,15 @@ cat > "$DAEMON_JSON" << 'EOF'
 {
   "iptables": false,
   "ip-forward": false,
-  "bridge": "none"
+  "bridge": "none",
+  "data-root": "/root/docker-data",
+  "storage-driver": "vfs"
 }
 EOF
+
+# Create Docker data directory in user space
+mkdir -p /root/docker-data
+echo "✅ Created Docker data directory: /root/docker-data"
 
 echo "✅ Docker daemon configuration created"
 echo ""
