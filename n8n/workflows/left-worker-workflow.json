@@ -27,15 +27,19 @@
     },
     {
       "parameters": {
-        "url": "=http://localhost:8004/session/{{ $json.sessionId }}/state",
+        "url": "http://localhost:8004/session/{{ $json.sessionId }}/state",
         "method": "GET",
-        "options": {}
+        "options": {
+          "timeout": 10000,
+          "ignoreResponseCode": false
+        }
       },
       "id": "get-session-state",
       "name": "Get Session State",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [650, 300]
+      "position": [650, 300],
+      "continueOnFail": false
     },
     {
       "parameters": {
@@ -81,14 +85,17 @@
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n\\nResponse:\",\n  \"stream\": false\n}",
-        "options": {}
+        "jsonBody": "={\n  \"model\": \"mistral:7b\",\n  \"prompt\": \"You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nIMPORTANT: The user's preferred language is {{ $('Extract Payload').item.json.language || 'English' }}. You must respond in this language.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url || 'a webpage' }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText || 'No text visible' }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText || 'None' }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) in {{ $('Extract Payload').item.json.language || 'English' }} that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n- Responds in the user's preferred language\\n\\nResponse:\",\n  \"stream\": false\n}",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "llm-generate",
       "name": "LLM Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1050, 200]
+      "position": [1050, 200],
+      "continueOnFail": false
     },
     {
       "parameters": {
@@ -128,13 +135,16 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "tts-generate",
       "name": "TTS Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1550, 200]
+      "position": [1550, 200],
+      "continueOnFail": false
     },
     {
       "parameters": {
@@ -144,7 +154,7 @@
       "name": "Prepare Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1650, 200]
+      "position": [1750, 200]
     },
     {
       "parameters": {
@@ -161,7 +171,7 @@
       "name": "Video Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1850, 200]
+      "position": [1950, 200]
     },
     {
       "parameters": {
@@ -171,7 +181,17 @@
       "name": "Format Clip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2050, 200]
+      "position": [2150, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare clip-ready payload\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    sessionId: input.sessionId,\n    teacher: input.teacher,\n    clip: input.clip\n  }\n};"
+      },
+      "id": "prepare-clip-ready",
+      "name": "Prepare Clip Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 200]
     },
     {
       "parameters": {
@@ -179,14 +199,17 @@
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"sessionId\": \"{{ $json.sessionId }}\",\n  \"teacher\": \"{{ $json.teacher }}\",\n  \"clip\": {{ $json.clip }}\n}",
-        "options": {}
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "post-clip-ready",
       "name": "POST Clip Ready",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2250, 200]
+      "position": [2450, 200],
+      "continueOnFail": false
     },
     {
       "parameters": {
@@ -198,7 +221,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2450, 200]
+      "position": [2650, 200]
     }
   ],
   "connections": {
@@ -313,6 +336,17 @@
       ]
     },
     "Format Clip": {
+      "main": [
+        [
+          {
+            "node": "Prepare Clip Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Clip Ready": {
       "main": [
         [
           {
