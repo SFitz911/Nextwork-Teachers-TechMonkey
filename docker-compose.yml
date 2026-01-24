@@ -90,6 +90,27 @@ services:
       - ANIMATION_MODEL=lam
       - AVATAR_PATH=/app/avatars
 
+  # PostgreSQL Database with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ai-teacher-postgres
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ai_teacher}
+      - POSTGRES_USER=${POSTGRES_USER:-ai_teacher}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount Vast.ai storage volume if available
+      - ${VAST_STORAGE_PATH:-./storage}/postgresql:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_teacher}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Coordinator API - Session State Management
   coordinator:
     build:
@@ -100,7 +121,14 @@ services:
     network_mode: host
     environment:
       - PORT=8004
-    # depends_on: removed Redis - using PostgreSQL + local storage instead
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-ai_teacher}
+      - POSTGRES_USER=${POSTGRES_USER:-ai_teacher}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # LongCat-Video-Avatar Service
   longcat-video:
@@ -160,5 +188,7 @@ services:
 
 volumes:
   n8n_data:
-  ollama_data
-  # redis_data: removed - not using Redis (using PostgreSQL + local storage)
+  ollama_data:
+  postgres_data:
+    # If VAST_STORAGE_PATH is set, this will use the volume
+    # Otherwise uses Docker volume (not persistent across restarts)

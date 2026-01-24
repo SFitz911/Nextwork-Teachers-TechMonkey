@@ -170,124 +170,43 @@ fi
 
 cd "$PROJECT_DIR"
 
-# Step 8: Install PostgreSQL + pgvector
+# Step 8: Install Docker and Docker Compose (if not installed)
 echo ""
-echo "Step 8: Setting up PostgreSQL on storage volume..."
+echo "Step 8: Setting up Docker..."
 echo ""
 
-# Stop PostgreSQL if running
-systemctl stop postgresql 2>/dev/null || true
-
-# Install pgvector extension
-echo "Installing pgvector extension..."
-apt-get install -y postgresql-server-dev-all || echo "⚠️  postgresql-server-dev-all may have failed"
-
-# Try to install pgvector from source if package not available
-if ! command -v pg_config &> /dev/null; then
-    echo "Installing PostgreSQL development tools..."
-    apt-get install -y postgresql-server-dev-$(psql --version 2>/dev/null | grep -oP '\d+' | head -1) || true
-fi
-
-# Create PostgreSQL data directory on volume
-PG_DATA_DIR="$VAST_STORAGE/postgresql/data"
-PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "14")
-PG_BIN="/usr/lib/postgresql/${PG_VERSION}/bin"
-
-echo "PostgreSQL version detected: ${PG_VERSION}"
-echo "PostgreSQL bin path: ${PG_BIN}"
-
-if [ ! -d "$PG_DATA_DIR" ] || [ -z "$(ls -A $PG_DATA_DIR 2>/dev/null)" ]; then
-    echo "Initializing PostgreSQL data directory on volume..."
-    mkdir -p "$PG_DATA_DIR"
-    chown -R postgres:postgres "$PG_DATA_DIR"
-    
-    # Stop PostgreSQL if running (using default location)
-    systemctl stop postgresql 2>/dev/null || true
-    
-    # Find initdb binary
-    INITDB_CMD=""
-    if [ -f "${PG_BIN}/initdb" ]; then
-        INITDB_CMD="${PG_BIN}/initdb"
-    elif command -v initdb &> /dev/null; then
-        INITDB_CMD="initdb"
-    else
-        # Try to find it
-        INITDB_CMD=$(find /usr -name initdb -type f 2>/dev/null | head -1)
-    fi
-    
-    if [ -z "$INITDB_CMD" ] || [ ! -f "$INITDB_CMD" ]; then
-        echo "⚠️  Could not find initdb binary"
-        echo "   PostgreSQL may need to be installed first"
-        echo "   Run: apt-get install -y postgresql postgresql-contrib"
-        echo "   Then re-run this script"
-    else
-        echo "Using initdb: $INITDB_CMD"
-        
-        # Initialize database with checksums enabled (better data integrity)
-        echo "Initializing database (this may take a minute)..."
-        sudo -u postgres "$INITDB_CMD" \
-            -D "$PG_DATA_DIR" \
-            --data-checksums \
-            --encoding=UTF8 \
-            --locale=en_US.UTF-8 \
-            --auth-host=scram-sha-256 \
-            --auth-local=peer \
-            || {
-            echo ""
-            echo "⚠️  PostgreSQL initialization failed!"
-            echo "   Attempting without checksums (may be faster)..."
-            sudo -u postgres "$INITDB_CMD" \
-                -D "$PG_DATA_DIR" \
-                --encoding=UTF8 \
-                --locale=en_US.UTF-8 \
-                || {
-                echo "❌ PostgreSQL initialization failed completely"
-                echo "   You may need to configure PostgreSQL manually"
-                echo "   Default location: /var/lib/postgresql/${PG_VERSION}/main"
-                exit 1
-            }
-        }
-        
-        # Create PostgreSQL configuration file
-        PG_CONF="$PG_DATA_DIR/postgresql.conf"
-        if [ -f "$PG_CONF" ]; then
-            echo "Configuring PostgreSQL for better performance..."
-            # Update configuration for our use case
-            sed -i "s|#listen_addresses = 'localhost'|listen_addresses = 'localhost'|g" "$PG_CONF"
-            sed -i "s|#shared_buffers = 128MB|shared_buffers = 256MB|g" "$PG_CONF"
-            sed -i "s|#max_connections = 100|max_connections = 200|g" "$PG_CONF"
-            echo "✅ PostgreSQL configuration updated"
-        fi
-        
-        echo "✅ PostgreSQL data directory initialized on volume: $PG_DATA_DIR"
-    fi
+if ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
+    echo "✅ Docker installed"
 else
-    echo "✅ PostgreSQL data directory already exists on volume"
+    echo "✅ Docker already installed: $(docker --version)"
 fi
 
-# Configure PostgreSQL systemd service to use custom data directory
+# Install Docker Compose if not present
+if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /dev/null; then
+    echo "Installing Docker Compose..."
+    apt-get update
+    apt-get install -y docker-compose-plugin || {
+        # Fallback to standalone docker-compose
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+    }
+    echo "✅ Docker Compose installed"
+else
+    echo "✅ Docker Compose already installed"
+fi
+
+# Create PostgreSQL data directory on volume (for Docker bind mount)
 echo ""
-echo "Configuring PostgreSQL service to use volume..."
-PG_SERVICE_FILE="/etc/systemd/system/postgresql.service.d/custom-data-dir.conf"
-mkdir -p "$(dirname "$PG_SERVICE_FILE")"
-
-cat > "$PG_SERVICE_FILE" << EOF
-[Service]
-Environment="PGDATA=$PG_DATA_DIR"
-EOF
-
-# Also update postgresql@*.service if it exists
-if systemctl list-unit-files | grep -q "postgresql@"; then
-    PG_AT_SERVICE_FILE="/etc/systemd/system/postgresql@.service.d/custom-data-dir.conf"
-    mkdir -p "$(dirname "$PG_AT_SERVICE_FILE")"
-    cat > "$PG_AT_SERVICE_FILE" << EOF
-[Service]
-Environment="PGDATA=$PG_DATA_DIR"
-EOF
-fi
-
-systemctl daemon-reload
-echo "✅ PostgreSQL service configured to use volume"
+echo "Setting up PostgreSQL data directory on storage volume..."
+PG_DATA_DIR="$VAST_STORAGE/postgresql"
+mkdir -p "$PG_DATA_DIR"
+chmod 755 "$PG_DATA_DIR"
+echo "✅ PostgreSQL data directory ready: $PG_DATA_DIR"
+echo "   (Docker will initialize the database here)"
 
 # Step 9: Create Python virtual environment
 echo ""
@@ -325,24 +244,33 @@ echo ""
 echo "Step 10: Creating environment configuration..."
 echo ""
 
+# Generate secure password for PostgreSQL
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+
 cat > "$PROJECT_DIR/.env.storage" << EOF
 # Vast.ai Storage Volume Configuration
 VAST_STORAGE_PATH=$VAST_STORAGE
-POSTGRES_DATA_DIR=$VAST_STORAGE/postgresql/data
-CACHE_DIR=$VAST_STORAGE/cached_sections
-EMBEDDINGS_DIR=$VAST_STORAGE/embeddings
-LOGS_DIR=$VAST_STORAGE/logs
 
-# Database Configuration
+# Database Configuration (Docker PostgreSQL)
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=ai_teacher
 POSTGRES_USER=ai_teacher
-POSTGRES_PASSWORD=$(openssl rand -base64 32)
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+
+# Storage Directories
+CACHE_DIR=$VAST_STORAGE/cached_sections
+EMBEDDINGS_DIR=$VAST_STORAGE/embeddings
+LOGS_DIR=$VAST_STORAGE/logs
 
 # Service URLs
 COORDINATOR_API_URL=http://localhost:8004
 N8N_WEBHOOK_URL=http://localhost:5678/webhook/session/start
+
+# n8n Configuration
+N8N_USER=admin
+N8N_PASSWORD=$(openssl rand -base64 16)
+N8N_HOST=localhost
 EOF
 
 echo "✅ Environment file created: $PROJECT_DIR/.env.storage"
@@ -364,23 +292,24 @@ echo ""
 echo "1. Review and copy environment file:"
 echo "   cp $PROJECT_DIR/.env.storage $PROJECT_DIR/.env"
 echo ""
-echo "2. Start PostgreSQL with custom data directory:"
-echo "   sudo systemctl start postgresql"
-echo "   sudo systemctl enable postgresql"
+echo "2. Start all services with Docker Compose:"
+echo "   cd $PROJECT_DIR"
+echo "   cp .env.storage .env"
+echo "   docker compose up -d"
 echo ""
-echo "   If PostgreSQL fails to start, check:"
-echo "   sudo journalctl -u postgresql -n 50"
-echo "   sudo -u postgres $PG_BIN/pg_ctl -D $PG_DATA_DIR start"
+echo "   This will start:"
+echo "   - PostgreSQL (with pgvector) on port 5432"
+echo "   - n8n on port 5678"
+echo "   - Ollama on port 11434"
+echo "   - Coordinator API on port 8004"
+echo "   - TTS service on port 8001"
+echo "   - Animation service on port 8002"
+echo "   - Frontend on port 8501"
 echo ""
-echo "3. Create database and user:"
-echo "   sudo -u postgres psql -c \"CREATE DATABASE ai_teacher;\""
-echo "   sudo -u postgres psql -c \"CREATE USER ai_teacher WITH PASSWORD 'your_password';\""
-echo "   sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE ai_teacher TO ai_teacher;\""
+echo "3. Initialize PostgreSQL database (create extension):"
+echo "   docker exec -it ai-teacher-postgres psql -U ai_teacher -d ai_teacher -c \"CREATE EXTENSION IF NOT EXISTS vector;\""
 echo ""
-echo "4. Install pgvector extension:"
-echo "   sudo -u postgres psql -d ai_teacher -c \"CREATE EXTENSION vector;\""
-echo ""
-echo "5. Deploy the system:"
+echo "4. Deploy the system (if not using Docker Compose):"
 echo "   cd $PROJECT_DIR"
 echo "   bash scripts/deploy_2teacher_system.sh"
 echo ""
