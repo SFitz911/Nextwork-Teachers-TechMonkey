@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:8004/session/{{ $json.sessionId }}/state",
+        "url": "=http://localhost:8004/session/{{ $json.sessionId }}/state",
         "method": "GET",
         "options": {
           "timeout": 10000,
@@ -39,7 +39,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [650, 300],
-      "continueOnFail": false
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract and normalize LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\nif (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n}\n\n// Safety: ensure minimum length\nif (responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(' ');\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
+        "jsCode": "// Extract and normalize LLM response\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\n// Handle Ollama API response format\nif (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.message && llmResponse.message.content) {\n  responseText = llmResponse.message.content.trim();\n} else if (Array.isArray(llmResponse) && llmResponse.length > 0) {\n  // Handle streaming response array\n  responseText = llmResponse.map(item => item.response || item.text || '').join('').trim();\n} else {\n  // Fallback: try to extract from any text field\n  responseText = JSON.stringify(llmResponse).substring(0, 200);\n}\n\n// Safety: ensure minimum length\nif (!responseText || responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(/\\s+/).filter(w => w.length > 0);\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
       },
       "id": "extract-response",
       "name": "Extract Response",
@@ -185,7 +185,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare clip-ready payload\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    sessionId: input.sessionId,\n    teacher: input.teacher,\n    clip: input.clip\n  }\n};"
+        "jsCode": "// Prepare clip-ready payload\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.sessionId || !input.teacher || !input.clip) {\n  throw new Error(`Missing required fields: sessionId=${!!input.sessionId}, teacher=${!!input.teacher}, clip=${!!input.clip}`);\n}\n\nreturn {\n  json: {\n    sessionId: input.sessionId,\n    teacher: input.teacher,\n    clip: input.clip\n  }\n};"
       },
       "id": "prepare-clip-ready",
       "name": "Prepare Clip Ready",
@@ -222,6 +222,16 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [2650, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error handler - format error response\nconst error = $input.first()?.error || { message: 'Unknown error' };\nconst sessionId = $('Extract Payload')?.first()?.json?.sessionId || 'unknown';\n\nreturn {\n  json: {\n    error: true,\n    message: error.message || 'Workflow execution failed',\n    sessionId: sessionId,\n    node: error.node || 'unknown',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2650, 400]
     }
   ],
   "connections": {
@@ -252,6 +262,15 @@
         [
           {
             "node": "Validate Still Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
@@ -358,6 +377,17 @@
       ]
     },
     "POST Clip Ready": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
       "main": [
         [
           {
