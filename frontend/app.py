@@ -221,6 +221,10 @@ if "chat_message" not in st.session_state:
     st.session_state.chat_message = ""
 if "website_url" not in st.session_state:
     st.session_state.website_url = ""
+if "url_history" not in st.session_state:
+    st.session_state.url_history = ["https://www.nextwork.org/projects"]
+if "selected_url" not in st.session_state:
+    st.session_state.selected_url = "https://www.nextwork.org/projects"
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
