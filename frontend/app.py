@@ -42,6 +42,27 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* Hide any default Streamlit containers that might create boxes */
+    .stApp > header {display: none;}
+    .stAppViewContainer > div:first-child {padding-top: 0 !important;}
+    
+    /* Ensure URL input is prominent */
+    .stTextInput > div > div > input {
+        font-size: 1.1rem !important;
+        padding: 12px !important;
+        background-color: #0f172a !important;
+        color: #f1f5f9 !important;
+        border: 2px solid #3b82f6 !important;
+        border-radius: 8px !important;
+    }
+    
+    .stTextInput > label {
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        color: #f1f5f9 !important;
+        margin-bottom: 8px !important;
+    }
+    
     /* Main container */
     .main {
         background: #0f172a;
@@ -468,7 +489,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
     with col_center:
         st.markdown('<div class="center-panel">', unsafe_allow_html=True)
         
-        # Large URL input at top (no header box)
+        # Large, prominent URL input at top - this is the main focus
         website_url = st.text_input(
             "Enter URL to load learning content",
             value=st.session_state.website_url or "",
@@ -477,6 +498,9 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             label_visibility="visible"
         )
         st.session_state.website_url = website_url
+        
+        # Add spacing
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # Embed website if URL provided
         if website_url:
