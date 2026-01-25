@@ -1,445 +1,822 @@
-## TL;DR
-
-You’re building a **2-teacher “live classroom”** system where **Teacher A is speaking on-camera** while **Teacher B is silently preparing the next on-camera clip** (LLM → TTS → avatar video). You should implement this as **two independent pipelines** coordinated by a tiny **session state machine** (no merge nodes, no waiting on the webhook). The UI shows **Left Avatar + Center Website + Right Avatar**, and plays whichever teacher is currently “speaking,” while the other is “rendering.”
-
-Also—quick heads up since you’re on your desktop: if you still want to set up the **AI agent rules/triggers** workflow (the “advanced agent” setup), this is a perfect project to wire those in.
+# Nextwork Teachers TechMonkey — Master Plan
+## Dual Teacher Live AI Classroom System
 
 ---
 
-# 1) The End Goal (what “done” looks like)
+## 📋 Table of Contents
 
-**User UI**
-
-* Left panel: Teacher A avatar (video)
-* Center panel: Website / learning project view (scrollable, highlightable)
-* Right panel: Teacher B avatar (video)
-* Bottom: captions + controls (pause, next section, swap teachers, change pair, speed)
-
-**Behavior**
-
-* Exactly **two teachers active** per session (user selects which two)
-* Teachers **alternate turns** continuously:
-
-  * While Teacher A is **speaking** (video playing),
-  * Teacher B is **rendering** the next response/video in the background.
-* When A finishes speaking, UI immediately switches to B (already rendered), and A starts rendering next.
-
-This hides lag and feels “alive.”
+1. [Executive Summary](#executive-summary)
+2. [System Overview](#system-overview)
+3. [Core Architecture](#core-architecture)
+4. [Session State Machine](#session-state-machine)
+5. [Event-Driven Communication](#event-driven-communication)
+6. [Teacher Pipeline Architecture](#teacher-pipeline-architecture)
+7. [RAG Integration](#rag-integration)
+8. [Turn-Taking Logic](#turn-taking-logic)
+9. [Latency Masking Strategies](#latency-masking-strategies)
+10. [Failure Handling & Resilience](#failure-handling--resilience)
+11. [Implementation Checklist](#implementation-checklist)
+12. [Tech Stack & Infrastructure](#tech-stack--infrastructure)
+13. [Future Roadmap](#future-roadmap)
 
 ---
 
-# 2) Core Architecture (no blocking, no merging)
+## Executive Summary
 
-### Key rule
+### TL;DR
 
-**Never try to synchronize by merging data.**
-Synchronize by **state + events**.
+You're building a **2-teacher "live classroom"** system where:
+- **Teacher A speaks on-camera** while **Teacher B silently prepares** the next clip (RAG → LLM → TTS → Avatar Video)
+- Teachers **alternate turns continuously** with zero visible lag
+- **Exactly two teachers** are active per session (user-selected)
+- Each teacher runs in a **fully independent pipeline**, coordinated by a **session state machine**
+- **No merge nodes, no blocking webhooks** — synchronize by state + events
 
-### Three moving parts
+### Key Principles
 
-1. **Frontend UI** (plays clips, shows website, sends “section/snapshot” inputs)
-2. **Coordinator API** (tiny backend that stores session state and routes jobs)
-3. **n8n Worker(s)** (two pipelines that generate teacher clips and post results back)
+1. **Never block** — all operations are asynchronous
+2. **Hide latency** — renderer always stays one clip ahead
+3. **State-driven** — synchronize by state + events, never by merging data
+4. **Resilient** — graceful degradation at every layer
+5. **Scalable** — independent pipelines enable true concurrency
 
 ---
 
-# 3) System Diagram (high-level)
+## System Overview
 
-```text
-┌──────────────────────────────┐
-│           Frontend           │
-│  (Website + 2 Avatars + UI)  │
-└──────────────┬───────────────┘
-               │ start session, send snapshots, receive events
-               ▼
-┌──────────────────────────────┐
-│        Coordinator API        │
-│  session state + job routing  │
-│  SSE/WebSocket event stream   │
-└───────┬───────────────┬──────┘
-        │ enqueue job A  │ enqueue job B
-        ▼                ▼
-┌──────────────┐   ┌──────────────┐
-│ n8n Pipeline  │   │ n8n Pipeline  │
-│ Teacher Left  │   │ Teacher Right │
-│ LLM→TTS→Video  │   │ LLM→TTS→Video │
-└───────┬───────┘   └───────┬───────┘
-        │ POST clip-ready        │ POST clip-ready
-        └──────────────┬─────────┘
-                       ▼
-              ┌──────────────────┐
-              │ Coordinator API   │
-              │ emits UI events   │
-              └──────────────────┘
+### End Goal: What "Done" Looks Like
+
+#### User Interface Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Virtual Classroom                     │
+├──────────────┬──────────────────────────┬──────────────────┤
+│              │                          │                  │
+│  Left Panel  │    Center Panel         │   Right Panel    │
+│              │                          │                  │
+│  Teacher A   │   Website / Lesson       │   Teacher B      │
+│  Avatar      │   View (scrollable,      │   Avatar         │
+│  (Video)     │   highlightable)         │   (Video)        │
+│              │                          │                  │
+│  🎤 Speaking │   [Content Area]        │   ⏳ Rendering   │
+│              │                          │                  │
+├──────────────┴──────────────────────────┴──────────────────┤
+│  Captions + Controls (pause, next, swap, speed)            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
+#### Behavioral Requirements
+
+- **Exactly two teachers** active per session (user selects from available pool)
+- **Continuous alternation**: While Teacher A is speaking, Teacher B is rendering
+- **Zero visible lag**: When A finishes, B's clip is already ready to play
+- **Seamless handoffs**: Teachers naturally pass control to each other
+- **Context-aware**: Teachers reference visible content, user selections, and RAG-retrieved knowledge
+
 ---
 
-# 4) Session State Machine (the “synchronization” you actually need)
+## Core Architecture
 
-You only need a few state fields:
+### Fundamental Rule
 
-### Session object (authoritative)
+> **Never synchronize by merging data. Synchronize by state + events.**
+
+This is the most important architectural decision. It enables:
+- True concurrency (both teachers can render simultaneously)
+- Clear isolation (each pipeline is independent)
+- Predictable behavior (state machine is the single source of truth)
+- Easy debugging (events are traceable)
+
+### Three-Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend UI                          │
+│  • Teacher pair selector                                   │
+│  • Website container with DOM extraction                    │
+│  • Video/audio playback                                    │
+│  • Event listener (SSE/WebSocket)                          │
+│  • Clip queue management                                   │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        │ HTTP/SSE/WebSocket
+                        │ • Start session
+                        │ • Send section snapshots
+                        │ • Receive events
+                        │ • Notify speech-ended
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Coordinator API                          │
+│  • Session state machine (authoritative)                    │
+│  • Turn-taking engine                                      │
+│  • Job routing (enqueue render jobs)                        │
+│  • Event emission (SSE/WebSocket)                          │
+│  • RAG query service                                        │
+└───────┬───────────────────────────────────────┬─────────────┘
+        │                                       │
+        │ enqueue job                           │ enqueue job
+        │ (renderer = left)                     │ (renderer = right)
+        ▼                                       ▼
+┌──────────────────────┐              ┌──────────────────────┐
+│   LEFT_WORKER         │              │   RIGHT_WORKER        │
+│   (n8n Pipeline)     │              │   (n8n Pipeline)     │
+│                      │              │                      │
+│ 1. Fetch session     │              │ 1. Fetch session     │
+│ 2. Query RAG         │              │ 2. Query RAG         │
+│ 3. LLM Generate      │              │ 3. LLM Generate      │
+│ 4. TTS Generate      │              │ 4. TTS Generate      │
+│ 5. Video Generate    │              │ 5. Video Generate    │
+│ 6. POST CLIP_READY   │              │ 6. POST CLIP_READY   │
+└──────────┬────────────┘              └──────────┬────────────┘
+           │                                      │
+           └──────────────┬───────────────────────┘
+                          │ POST /session/:id/clip-ready
+                          ▼
+              ┌───────────────────────────┐
+              │   Coordinator API          │
+              │   • Updates session state   │
+              │   • Emits CLIP_READY event │
+              └───────────────────────────┘
+```
+
+### Component Responsibilities
+
+#### Frontend UI
+- **Display**: Render teacher avatars, website content, captions
+- **Input**: Capture user interactions (scroll, selection, questions)
+- **Communication**: Send snapshots, receive events, notify speech-ended
+- **Playback**: Queue and play clips, handle transitions
+
+#### Coordinator API
+- **State Management**: Maintain authoritative session state
+- **Turn Engine**: Decide who speaks next, swap roles
+- **Job Routing**: Enqueue render jobs for the renderer
+- **Event Broadcasting**: Emit events to all connected UIs
+- **RAG Service**: Query knowledge base, return relevant context
+
+#### n8n Workers (LEFT + RIGHT)
+- **Pipeline Execution**: Run complete teacher pipeline independently
+- **Validation**: Check if job is still valid before processing
+- **Asset Generation**: Create audio, video, captions
+- **Notification**: Post CLIP_READY when complete
+
+---
+
+## Session State Machine
+
+### Authoritative Session Object
+
+The Coordinator API maintains the single source of truth for each session:
 
 ```json
 {
   "sessionId": "abc123",
+  "createdAt": "2026-01-25T19:30:00Z",
+  "status": "active",
+  
   "activeTeachers": ["teacher_a", "teacher_d"],
   "leftTeacher": "teacher_a",
   "rightTeacher": "teacher_d",
-
+  
   "turn": 0,
   "speaker": "teacher_a",
   "renderer": "teacher_d",
-
+  
   "currentSectionId": "sec-05",
   "currentSnapshot": {
-    "url": "https://yourproject.com/lesson/...",
+    "url": "https://yourproject.com/lesson/5",
     "scrollY": 1280,
-    "selectedText": "…",
-    "domDigest": "sha256:…"
+    "visibleText": "Step 5: Build the API route...\n\nWe will create...",
+    "selectedText": "server-side validation",
+    "userQuestion": "Why do we validate on the server?",
+    "domDigest": "sha256:abc123...",
+    "timestamp": "2026-01-25T19:30:15Z"
   },
-
+  
   "queues": {
-    "teacher_a": { "status": "idle", "nextClipId": null },
-    "teacher_d": { "status": "rendering", "nextClipId": "clip-991" }
-  }
+    "teacher_a": {
+      "status": "speaking",
+      "currentClipId": "clip-990",
+      "nextClipId": null,
+      "lastUpdated": "2026-01-25T19:30:10Z"
+    },
+    "teacher_d": {
+      "status": "ready",
+      "currentClipId": null,
+      "nextClipId": "clip-991",
+      "lastUpdated": "2026-01-25T19:30:20Z"
+    }
+  },
+  
+  "history": [
+    {
+      "turn": 0,
+      "speaker": "teacher_a",
+      "clipId": "clip-990",
+      "timestamp": "2026-01-25T19:30:10Z"
+    }
+  ]
 }
 ```
 
-### Allowed teacher statuses
+### Teacher Status States
 
-* `idle`
-* `rendering`
-* `ready` (clip finished, ready to play)
-* `speaking` (currently playing on UI)
-* `error` (failed clip)
+Each teacher can be in exactly one of these states:
 
-### Turn-taking rule (always true)
+```
+┌─────────┐
+│  idle   │  ← Initial state, no active job
+└────┬────┘
+     │ enqueue render job
+     ▼
+┌────────────┐
+│ rendering  │  ← Worker is generating clip
+└────┬───────┘
+     │ POST CLIP_READY
+     ▼
+┌─────────┐
+│  ready  │  ← Clip complete, waiting to play
+└────┬────┘
+     │ swap roles (speaker finishes)
+     ▼
+┌──────────┐
+│ speaking │  ← Currently playing on UI
+└────┬─────┘
+     │ POST speech-ended
+     ▼
+┌─────────┐
+│  idle   │  ← Ready for next render job
+└─────────┘
 
-* Exactly one teacher is **speaker**
-* The other teacher is **renderer**
-* When speaker finishes, you **swap roles**
+Error path:
+Any state → error (on failure)
+error → idle (after recovery/retry)
+```
+
+### Turn-Taking Rules (Invariants)
+
+These rules must **always** be true:
+
+1. **Exactly one speaker**: `speaker ∈ activeTeachers`
+2. **Exactly one renderer**: `renderer ∈ activeTeachers`
+3. **Speaker ≠ Renderer**: `speaker !== renderer`
+4. **Speaker status**: `queues[speaker].status ∈ {speaking, ready}`
+5. **Renderer status**: `queues[renderer].status ∈ {rendering, ready}`
+6. **Swap on completion**: When `speech-ended` received → swap `speaker` and `renderer`
+
+### State Transition Logic Tree
+
+```
+┌─────────────────────────────────────┐
+│   Session State Machine              │
+└─────────────────────────────────────┘
+
+Event: POST /session/start
+├─ Validate: selectedTeachers.length === 2
+├─ Create session object
+├─ Set speaker = leftTeacher (or random)
+├─ Set renderer = rightTeacher
+├─ Set queues[speaker].status = "idle"
+├─ Set queues[renderer].status = "idle"
+└─ Enqueue render job for renderer
+   └─ POST /worker/{renderer_side}/run
+
+Event: POST /session/:id/section
+├─ Validate: session exists
+├─ Update currentSnapshot
+├─ IF renderer.status === "idle"
+│  └─ Enqueue render job for renderer
+└─ Emit SECTION_UPDATED event
+
+Event: POST /session/:id/clip-ready
+├─ Validate: session exists
+├─ Validate: teacher ∈ activeTeachers
+├─ Validate: teacher === renderer (or allow if ready)
+├─ Update queues[teacher].status = "ready"
+├─ Update queues[teacher].nextClipId = clipId
+└─ Emit CLIP_READY event
+   └─ IF teacher === speaker AND speaker clip not ready
+      └─ Use this clip immediately
+
+Event: POST /session/:id/speech-ended
+├─ Validate: session exists
+├─ Validate: clipId matches current speaker clip
+├─ IF renderer.status === "ready"
+│  ├─ Swap: speaker ↔ renderer
+│  ├─ Increment turn
+│  ├─ Update queues[new_speaker].status = "speaking"
+│  ├─ Update queues[new_renderer].status = "idle"
+│  ├─ Emit SPEAKER_CHANGED event
+│  └─ Enqueue render job for new renderer
+│     └─ POST /worker/{new_renderer_side}/run
+└─ ELSE (renderer not ready)
+   ├─ Emit WARNING event
+   └─ Generate bridging clip for current speaker
+      └─ Short filler clip (2-4 seconds)
+```
 
 ---
 
-# 5) UI Event Contract (how the UI stays live)
+## Event-Driven Communication
 
-You need an event stream from Coordinator → Frontend:
+### Event Stream Protocol
 
-* **SSE** (simplest) or **WebSocket**
+The Coordinator API emits events via **Server-Sent Events (SSE)** or **WebSocket**:
 
-### Event types
+**Connection**: `GET /session/:id/events` (SSE) or `WS /session/:id/events` (WebSocket)
 
-1. `SESSION_STARTED`
-2. `CLIP_READY`
-3. `SPEAKER_CHANGED`
-4. `SECTION_UPDATED`
-5. `ERROR`
+### Event Types
 
-### Example events
+#### 1. SESSION_STARTED
 
-**SESSION_STARTED**
+Emitted immediately after session creation.
 
 ```json
 {
   "type": "SESSION_STARTED",
   "sessionId": "abc123",
+  "timestamp": "2026-01-25T19:30:00Z",
   "leftTeacher": "teacher_a",
   "rightTeacher": "teacher_d",
   "speaker": "teacher_a",
-  "renderer": "teacher_d"
+  "renderer": "teacher_d",
+  "turn": 0
 }
 ```
 
-**CLIP_READY**
+**UI Action**: Initialize session state, display teacher avatars, start listening for clips.
+
+#### 2. CLIP_READY
+
+Emitted when a worker completes clip generation.
 
 ```json
 {
   "type": "CLIP_READY",
   "sessionId": "abc123",
+  "timestamp": "2026-01-25T19:30:20Z",
   "teacher": "teacher_d",
   "clip": {
     "clipId": "clip-991",
-    "text": "Alright, now look at the function on line 42…",
-    "audioUrl": "https://cdn/.../clip-991.mp3",
-    "videoUrl": "https://cdn/.../clip-991.mp4",
+    "text": "Alright, now look at the function on line 42. Notice how we're using server-side validation here...",
+    "audioUrl": "http://localhost:8001/audio/clip-991.wav",
+    "videoUrl": "http://localhost:8003/video/clip-991.mp4",
     "durationMs": 8200,
-    "captionsUrl": "https://cdn/.../clip-991.vtt",
-    "sectionId": "sec-05"
+    "status": "completed",
+    "sectionId": "sec-05",
+    "turn": 0,
+    "metadata": {
+      "onScreenAction": "highlight",
+      "targetSelector": "#code-block-3",
+      "handoff": "ask_other_teacher"
+    }
   }
 }
 ```
 
-**SPEAKER_CHANGED**
+**UI Action**: 
+- Store clip in teacher's queue
+- If teacher === speaker AND no current clip playing → start playing immediately
+- If teacher === renderer → wait for speaker to finish
+
+#### 3. SPEAKER_CHANGED
+
+Emitted when roles swap after speech-ended.
 
 ```json
 {
   "type": "SPEAKER_CHANGED",
   "sessionId": "abc123",
+  "timestamp": "2026-01-25T19:30:28Z",
   "speaker": "teacher_d",
   "renderer": "teacher_a",
-  "turn": 1
+  "turn": 1,
+  "previousSpeaker": "teacher_a",
+  "previousRenderer": "teacher_d"
 }
 ```
 
----
+**UI Action**:
+- Stop current speaker's video
+- Check if new speaker has ready clip
+- If yes → start playing new speaker's clip
+- If no → show "Rendering..." message, wait for CLIP_READY
 
-# 6) How “Website Reading” Works (the part that makes it feel real)
+#### 4. SECTION_UPDATED
 
-You have 3 practical options. Pick one now, you can upgrade later.
-
-## Option A (fastest): “UI snapshot packet”
-
-The UI sends the teachers:
-
-* URL
-* scroll position
-* selected text
-* visible text dump (center column)
-* optional screenshot (base64) if you want
-
-**Pros:** easy, works everywhere
-**Cons:** limited “vision” unless you send screenshot
-
-Payload example from UI → Coordinator:
+Emitted when UI sends a new section snapshot.
 
 ```json
 {
+  "type": "SECTION_UPDATED",
   "sessionId": "abc123",
+  "timestamp": "2026-01-25T19:30:15Z",
   "sectionId": "sec-05",
   "url": "https://yourproject.com/lesson/5",
   "scrollY": 1280,
-  "visibleText": "Step 5: Build the API route...\n\nWe will create...",
-  "selectedText": "server-side validation",
-  "userQuestion": "Why do we validate on the server?"
+  "visibleText": "Step 5: Build the API route...",
+  "selectedText": "server-side validation"
 }
 ```
 
-## Option B (better): DOM extraction in browser
+**UI Action**: Update UI to reflect current section (optional visual feedback).
 
-UI sends a structured DOM excerpt:
+#### 5. ERROR
 
-* headings
-* code blocks
-* current element under cursor
-* “active section boundaries”
-
-**Pros:** best reasoning fidelity
-**Cons:** a bit more frontend work
-
-## Option C (advanced): live browser agent
-
-Teacher pipeline controls a headless browser to “look”
-**Pros:** maximum realism
-**Cons:** highest complexity + latency
-
-For your current build, **Option A or B** is perfect.
-
----
-
-# 7) The Two n8n Pipelines (full pipelines, independently running)
-
-You want **two separate pipelines**, not 5.
-
-* Pipeline “LEFT_WORKER”
-* Pipeline “RIGHT_WORKER”
-
-Each is the *same template* but with `workerSide = left/right`.
-
-### Why two pipelines are good
-
-* True concurrency: both can render at once
-* Clear isolation: each teacher pipeline can have its own retries/timeouts
-* UI mapping stays stable: left avatar always fed by left worker (even if teacher identity changes)
-
----
-
-## 7.1 n8n Workflow: `SESSION_START` (fast webhook)
-
-**Goal:** validate teacher pair, create session, kick off first render job, respond immediately.
-
-**Nodes**
-
-1. Webhook Trigger: `/session/start`
-2. Function/Code: validate payload (`selectedTeachers.length === 2`)
-3. HTTP Request / DB: create session in Coordinator store
-4. HTTP Request: enqueue first render for `renderer`
-5. Respond to Webhook: return `{sessionId}` immediately (do NOT wait)
-
-**Webhook response**
+Emitted when an error occurs.
 
 ```json
-{ "sessionId": "abc123", "status": "ok" }
+{
+  "type": "ERROR",
+  "sessionId": "abc123",
+  "timestamp": "2026-01-25T19:30:25Z",
+  "teacher": "teacher_d",
+  "error": {
+    "code": "VIDEO_GENERATION_FAILED",
+    "message": "Video generation service unavailable",
+    "fallback": "audio_only",
+    "clipId": "clip-991-fallback"
+  }
+}
+```
+
+**UI Action**: 
+- Show error message to user
+- If fallback available → use audio-only clip with idle animation
+- Retry or skip based on error type
+
+### Event Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Event Flow                               │
+└─────────────────────────────────────────────────────────────┘
+
+UI Action: Start Session
+  │
+  ▼
+POST /session/start
+  │
+  ▼
+Coordinator: Create session
+  │
+  ├─► Emit SESSION_STARTED ──► UI receives ──► Initialize UI
+  │
+  └─► Enqueue render job for renderer
+      │
+      ▼
+Worker: Generate clip
+  │
+  ├─► Query RAG
+  ├─► LLM Generate
+  ├─► TTS Generate
+  ├─► Video Generate
+  │
+  ▼
+POST /session/:id/clip-ready
+  │
+  ▼
+Coordinator: Update state
+  │
+  ├─► Emit CLIP_READY ──► UI receives ──► Store in queue
+  │
+  └─► IF speaker clip ready ──► UI plays clip
+
+UI Action: Clip finishes playing
+  │
+  ▼
+POST /session/:id/speech-ended
+  │
+  ▼
+Coordinator: Swap roles
+  │
+  ├─► Emit SPEAKER_CHANGED ──► UI receives ──► Switch to new speaker
+  │
+  └─► Enqueue render job for new renderer
+      │
+      └─► (Loop continues)
 ```
 
 ---
 
-## 7.2 n8n Workflow: `LEFT_WORKER` (complete teacher pipeline)
+## Teacher Pipeline Architecture
 
-**Trigger:** Webhook `/worker/left/run` or Queue trigger.
+### Pipeline Overview
 
-**Input payload**
+Each worker (LEFT and RIGHT) runs an identical pipeline template. The only difference is the webhook route and which teacher they're assigned to.
+
+### Complete Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              LEFT_WORKER / RIGHT_WORKER Pipeline            │
+└─────────────────────────────────────────────────────────────┘
+
+1. Webhook Trigger
+   ├─ Route: /worker/left/run OR /worker/right/run
+   └─ Payload:
+      {
+        "sessionId": "abc123",
+        "teacher": "teacher_a",
+        "role": "renderer",
+        "sectionPayload": {...},
+        "turn": 0
+      }
+
+2. HTTP Request: Get Session State
+   ├─ GET /session/:id/state
+   └─ Response: Full session object
+
+3. IF Node: Validate Job Still Valid
+   ├─ Condition: teacher ∈ session.activeTeachers
+   ├─ Condition: role === session.renderer (or allow if ready)
+   ├─ Condition: turn matches (avoid stale jobs)
+   └─ IF invalid → Respond 200 (discard silently)
+      IF valid → Continue
+
+4. HTTP Request: Query RAG
+   ├─ POST /rag/query
+   ├─ Payload:
+      {
+        "sessionId": "abc123",
+        "visibleText": "...",
+        "selectedText": "...",
+        "userQuestion": "...",
+        "teacher": "teacher_a"
+      }
+   └─ Response: Top K relevant chunks with embeddings
+
+5. Code Node: Prepare LLM Prompt
+   ├─ Input: RAG context + sectionPayload + teacher persona
+   ├─ Build prompt:
+      {
+        "system": "You are Teacher A, co-teaching with Teacher D...",
+        "context": "[RAG chunks]",
+        "visibleContent": sectionPayload.visibleText,
+        "selectedText": sectionPayload.selectedText,
+        "userQuestion": sectionPayload.userQuestion,
+        "instructions": "Speak in 8-12 second segments, reference on-screen content..."
+      }
+   └─ Output: Formatted prompt
+
+6. LLM Generate (Ollama/OpenAI)
+   ├─ Model: mistral:7b (or configured model)
+   ├─ Temperature: 0.7
+   ├─ Max tokens: 200
+   └─ Response: Raw LLM output
+
+7. Code Node: Extract & Normalize Response
+   ├─ Parse JSON response (if structured)
+   ├─ Extract spoken_text
+   ├─ Validate length (target: 8-12 seconds spoken)
+   ├─ Apply safety filters
+   ├─ Extract metadata (onScreenAction, handoff, etc.)
+   └─ Output:
+      {
+        "text": "Alright, now look at...",
+        "durationEstimate": 8500,
+        "metadata": {...}
+      }
+
+8. HTTP Request: Generate TTS
+   ├─ POST /tts/generate
+   ├─ Payload:
+      {
+        "text": "...",
+        "voice": "teacher_a_voice",
+        "language": "en"
+      }
+   └─ Response:
+      {
+        "audioUrl": "http://localhost:8001/audio/clip-991.wav",
+        "durationMs": 8200
+      }
+
+9. HTTP Request: Generate Avatar Video
+   ├─ POST /video/generate
+   ├─ Payload:
+      {
+        "avatar_id": "teacher_a",
+        "audio_url": "http://localhost:8001/audio/clip-991.wav",
+        "text_prompt": "A warm educator speaking naturally...",
+        "resolution": "480p",
+        "num_segments": 1
+      }
+   ├─ Timeout: 300000 (5 minutes)
+   ├─ Retries: 2
+   └─ Response:
+      {
+        "job_id": "job-991",
+        "status": "processing",
+        "video_url": "http://localhost:8003/video/job-991"
+      }
+   └─ IF error → Continue with audio-only fallback
+
+10. Code Node: Format Clip Object
+    ├─ Input: TTS audioUrl, video job_id, text, metadata
+    ├─ Generate clipId: `clip-{sessionId}-{teacher}-{turn}-{timestamp}`
+    └─ Output:
+       {
+         "clipId": "clip-991",
+         "text": "...",
+         "audioUrl": "...",
+         "videoUrl": "...",
+         "jobId": "job-991",
+         "durationMs": 8200,
+         "status": "processing" | "completed" | "audio_only",
+         "sectionId": "sec-05",
+         "turn": 0,
+         "metadata": {...}
+       }
+
+11. HTTP Request: POST Clip Ready
+    ├─ POST /session/:id/clip-ready
+    ├─ Payload:
+       {
+         "sessionId": "abc123",
+         "teacher": "teacher_a",
+         "clip": {...}
+       }
+    └─ Response: {"status": "ok"}
+
+12. Respond to Webhook
+    └─ Return 200 OK (job complete)
+```
+
+### Pipeline Decision Tree
+
+```
+┌─────────────────────────────────────┐
+│   Worker Pipeline Decision Tree      │
+└─────────────────────────────────────┘
+
+Receive job
+  │
+  ▼
+Fetch session state
+  │
+  ▼
+Is job still valid?
+  ├─ NO → Discard silently (return 200)
+  └─ YES → Continue
+      │
+      ▼
+Query RAG
+  │
+  ├─ Success → Use RAG context
+  └─ Failure → Continue without RAG (log warning)
+      │
+      ▼
+Generate LLM response
+  │
+  ├─ Success → Extract text
+  └─ Failure → Retry once, then use fallback text
+      │
+      ▼
+Generate TTS
+  │
+  ├─ Success → Get audioUrl
+  └─ Failure → Abort job, send ERROR event
+      │
+      ▼
+Generate video
+  │
+  ├─ Success → Get videoUrl
+  ├─ Timeout → Use audio-only fallback
+  └─ Failure → Use audio-only fallback
+      │
+      ▼
+POST CLIP_READY
+  │
+  ├─ Success → Job complete
+  └─ Failure → Retry 2x, then log error
+```
+
+### No Merge Nodes Policy
+
+**Critical**: The pipeline must never use merge nodes or wait for other pipelines. Each worker is completely independent.
+
+**Why?**
+- Enables true concurrency (both teachers can render simultaneously)
+- Prevents deadlocks (no waiting on other workers)
+- Simplifies debugging (each pipeline is self-contained)
+- Allows independent scaling (can run workers on different machines)
+
+---
+
+## RAG Integration
+
+### RAG Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    RAG System                               │
+└─────────────────────────────────────────────────────────────┘
+
+Knowledge Sources
+  │
+  ├─► Lesson content (markdown, HTML)
+  ├─► Code examples
+  ├─► Documentation
+  └─► Previous session transcripts
+      │
+      ▼
+Chunking Service
+  │
+  ├─► Split by semantic boundaries
+  ├─► Preserve context (overlap chunks)
+  └─► Extract metadata (section, lesson, topic)
+      │
+      ▼
+Embedding Service
+  │
+  ├─► Generate embeddings (OpenAI/text-embedding-3-small)
+  └─► Store with metadata
+      │
+      ▼
+Vector Database (PostgreSQL + pgvector)
+  │
+  ├─► Store: (embedding, text, metadata, section_id)
+  └─► Index: HNSW index for fast similarity search
+      │
+      ▼
+RAG Query Service (Coordinator API)
+  │
+  ├─► POST /rag/query
+  ├─► Input: visibleText, selectedText, userQuestion
+  ├─► Generate query embedding
+  ├─► Vector similarity search (top K=5)
+  └─► Return: Relevant chunks with scores
+      │
+      ▼
+Worker Pipeline
+  │
+  └─► Inject RAG context into LLM prompt
+```
+
+### RAG Query Flow
 
 ```json
+// Request
+POST /rag/query
 {
   "sessionId": "abc123",
+  "visibleText": "Step 5: Build the API route...",
+  "selectedText": "server-side validation",
+  "userQuestion": "Why do we validate on the server?",
   "teacher": "teacher_a",
-  "role": "speaker|renderer",
-  "sectionPayload": { ...UI snapshot packet... },
-  "turn": 0
+  "maxResults": 5
 }
-```
 
-**Nodes (in order)**
-
-1. Webhook Trigger (or Queue)
-2. HTTP Request: fetch session state (Coordinator)
-3. IF: confirm `teacher` is still active + role still valid (avoid stale work)
-4. LLM Generate (Teacher persona prompt + sectionPayload)
-5. Extract Response (text normalization + safety filters + length target)
-6. TTS Generate (voice per teacher)
-7. Avatar Video Generate (your talking-head model)
-8. Upload/Store assets (S3/CDN/local path)
-9. HTTP Request: POST `CLIP_READY` to Coordinator
-10. (Optional) If `role === renderer`: Coordinator may immediately mark it “ready”
-11. Respond (200 ok)
-
-**Important settings**
-
-* Timeouts high on video node
-* Retries on video node (2 max)
-* On failure: send ERROR event with fallback text/audio-only
-
----
-
-## 7.3 n8n Workflow: `RIGHT_WORKER`
-
-Same as left worker, just different route: `/worker/right/run`
-
----
-
-# 8) The Coordinator “Turn Engine” (the brain that swaps roles)
-
-This is the logic that keeps the show moving.
-
-### Coordinator responsibilities
-
-* Store session state
-* Accept UI “section updates”
-* Enqueue jobs for renderer
-* Decide who speaks next
-* Emit events to UI
-
-### Turn loop (activity diagram)
-
-```text
-[UI updates section] ──► Coordinator stores snapshot
-                          │
-                          ▼
-                 Enqueue render job for renderer
-                          │
-                          ▼
-        n8n worker renders clip and POSTS CLIP_READY
-                          │
-                          ▼
-           UI plays current speaker clip (already ready)
-                          │
-                          ▼
-      When speaker clip ends ─► UI notifies Coordinator: SPEECH_ENDED
-                          │
-                          ▼
-       Coordinator swaps speaker/renderer and emits SPEAKER_CHANGED
-                          │
-                          ▼
-            Coordinator enqueues next render for new renderer
-```
-
-### Key UI → Coordinator callback
-
-When a clip finishes playing:
-`POST /session/:id/speech-ended { clipId }`
-
-That triggers swap.
-
----
-
-# 9) How to Keep It Feeling Real (latency masking tactics)
-
-### Hard rules
-
-* Speaker clips should be **short and frequent** (5–12 seconds)
-* Renderer can produce a slightly longer clip (8–20 seconds) but try not to exceed
-* Always keep **one clip queued** for the next speaker before switching
-
-### Practical cadence
-
-* Teacher A speaks 8s (clip ready)
-* Teacher B renders 10–15s while A speaks
-* Switch to B only if B’s clip is ready
-* If not ready: A does a “bridging line” (tiny filler clip: 2–4 seconds)
-
-### Bridging line strategy (must have)
-
-If rendering is late, speaker generates:
-
-* “Let me scroll to the next part…”
-* “Okay, now watch this next section…”
-
-These are tiny clips you can generate quickly and keep the illusion alive.
-
----
-
-# 10) Teacher Selection (exactly 2, user-chosen)
-
-UI enforces:
-
-* user selects two from five
-* cannot start session without exactly two
-
-Coordinator enforces again server-side:
-
-* reject sessions with != 2 teachers
-
-### Payload from UI on session start
-
-```json
+// Response
 {
-  "selectedTeachers": ["teacher_b", "teacher_e"],
-  "lessonUrl": "https://yourproject.com/lesson/1"
+  "chunks": [
+    {
+      "text": "Server-side validation is critical because...",
+      "score": 0.92,
+      "metadata": {
+        "sectionId": "sec-03",
+        "lessonId": "lesson-1",
+        "topic": "validation"
+      }
+    },
+    {
+      "text": "Always validate user input on the server...",
+      "score": 0.87,
+      "metadata": {...}
+    }
+  ],
+  "queryEmbedding": [0.123, ...],
+  "totalResults": 5
 }
 ```
 
-Coordinator sets:
+### RAG Prompt Injection
 
-* leftTeacher = first selection
-* rightTeacher = second selection
-* speaker = leftTeacher (or random)
-* renderer = other
+The RAG chunks are injected into the LLM prompt like this:
 
----
+```
+System: You are Teacher A, co-teaching with Teacher D. You are an expert educator
+who makes complex topics relatable. Speak in 8-12 second segments.
 
-# 11) Prompt Design (how teachers “read the website” like humans)
+Context from knowledge base:
+1. "Server-side validation is critical because client-side validation can be bypassed..."
+2. "Always validate user input on the server to prevent security vulnerabilities..."
 
-Each teacher prompt should include:
+Current screen content:
+- URL: https://yourproject.com/lesson/5
+- Visible text: "Step 5: Build the API route..."
+- Selected text: "server-side validation"
+- User question: "Why do we validate on the server?"
 
-* Teacher identity + voice style
-* The sectionPayload (visible text + selected text + url + scroll)
-* A strict output format
+Instructions:
+- Reference the context above when relevant
+- Point to specific on-screen elements
+- Keep responses to 8-12 seconds when spoken
+- End with a handoff cue for Teacher D
 
-**System prompt skeleton**
-
-* “You are Teacher X”
-* “You are co-teaching with Teacher Y”
-* “Speak in short segments suited for 8–12 second spoken clips”
-* “Reference what’s visible on screen”
-* “Do not mention you are an AI”
-* “Do not narrate internal steps”
-* “End with a handoff cue for the other teacher”
-
-**Output format (important)**
-
-```json
+Generate your response in JSON format:
 {
   "spoken_text": "...",
   "on_screen_action": "highlight|scroll|point|none",
@@ -448,442 +825,622 @@ Each teacher prompt should include:
 }
 ```
 
-That lets UI do “point at code” effects.
+---
+
+## Turn-Taking Logic
+
+### Turn Engine Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Turn-Taking Engine Flow                        │
+└─────────────────────────────────────────────────────────────┘
+
+Initial State:
+  speaker = leftTeacher
+  renderer = rightTeacher
+  queues[speaker].status = "idle"
+  queues[renderer].status = "idle"
+
+Step 1: Enqueue First Render Job
+  │
+  ├─► POST /worker/{renderer_side}/run
+  └─► queues[renderer].status = "rendering"
+
+Step 2: Worker Generates Clip
+  │
+  ├─► Worker: RAG → LLM → TTS → Video
+  └─► Worker: POST /session/:id/clip-ready
+      │
+      ▼
+Step 3: Coordinator Receives CLIP_READY
+  │
+  ├─► queues[renderer].status = "ready"
+  ├─► queues[renderer].nextClipId = clipId
+  └─► Emit CLIP_READY event
+      │
+      ▼
+Step 4: UI Plays Speaker Clip
+  │
+  ├─► IF speaker has ready clip → Play it
+  └─► ELSE → Show "Rendering..." (shouldn't happen if timing is right)
+      │
+      ▼
+Step 5: Clip Finishes Playing
+  │
+  ├─► UI: POST /session/:id/speech-ended
+  └─► Payload: {sessionId, clipId}
+      │
+      ▼
+Step 6: Coordinator Swaps Roles
+  │
+  ├─► Validate: clipId matches current speaker clip
+  ├─► IF renderer.status === "ready"
+  │  ├─► Swap: speaker ↔ renderer
+  │  ├─► Increment turn
+  │  ├─► queues[new_speaker].status = "speaking"
+  │  ├─► queues[new_renderer].status = "idle"
+  │  ├─► Emit SPEAKER_CHANGED event
+  │  └─► Enqueue render job for new renderer
+  │      └─► POST /worker/{new_renderer_side}/run
+  └─► ELSE (renderer not ready)
+     ├─► Emit WARNING event
+     └─► Generate bridging clip for current speaker
+         └─► Short filler (2-4 seconds): "Let me scroll to the next part..."
+
+Step 7: Loop Continues
+  │
+  └─► Repeat from Step 2 with swapped roles
+```
+
+### Turn-Taking State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│         Turn-Taking State Diagram                          │
+└─────────────────────────────────────────────────────────────┘
+
+[Session Start]
+      │
+      ▼
+┌─────────────────┐
+│  Speaker: A      │
+│  Renderer: B     │
+│  B: rendering    │
+└────────┬─────────┘
+         │
+         │ B completes clip
+         ▼
+┌─────────────────┐
+│  Speaker: A      │
+│  Renderer: B     │
+│  B: ready        │
+│  A: speaking     │
+└────────┬─────────┘
+         │
+         │ A finishes speaking
+         │ POST speech-ended
+         ▼
+┌─────────────────┐
+│  Speaker: B      │ ◄─── SWAP
+│  Renderer: A     │
+│  B: speaking     │
+│  A: rendering    │
+└────────┬─────────┘
+         │
+         │ A completes clip
+         ▼
+┌─────────────────┐
+│  Speaker: B      │
+│  Renderer: A     │
+│  A: ready        │
+│  B: speaking     │
+└────────┬─────────┘
+         │
+         │ B finishes speaking
+         │ POST speech-ended
+         ▼
+┌─────────────────┐
+│  Speaker: A      │ ◄─── SWAP
+│  Renderer: B     │
+│  A: speaking     │
+│  B: rendering    │
+└────────┬─────────┘
+         │
+         └─► (Loop continues)
+```
 
 ---
 
-# 12) Failure Modes (so it doesn’t fall apart live)
+## Latency Masking Strategies
 
-### If video render fails
+### Core Strategy: Always Stay One Clip Ahead
 
-* Send `ERROR` with fallback audio-only
-* UI can show avatar “talking” with a looping idle animation + captions
+The renderer must **always** complete their clip before the speaker finishes. This creates the illusion of zero lag.
 
-### If renderer is late
+### Clip Length Targets
 
-* Speaker uses a bridging clip
-* Coordinator can lower clip length target dynamically
+```
+Speaker Clips:  5-12 seconds (optimal: 8-10s)
+Renderer Clips: 8-20 seconds (optimal: 10-15s)
+Bridging Clips: 2-4 seconds (emergency filler)
+```
 
-### If session state gets stale
+**Why different lengths?**
+- Speaker clips are shorter for faster turn-taking
+- Renderer clips can be longer since they're generated in parallel
+- Longer renderer clips give more buffer time
 
-* Workers check “role still valid” before posting results
-* If invalid: discard clip (don’t confuse UI)
+### Timing Calculation
+
+```
+Expected speaker clip duration: 8 seconds
+Expected renderer generation time: 12 seconds
+
+Timeline:
+T=0s:  Speaker starts playing clip (8s)
+       Renderer starts generating (12s)
+T=8s:  Speaker finishes
+       Renderer should be ready (ideally completed at T=7s)
+T=8s:  Swap roles, new speaker starts immediately
+```
+
+### Bridging Clip Strategy
+
+If the renderer is not ready when the speaker finishes:
+
+```
+┌─────────────────────────────────────┐
+│   Bridging Clip Decision Tree        │
+└─────────────────────────────────────┘
+
+Speaker finishes (POST speech-ended)
+  │
+  ▼
+Is renderer.status === "ready"?
+  ├─ YES → Swap roles, play renderer clip
+  └─ NO → Generate bridging clip
+      │
+      ├─► Enqueue urgent render job for current speaker
+      ├─► Generate short filler clip (2-4 seconds)
+      │   Examples:
+      │   - "Let me scroll to the next part..."
+      │   - "Okay, now watch this next section..."
+      │   - "Give me a moment to find that..."
+      ├─► Play bridging clip
+      └─► Check renderer status again
+          │
+          ├─► If ready → Swap after bridging clip
+          └─► If still not ready → Generate another bridging clip
+```
+
+### Adaptive Clip Length
+
+The system can dynamically adjust clip length targets based on performance:
+
+```
+IF average_render_time > speaker_clip_duration:
+  ├─► Reduce speaker clip target (5-8s instead of 8-12s)
+  ├─► Increase renderer clip target (15-20s instead of 10-15s)
+  └─► Log performance warning
+
+IF average_render_time < speaker_clip_duration * 0.7:
+  ├─► Increase speaker clip target (10-15s instead of 8-12s)
+  └─► This allows more detailed explanations
+```
 
 ---
 
-# 13) What to Copy/Paste Into Cursor (implementation checklist)
+## Failure Handling & Resilience
 
-Use this as your Cursor “task list”:
+### Failure Mode Decision Tree
 
-1. **Define session state schema** (as shown above)
-2. Build Coordinator API endpoints:
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Failure Handling Strategy                     │
+└─────────────────────────────────────────────────────────────┘
 
-   * `POST /session/start`
-   * `POST /session/:id/section`
-   * `POST /session/:id/speech-ended`
-   * `POST /session/:id/clip-ready` (from n8n)
-   * `GET /session/:id/events` (SSE) or WebSocket
-3. UI:
+1. Video Generation Fails
+   │
+   ├─► Retry: 2 attempts with exponential backoff
+   ├─► IF still fails:
+   │  ├─► Send CLIP_READY with status="audio_only"
+   │  ├─► videoUrl = null or placeholder
+   │  └─► UI shows avatar with idle animation + audio playback
+   └─► Log error for monitoring
 
-   * Teacher pair selector (must choose 2)
-   * Center website container + “visibleText extractor”
-   * Event listener (SSE/WS)
-   * Clip queue per teacher
-   * Auto-play speaker clip, notify `speech-ended`
-4. n8n:
+2. TTS Generation Fails
+   │
+   ├─► Retry: 2 attempts
+   ├─► IF still fails:
+   │  ├─► Send ERROR event
+   │  ├─► Abort clip generation
+   │  └─► Coordinator enqueues new render job
+   └─► Log critical error
 
-   * `SESSION_START` workflow (fast ACK)
-   * `LEFT_WORKER` full pipeline
-   * `RIGHT_WORKER` full pipeline
-5. Add bridging behavior:
+3. LLM Generation Fails
+   │
+   ├─► Retry: 1 attempt
+   ├─► IF still fails:
+   │  ├─► Use fallback template response
+   │  │   "Let me continue with the next section..."
+   │  └─► Continue pipeline with fallback text
+   └─► Log warning
 
-   * If renderer clip not ready within X seconds → speaker generates filler
-6. Add swapping logic in Coordinator:
+4. RAG Query Fails
+   │
+   ├─► Continue without RAG context
+   ├─► Log warning
+   └─► Teacher still generates response (may be less accurate)
 
-   * On `speech-ended` → swap speaker/renderer and enqueue render for new renderer
+5. Renderer Late (Not Ready When Speaker Finishes)
+   │
+   ├─► Generate bridging clip for current speaker
+   ├─► Play bridging clip (2-4 seconds)
+   ├─► Check renderer status again
+   └─► IF still not ready → Generate another bridging clip
+
+6. Session State Stale (Job Invalid)
+   │
+   ├─► Worker validates job before processing
+   ├─► IF invalid:
+   │  ├─► Discard job silently
+   │  ├─► Return 200 OK (don't confuse UI)
+   │  └─► Log debug message
+   └─► Coordinator enqueues fresh job
+
+7. Network Failure (Worker Can't POST CLIP_READY)
+   │
+   ├─► Retry: 3 attempts with exponential backoff
+   ├─► IF still fails:
+   │  ├─► Store clip locally (if possible)
+   │  ├─► Log critical error
+   │  └─► Coordinator will timeout and enqueue new job
+   └─► Monitoring system alerts on repeated failures
+
+8. Coordinator API Down
+   │
+   ├─► Workers queue jobs locally (if implemented)
+   ├─► UI shows "Reconnecting..." message
+   ├─► Retry connection with exponential backoff
+   └─► Restore session state when reconnected
+```
+
+### Graceful Degradation Levels
+
+```
+Level 1: Full Experience
+  ├─► Video + Audio + Captions
+  └─► All features working
+
+Level 2: Audio-Only Fallback
+  ├─► Audio + Captions + Idle Animation
+  └─► Video generation failed
+
+Level 3: Text-Only Fallback
+  ├─► Captions only
+  └─► TTS failed (shouldn't happen, but possible)
+
+Level 4: Bridging Mode
+  ├─► Short filler clips
+  └─► Renderer consistently late
+
+Level 5: Error State
+  ├─► Show error message
+  ├─► Allow user to retry or skip
+  └─► Log for debugging
+```
 
 ---
 
-# 14) Minimal n8n Node Layout (so you can rebuild fast)
+## Implementation Checklist
 
-### `LEFT_WORKER` / `RIGHT_WORKER` (identical)
+### Phase 1: Core Infrastructure
 
-* Webhook Trigger
-* HTTP: Get Session State
-* IF: Still active + role valid
-* LLM Generate
-* Code: Extract + clip-length trimming
-* TTS Generate
-* Avatar Video Generate
-* HTTP: POST Clip Ready (Coordinator)
-* Respond 200
+- [ ] **Session State Schema**
+  - [ ] Define session object structure
+  - [ ] Implement state validation functions
+  - [ ] Add state persistence (in-memory for now, DB later)
 
-**No merge nodes anywhere.**
+- [ ] **Coordinator API Endpoints**
+  - [ ] `POST /session/start` - Create session, validate teachers
+  - [ ] `GET /session/:id/state` - Get current session state
+  - [ ] `POST /session/:id/section` - Update section snapshot
+  - [ ] `POST /session/:id/speech-ended` - Notify clip finished
+  - [ ] `POST /session/:id/clip-ready` - Worker posts completed clip
+  - [ ] `GET /session/:id/events` - SSE event stream
+  - [ ] `POST /rag/query` - RAG query endpoint
+
+- [ ] **Event System**
+  - [ ] Implement SSE server
+  - [ ] Event emission functions
+  - [ ] Event queue per session
+  - [ ] Client connection management
+
+### Phase 2: Frontend UI
+
+- [ ] **Teacher Selection**
+  - [ ] Multi-select component (exactly 2)
+  - [ ] Validation (must select 2)
+  - [ ] Teacher preview/description
+
+- [ ] **Layout Components**
+  - [ ] Left panel (Teacher A avatar)
+  - [ ] Center panel (Website container)
+  - [ ] Right panel (Teacher B avatar)
+  - [ ] Bottom controls (captions, pause, speed, etc.)
+
+- [ ] **Event Handling**
+  - [ ] SSE client connection
+  - [ ] Event listener/dispatcher
+  - [ ] State management (session state, clip queues)
+  - [ ] Auto-play logic (play speaker clip when ready)
+
+- [ ] **Website Integration**
+  - [ ] Iframe or embedded website
+  - [ ] DOM extraction (visible text, selected text)
+  - [ ] Scroll position tracking
+  - [ ] Section change detection
+
+- [ ] **Video/Audio Playback**
+  - [ ] Video player component
+  - [ ] Audio fallback (idle animation)
+  - [ ] Caption display
+  - [ ] Playback event handling (ended, error)
+
+### Phase 3: n8n Workflows
+
+- [ ] **SESSION_START Workflow**
+  - [ ] Webhook trigger
+  - [ ] Validate payload (2 teachers)
+  - [ ] HTTP: Create session in Coordinator
+  - [ ] HTTP: Enqueue first render job
+  - [ ] Respond immediately (don't wait)
+
+- [ ] **LEFT_WORKER Workflow**
+  - [ ] Webhook trigger
+  - [ ] HTTP: Get session state
+  - [ ] IF: Validate job still valid
+  - [ ] HTTP: Query RAG
+  - [ ] Code: Prepare LLM prompt
+  - [ ] HTTP: LLM Generate (Ollama)
+  - [ ] Code: Extract & normalize response
+  - [ ] HTTP: TTS Generate
+  - [ ] HTTP: Video Generate (with retries)
+  - [ ] Code: Format clip object
+  - [ ] HTTP: POST CLIP_READY
+  - [ ] Respond 200
+
+- [ ] **RIGHT_WORKER Workflow**
+  - [ ] Same as LEFT_WORKER (different route)
+
+### Phase 4: Turn-Taking Engine
+
+- [ ] **Swap Logic**
+  - [ ] On speech-ended: validate renderer ready
+  - [ ] Swap speaker/renderer
+  - [ ] Update queue statuses
+  - [ ] Emit SPEAKER_CHANGED event
+  - [ ] Enqueue render job for new renderer
+
+- [ ] **Bridging Clip Logic**
+  - [ ] Detect renderer not ready
+  - [ ] Generate short filler clip
+  - [ ] Play bridging clip
+  - [ ] Re-check renderer status
+
+### Phase 5: RAG System
+
+- [ ] **Knowledge Base Setup**
+  - [ ] Chunking service
+  - [ ] Embedding generation
+  - [ ] Vector database (PostgreSQL + pgvector)
+  - [ ] Index creation
+
+- [ ] **RAG Query Service**
+  - [ ] Query embedding generation
+  - [ ] Vector similarity search
+  - [ ] Result ranking and filtering
+  - [ ] Context formatting for LLM
+
+### Phase 6: Error Handling
+
+- [ ] **Retry Logic**
+  - [ ] Exponential backoff
+  - [ ] Max retry limits
+  - [ ] Retry on specific error types only
+
+- [ ] **Fallback Mechanisms**
+  - [ ] Audio-only fallback
+  - [ ] Bridging clip generation
+  - [ ] Error event emission
+
+- [ ] **Monitoring**
+  - [ ] Error logging
+  - [ ] Performance metrics
+  - [ ] Alerting on critical failures
 
 ---
 
-If you paste this into Cursor, tell it:
-
-* “Implement the Coordinator API (Express or Next.js API routes) using this exact event contract and session schema.”
-* “Implement SSE events and the clip queue logic in the frontend.”
-
-And if you want, I can also give you a **ready-to-paste Cursor prompt** that instructs Cursor *exactly* how to implement these endpoints + UI wiring in your existing project structure.
-
-
-
-
-
-🧠 Nextwork Teachers TechMonkey — Dual Teacher Live Classroom (Master Plan v2 + RAG)
-TL;DR (RAG Edition)
-
-You’re building a 2-teacher live AI classroom where Teacher A is speaking on-camera while Teacher B silently prepares the next clip (RAG → LLM → TTS → Avatar Video).
-
-They swap continuously.
-
-Exactly two teachers are active per session.
-
-Each teacher runs in a fully independent pipeline, coordinated by a tiny session state machine (no merge nodes, no blocking webhooks).
-
-Teachers reason over:
-
-Live UI snapshots (visible text, scroll position, selected text)
-
-User questions
-
-Retrieval-Augmented Generation (RAG) from your lesson knowledge base
-
-Pipeline:
-
-UI Snapshot → RAG Retrieval → LLM → TTS → Avatar Video
-
-This hides latency and creates a continuous co-teaching experience.
-
-1) End Goal
-
-User Interface:
-
-Left panel: Teacher A avatar (video)
-Center panel: Website / lesson view
-Right panel: Teacher B avatar (video)
-Bottom: captions + controls
-
-Behavior:
-
-Exactly two teachers active
-
-One speaks
-
-One renders
-
-Roles swap continuously
-
-Renderer always stays one clip ahead
-
-Feels alive.
-
-2) Core Architecture
-
-Never synchronize by merging.
-
-Synchronize by state + events.
-
-Three components:
-
-Frontend UI
-
-Coordinator API
-
-Two n8n workers
-
-3) System Diagram
-
-Frontend
-Avatars + Website + Controls
-↓ snapshots + events
-
-Coordinator API
-session state + turn engine
-SSE / WebSocket
-
-enqueue left → LEFT_WORKER
-enqueue right → RIGHT_WORKER
-
-LEFT_WORKER: RAG → LLM → TTS → Avatar
-RIGHT_WORKER: RAG → LLM → TTS → Avatar
-
-Both POST CLIP_READY back to Coordinator
-Coordinator emits UI events
-
-4) Session State Machine
-
-Authoritative session object:
-
-sessionId
-activeTeachers
-speaker
-renderer
-turn
-snapshot
-queues
-
-Teacher statuses:
-
-idle
-rendering
-ready
-speaking
-error
-
-Rules:
-
-Exactly one speaker
-
-Exactly one renderer
-
-Swap roles on speech-ended
-
-5) UI Event Contract
-
-Events:
-
-SESSION_STARTED
-CLIP_READY
-SPEAKER_CHANGED
-SECTION_UPDATED
-ERROR
-
-UI subscribes via SSE or WebSocket.
-
-6) Website Reading
-
-Option A (fast):
-
-UI sends:
-
-url
-scrollY
-visibleText
-selectedText
-userQuestion
-
-Option B:
-
-Structured DOM blocks:
-
-headings
-code blocks
-active section
-
-7) RAG Integration
-
-Before LLM generation, each worker calls:
-
-POST /rag/query
-
-Payload includes:
-
-sessionId
-visibleText
-selectedText
-userQuestion
-
-Coordinator returns top K semantic matches.
-
-These are injected directly into the teacher prompt.
-
-8) RAG Architecture
-
-Knowledge Sources
-↓ chunk + embed
-Vector Database (Chroma / Qdrant / Pinecone)
-↑
-Coordinator
-↓
-Workers
-
-RAG provides:
-
-Curriculum grounding
-
-Cross-lesson recall
-
-Reduced hallucination
-
-Persistent knowledge
-
-9) Worker Pipelines (LEFT + RIGHT)
-
-Both pipelines are identical templates.
-
-Steps:
-
-Trigger
-
-Fetch session state
-
-Query RAG
-
-Generate text (LLM)
-
-Normalize output
-
-Generate speech (TTS)
-
-Render avatar video
-
-Upload assets
-
-POST CLIP_READY
-
-Respond 200
-
-No merge nodes anywhere.
-
-10) Coordinator Turn Engine
-
-Flow:
-
-UI sends section update
-Coordinator stores snapshot
-Coordinator enqueues renderer
-Worker renders clip
-Worker posts CLIP_READY
-UI plays current speaker
-UI sends speech-ended
-Coordinator swaps roles
-Coordinator enqueues next render
-
-Loop forever.
-
-11) Latency Masking
-
-Speaker clips: 5–12 seconds
-Renderer clips: 8–20 seconds
-
-If renderer is late:
-
-Speaker generates a short bridging clip:
-
-“Let’s scroll to the next part…”
-
-Keeps illusion alive.
-
-12) Teacher Selection
-
-User must choose exactly two teachers.
-
-Coordinator enforces this server-side.
-
-Session rejected otherwise.
-
-13) Prompt Design
-
-Each prompt includes:
-
-Teacher identity
-Co-teacher identity
-RAG context
-Visible screen content
-Selected text
-
-Output schema:
-
-spoken_text
-on_screen_action
-handoff
-
-Teachers end every clip with a handoff cue.
-
-14) Failure Modes
-
-If avatar render fails:
-
-Fallback to audio + idle animation.
-
-If renderer late:
-
-Speaker bridges.
-
-If job stale:
-
-Discard result.
-
-15) Cursor Implementation Checklist
-
-Define session schema
-Build Coordinator API endpoints
-Implement SSE
-Create UI clip queues
-Build LEFT_WORKER
-Build RIGHT_WORKER
-Add RAG service
-Implement swap logic
-Add bridging behavior
-
-16) Tech Stack
-
-Frontend:
-
-React / Next.js
-SSE or WebSocket
-Video + audio playback
-DOM extraction
-
-Coordinator:
-
-Node.js
-Session state machine
-Turn engine
-
-Automation:
-
-n8n
-
-AI:
-
-LLM (OpenAI / Ollama / local)
-TTS
-Avatar renderer
-
-RAG:
-
-Chroma / Qdrant / Pinecone
-Embeddings
-Chunked lessons
-
-Storage:
-
-Vast.ai storage on cloud with instances (or whatever you think is best)
-Video
-Audio
-Captions
-
-17) Future Roadmap
-
-Persistent RAG memory
-Student profiles
-Teacher specialization
-Semantic section detection
-Adaptive clip length
-Observability dashboard
-Teaching presets
-Citation mode
-
-18) Project Philosophy
-
-Never block.
-Hide latency.
-Teachers behave like instructors — not chatbots.
-
-19) Vision
-
-Not avatars.
-
-A distributed AI classroom with:
-
-co-teaching
-memory
-grounding
-human flow
-
-A system that feels alive.
+## Tech Stack & Infrastructure
+
+### Frontend
+- **Framework**: Streamlit (Python) or React/Next.js
+- **Video Playback**: HTML5 video element
+- **Event Streaming**: Server-Sent Events (SSE) or WebSocket
+- **DOM Extraction**: Browser APIs or headless browser
+
+### Coordinator API
+- **Framework**: FastAPI (Python) or Express.js (Node.js)
+- **State Storage**: In-memory (development) → PostgreSQL (production)
+- **Event Streaming**: SSE (simpler) or WebSocket (more features)
+- **RAG Service**: FastAPI endpoint with pgvector
+
+### Automation
+- **Platform**: n8n
+- **Workflows**: 3 workflows (SESSION_START, LEFT_WORKER, RIGHT_WORKER)
+- **Triggers**: Webhooks
+- **HTTP Client**: Built-in HTTP Request nodes
+
+### AI Services
+- **LLM**: Ollama (mistral:7b) or OpenAI API
+- **TTS**: Piper TTS or Coqui TTS (multi-language)
+- **Avatar Video**: LongCat-Video-Avatar (talking head generation)
+- **Embeddings**: OpenAI text-embedding-3-small or local model
+
+### RAG System
+- **Vector Database**: PostgreSQL + pgvector extension
+- **Embedding Model**: OpenAI or local (sentence-transformers)
+- **Chunking**: Semantic chunking with overlap
+- **Index**: HNSW index for fast similarity search
+
+### Storage
+- **Instance Storage**: 500GB (code, environments, temporary files)
+- **Storage Volume**: 1TB at `/workspace` (videos, logs, cache, database)
+- **Video Storage**: `/workspace/data/videos/`
+- **Audio Storage**: `/workspace/data/audio/`
+- **Cache**: `/workspace/data/cache/` (content-based caching)
+- **Logs**: `/workspace/logs/` (organized by service)
+- **Database**: `/workspace/data/postgresql/` (PostgreSQL data directory)
+
+### Deployment
+- **Hosting**: VAST.AI GPU instances
+- **GPUs**: 2x A100 (80GB VRAM total recommended)
+- **Services**: All services run directly on host (no Docker for simplicity)
+- **Process Management**: tmux sessions
+- **Port Forwarding**: SSH tunnels from desktop to VAST instance
+
+---
+
+## Future Roadmap
+
+### Short-Term (Next 3 Months)
+- [ ] **Persistent RAG Memory**
+  - [ ] Store session transcripts in RAG
+  - [ ] Teachers can reference previous conversations
+  - [ ] Cross-session learning
+
+- [ ] **Semantic Section Detection**
+  - [ ] Auto-detect section boundaries
+  - [ ] Smart section transitions
+  - [ ] Context-aware section assignment
+
+- [ ] **Adaptive Clip Length**
+  - [ ] Dynamic adjustment based on performance
+  - [ ] Content-aware length optimization
+  - [ ] User preference settings
+
+### Medium-Term (3-6 Months)
+- [ ] **Student Profiles**
+  - [ ] Track student progress
+  - [ ] Personalized teaching style
+  - [ ] Learning path recommendations
+
+- [ ] **Teacher Specialization**
+  - [ ] Domain-specific teachers (math, coding, etc.)
+  - [ ] Teaching style preferences
+  - [ ] Teacher personality customization
+
+- [ ] **Observability Dashboard**
+  - [ ] Real-time system metrics
+  - [ ] Performance monitoring
+  - [ ] Error tracking and alerts
+
+### Long-Term (6+ Months)
+- [ ] **Teaching Presets**
+  - [ ] Pre-configured teacher pairs
+  - [ ] Lesson templates
+  - [ ] Teaching mode presets (beginner, advanced, etc.)
+
+- [ ] **Citation Mode**
+  - [ ] Teachers cite sources from RAG
+  - [ ] Show references on screen
+  - [ ] Link to original content
+
+- [ ] **Multi-Language Support**
+  - [ ] Automatic language detection
+  - [ ] Teacher language preferences
+  - [ ] Real-time translation
+
+- [ ] **Advanced RAG Features**
+  - [ ] Multi-modal RAG (images, code, diagrams)
+  - [ ] Temporal RAG (time-aware context)
+  - [ ] Hierarchical RAG (lesson → section → concept)
+
+---
+
+## Project Philosophy
+
+### Core Principles
+
+1. **Never Block**
+   - All operations are asynchronous
+   - No waiting on other pipelines
+   - Immediate responses to user actions
+
+2. **Hide Latency**
+   - Renderer always stays one clip ahead
+   - Bridging clips mask any delays
+   - Smooth transitions between teachers
+
+3. **State-Driven**
+   - Single source of truth (Coordinator)
+   - Events communicate changes
+   - No data merging or synchronization
+
+4. **Resilient**
+   - Graceful degradation at every layer
+   - Multiple fallback mechanisms
+   - Error recovery without user intervention
+
+5. **Scalable**
+   - Independent pipelines enable concurrency
+   - Stateless workers (except session context)
+   - Horizontal scaling possible
+
+### Vision
+
+This is not just avatars. This is a **distributed AI classroom** with:
+- **Co-teaching**: Two teachers working together seamlessly
+- **Memory**: RAG provides persistent knowledge
+- **Grounding**: Teachers reference real content
+- **Human Flow**: Natural turn-taking and handoffs
+
+A system that **feels alive**.
+
+---
+
+## Appendix: Quick Reference
+
+### Session State Schema
+See [Session State Machine](#session-state-machine) section.
+
+### Event Types
+See [Event-Driven Communication](#event-driven-communication) section.
+
+### API Endpoints
+- `POST /session/start` - Create session
+- `GET /session/:id/state` - Get session state
+- `POST /session/:id/section` - Update section
+- `POST /session/:id/speech-ended` - Notify clip finished
+- `POST /session/:id/clip-ready` - Worker posts clip
+- `GET /session/:id/events` - SSE event stream
+- `POST /rag/query` - Query RAG system
+
+### n8n Workflow Routes
+- `/webhook/session/start` - SESSION_START workflow
+- `/webhook/worker/left/run` - LEFT_WORKER workflow
+- `/webhook/worker/right/run` - RIGHT_WORKER workflow
+
+### Storage Paths
+- Videos: `/workspace/data/videos/`
+- Audio: `/workspace/data/audio/`
+- Cache: `/workspace/data/cache/`
+- Logs: `/workspace/logs/{service}/`
+- Database: `/workspace/data/postgresql/`
+
+---
+
+**Document Version**: 2.0  
+**Last Updated**: 2026-01-25  
+**Status**: Active Development
