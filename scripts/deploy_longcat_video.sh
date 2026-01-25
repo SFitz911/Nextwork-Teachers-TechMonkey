@@ -30,12 +30,27 @@ if ! conda env list | grep -q "longcat-video"; then
 fi
 
 echo "Activating conda environment..."
-source "$(conda info --base)/etc/profile.d/conda.sh"
+# Initialize conda for bash
+CONDA_BASE=$(conda info --base)
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate longcat-video
+
+# Verify we're in the right environment
+echo "Python location: $(which python)"
+echo "Python version: $(python --version)"
+
+# Install system dependencies first
+echo "Installing system dependencies..."
+apt-get update -qq
+apt-get install -y libsndfile1 ffmpeg >/dev/null 2>&1 || echo "⚠️  System package installation had issues, continuing..."
 
 # Install PyTorch FIRST (required for flash-attn)
 echo "Installing PyTorch..."
 pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+
+# Verify PyTorch installation
+echo "Verifying PyTorch installation..."
+python -c "import torch; print(f'PyTorch version: {torch.__version__}')" || echo "⚠️  PyTorch verification failed"
 
 # Install build dependencies for flash-attn
 echo "Installing build dependencies..."
@@ -51,13 +66,17 @@ pip install $(grep -v "flash-attn" requirements.txt | grep -v "^#" | grep -v "^$
 echo "Installing Flash Attention..."
 pip install flash_attn==2.7.4.post1 || echo "[WARNING] Flash Attention installation may have failed, continuing..."
 
-# Install avatar requirements
+# Install avatar requirements (skip libsndfile1 - it's a system package)
 echo "Installing avatar requirements..."
-pip install -r requirements_avatar.txt
+# Filter out libsndfile1 and commented lines
+grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | pip install -r /dev/stdin || {
+    echo "⚠️  Some avatar requirements failed, trying individual packages..."
+    pip install scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 pyloudnorm==0.1.1 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 tritonserverclient==0.0.6 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || true
+}
 
-# Install audio processing tools
-echo "Installing audio processing tools..."
-conda install -c conda-forge librosa ffmpeg -y
+# Install audio processing tools via conda (librosa, ffmpeg)
+echo "Installing audio processing tools via conda..."
+conda install -c conda-forge librosa ffmpeg -y >/dev/null 2>&1 || echo "⚠️  Conda audio tools installation had issues, continuing..."
 
 # Check if models are downloaded
 WEIGHTS_DIR="$LONGCAT_DIR/weights"
