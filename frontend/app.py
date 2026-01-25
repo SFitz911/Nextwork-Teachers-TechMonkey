@@ -192,37 +192,51 @@ def process_events():
     while not st.session_state.event_queue.empty():
         try:
             event = st.session_state.event_queue.get_nowait()
+            if not isinstance(event, dict):
+                continue
+                
             event_type = event.get("type")
             
             if event_type == "SESSION_STARTED":
-                st.session_state.session_id = event.get("sessionId")
-                st.session_state.speaker = event.get("speaker")
-                st.session_state.renderer = event.get("renderer")
-                st.rerun()
+                session_id = event.get("sessionId")
+                if session_id:
+                    st.session_state.session_id = session_id
+                    st.session_state.speaker = event.get("speaker")
+                    st.session_state.renderer = event.get("renderer")
+                    st.rerun()
             
             elif event_type == "CLIP_READY":
                 teacher = event.get("teacher")
                 clip = event.get("clip")
-                st.session_state.clips[teacher] = clip
-                
-                # If this is the speaker's clip, start playing it
-                if teacher == st.session_state.speaker:
-                    st.session_state.current_clip = clip
-                    st.rerun()
+                if teacher and clip and isinstance(clip, dict):
+                    st.session_state.clips[teacher] = clip
+                    
+                    # If this is the speaker's clip, start playing it
+                    if teacher == st.session_state.speaker:
+                        st.session_state.current_clip = clip
+                        st.rerun()
             
             elif event_type == "SPEAKER_CHANGED":
-                st.session_state.speaker = event.get("speaker")
-                st.session_state.renderer = event.get("renderer")
+                new_speaker = event.get("speaker")
+                new_renderer = event.get("renderer")
+                if new_speaker:
+                    st.session_state.speaker = new_speaker
+                if new_renderer:
+                    st.session_state.renderer = new_renderer
                 
                 # Check if new speaker has a ready clip
-                if st.session_state.speaker in st.session_state.clips:
+                if st.session_state.speaker and st.session_state.speaker in st.session_state.clips:
                     st.session_state.current_clip = st.session_state.clips[st.session_state.speaker]
                     st.rerun()
             
             elif event_type == "ERROR":
-                st.error(f"Error: {event.get('message', 'Unknown error')}")
+                error_msg = event.get('message', 'Unknown error')
+                st.error(f"Error: {error_msg}")
         
         except queue.Empty:
+            break
+        except Exception as e:
+            st.warning(f"Error processing event: {e}")
             break
 
 
@@ -320,7 +334,7 @@ if st.session_state.session_id:
     process_events()
 
 # Main layout: Left Avatar | Center Website | Right Avatar
-if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
+if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
     col_left, col_center, col_right = st.columns([1, 2, 1])
     
     left_teacher = st.session_state.selected_teachers[0]
@@ -343,17 +357,27 @@ if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
         # Show video if clip is ready and this is the speaker
         if left_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
-            if clip.get("videoUrl"):
-                st.video(clip["videoUrl"])
-                st.caption(clip.get("text", ""))
-            elif clip.get("audioUrl"):
-                st.audio(clip["audioUrl"])
-                st.caption(clip.get("text", ""))
+            try:
+                if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
+                    st.video(clip["videoUrl"])
+                    st.caption(clip.get("text", ""))
+                elif clip.get("audioUrl"):
+                    st.audio(clip["audioUrl"])
+                    st.caption(clip.get("text", ""))
+            except Exception as e:
+                st.error(f"Error displaying media: {e}")
+                if clip.get("audioUrl"):
+                    try:
+                        st.audio(clip["audioUrl"])
+                        st.caption(clip.get("text", ""))
+                    except Exception as e2:
+                        st.warning(f"Could not display audio: {e2}")
         else:
             # Show avatar image
             try:
                 st.image(TEACHERS[left_teacher]["image"], use_container_width=True)
-            except:
+            except Exception as e:
+                st.warning(f"Could not load avatar image: {e}")
                 st.image("https://via.placeholder.com/400x300", use_container_width=True)
             
             if left_speaking:
@@ -472,17 +496,27 @@ if st.session_state.session_id and len(st.session_state.selected_teachers) == 2:
         # Show video if clip is ready and this is the speaker
         if right_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
-            if clip.get("videoUrl"):
-                st.video(clip["videoUrl"])
-                st.caption(clip.get("text", ""))
-            elif clip.get("audioUrl"):
-                st.audio(clip["audioUrl"])
-                st.caption(clip.get("text", ""))
+            try:
+                if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
+                    st.video(clip["videoUrl"])
+                    st.caption(clip.get("text", ""))
+                elif clip.get("audioUrl"):
+                    st.audio(clip["audioUrl"])
+                    st.caption(clip.get("text", ""))
+            except Exception as e:
+                st.error(f"Error displaying media: {e}")
+                if clip.get("audioUrl"):
+                    try:
+                        st.audio(clip["audioUrl"])
+                        st.caption(clip.get("text", ""))
+                    except Exception as e2:
+                        st.warning(f"Could not display audio: {e2}")
         else:
             # Show avatar image
             try:
                 st.image(TEACHERS[right_teacher]["image"], use_container_width=True)
-            except:
+            except Exception as e:
+                st.warning(f"Could not load avatar image: {e}")
                 st.image("https://via.placeholder.com/400x300", use_container_width=True)
             
             if right_speaking:
