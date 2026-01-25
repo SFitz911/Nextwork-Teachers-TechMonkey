@@ -31,19 +31,41 @@ if conda env list | grep -q "longcat-video"; then
     conda activate longcat-video
     echo "✅ Activated longcat-video conda environment"
     
-    # Install missing dependencies
+    # Get conda Python path explicitly
+    CONDA_PYTHON=$(which python)
+    CONDA_PIP=$(which pip)
+    echo "Using Python: $CONDA_PYTHON"
+    echo "Using pip: $CONDA_PIP"
+    
+    # Verify we're in the right environment
+    if [[ ! "$CONDA_PYTHON" == *"longcat-video"* ]] && [[ ! "$CONDA_PYTHON" == *"conda"* ]]; then
+        echo "⚠️  WARNING: Not in conda longcat-video environment!"
+        echo "   Python path: $CONDA_PYTHON"
+        echo "   Attempting to fix..."
+        # Try to find conda Python
+        CONDA_PREFIX=$(conda info --base)
+        CONDA_PYTHON="$CONDA_PREFIX/envs/longcat-video/bin/python"
+        CONDA_PIP="$CONDA_PREFIX/envs/longcat-video/bin/pip"
+        if [[ -f "$CONDA_PYTHON" ]]; then
+            echo "   Using explicit conda Python: $CONDA_PYTHON"
+        else
+            echo "   ❌ Could not find conda Python, using system Python"
+        fi
+    fi
+    
+    # Install missing dependencies using conda Python explicitly
     echo "Installing missing LongCat-Video dependencies..."
     
     # Install from requirements_avatar.txt (filtering out problematic packages)
     cd "$PROJECT_DIR/LongCat-Video"
-    grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | grep -v "tritonserverclient" | pip install -r /dev/stdin || {
+    grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | grep -v "tritonserverclient" | "$CONDA_PIP" install -r /dev/stdin || {
         echo "⚠️  Some avatar requirements failed, installing essential packages..."
-        pip install pyloudnorm==0.1.1 scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || echo "⚠️  Some packages failed, but continuing..."
+        "$CONDA_PIP" install pyloudnorm==0.1.1 scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || echo "⚠️  Some packages failed, but continuing..."
     }
     cd "$PROJECT_DIR"
     
-    # Verify critical dependencies
-    python -c "import pyloudnorm; print('✅ pyloudnorm installed successfully')" 2>/dev/null || echo "⚠️  pyloudnorm verification failed"
+    # Verify critical dependencies using conda Python
+    "$CONDA_PYTHON" -c "import pyloudnorm; print('✅ pyloudnorm installed successfully in conda environment')" 2>/dev/null || echo "⚠️  pyloudnorm verification failed"
 else
     echo "❌ longcat-video conda environment not found!"
     echo "   Run: bash scripts/deploy_longcat_video.sh"
