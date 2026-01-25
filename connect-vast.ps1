@@ -28,17 +28,17 @@ Write-Host "Opening SSH connection in new window..." -ForegroundColor Green
 Write-Host ""
 
        if ($Method -eq "direct") {
-           $sshArgs = "-p 28208 root@24.124.32.70 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
+           $sshArgs = "-p 28259 root@24.124.32.70 -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
        } else {
-           $sshArgs = "-p 30909 root@ssh6.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
+           $sshArgs = "-p 24285 root@ssh4.vast.ai -L 5678:localhost:5678 -L 8501:localhost:8501 -L 8001:localhost:8001 -L 8002:localhost:8002 -L 8003:localhost:8003 -L 8004:localhost:8004 -L 11434:localhost:11434"
        }
 
 # Test connection first (but don't fail - just warn)
 Write-Host "Testing SSH connection..." -ForegroundColor Yellow
 if ($Method -eq "direct") {
-    $testCmd = "ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p 28208 root@24.124.32.70 'echo test' 2>&1"
+    $testCmd = "ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p 28259 root@24.124.32.70 'echo test' 2>&1"
 } else {
-    $testCmd = "ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p 30909 root@ssh6.vast.ai 'echo test' 2>&1"
+    $testCmd = "ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p 24285 root@ssh4.vast.ai 'echo test' 2>&1"
 }
 
 $testResult = & powershell -Command $testCmd
@@ -50,7 +50,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "If it fails, check:" -ForegroundColor Yellow
     Write-Host "  1. SSH key is added to VAST instance" -ForegroundColor White
     Write-Host "  2. Instance is running on Vast.ai dashboard" -ForegroundColor White
-    Write-Host "  3. Try: ssh -p 30909 root@ssh6.vast.ai" -ForegroundColor White
+    Write-Host "  3. Try: ssh -p 24285 root@ssh4.vast.ai" -ForegroundColor White
     Write-Host ""
 } else {
     Write-Host "✅ SSH connection test successful!" -ForegroundColor Green
