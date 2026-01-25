@@ -25,6 +25,7 @@ echo ""
 
 # Common mount points for VAST.AI volumes
 POSSIBLE_MOUNTS=(
+    "/workspace"           # VAST.AI default mount point
     "/mnt/vast-storage"
     "/mnt/storage"
     "/vast-storage"
@@ -46,22 +47,46 @@ for mount in "${POSSIBLE_MOUNTS[@]}"; do
     fi
 done
 
-# If not found, check all mounted filesystems
+# If not found, check all mounted filesystems for large volumes (1TB+)
 if [ -z "$VAST_STORAGE" ]; then
-    echo "Checking all mounted filesystems..."
-    df -h | grep -E "(vast|storage|volume|1T|1.0T)" || true
+    echo "Checking all mounted filesystems for storage volumes..."
+    df -h | grep -E "(vast|storage|volume|workspace|1T|1.0T)" || true
     
+    # Try to find /workspace (common VAST.AI mount point)
+    if mountpoint -q "/workspace" 2>/dev/null || ([ -d "/workspace" ] && [ -w "/workspace" ]); then
+        SPACE=$(df -h "/workspace" 2>/dev/null | tail -1 | awk '{print $2}' || echo "")
+        if [[ -n "$SPACE" ]] && [[ "$SPACE" =~ [0-9]+[GT] ]]; then
+            VAST_STORAGE="/workspace"
+            echo "✅ Found storage volume at: $VAST_STORAGE"
+            df -h "$VAST_STORAGE"
+        fi
+    fi
+fi
+
+# If still not found, prompt user
+if [ -z "$VAST_STORAGE" ]; then
     echo ""
     echo "⚠️  Could not auto-detect storage volume mount point."
     echo "Please check Vast.ai dashboard - volume should be attached to instance."
     echo ""
-    read -p "Enter storage volume mount path (or press Enter to use /root/vast-storage): " VAST_STORAGE
-    VAST_STORAGE="${VAST_STORAGE:-/root/vast-storage}"
+    echo "Common mount points:"
+    echo "  - /workspace (VAST.AI default)"
+    echo "  - /mnt/vast-storage"
+    echo "  - /mnt/storage"
+    echo ""
+    read -p "Enter storage volume mount path (or press Enter to use /workspace): " VAST_STORAGE
+    VAST_STORAGE="${VAST_STORAGE:-/workspace}"
     
-    # Create if doesn't exist
+    # Validate the path
     if [ ! -d "$VAST_STORAGE" ]; then
-        echo "Creating directory: $VAST_STORAGE"
-        mkdir -p "$VAST_STORAGE"
+        echo "⚠️  Directory does not exist: $VAST_STORAGE"
+        read -p "Create it? (y/n): " CREATE_DIR
+        if [[ "$CREATE_DIR" == "y" ]]; then
+            mkdir -p "$VAST_STORAGE"
+        else
+            echo "❌ Cannot proceed without valid storage path"
+            exit 1
+        fi
     fi
 fi
 
