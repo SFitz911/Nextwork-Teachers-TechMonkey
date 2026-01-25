@@ -46,6 +46,24 @@ st.markdown("""
     .stApp > header {display: none;}
     .stAppViewContainer > div:first-child {padding-top: 0 !important;}
     
+    /* Remove box styling from Streamlit column containers */
+    div[data-testid="column"] {
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    
+    /* Remove box styling from column containers */
+    .stColumns > div {
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    
     /* Ensure URL input is prominent */
     .stTextInput > div > div > input {
         font-size: 1.1rem !important;
