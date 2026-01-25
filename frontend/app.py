@@ -127,7 +127,8 @@ def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None
 def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: str = "", selected_text: str = "", user_question: Optional[str] = None, language: Optional[str] = None):
     """Update current section snapshot"""
     try:
-        requests.post(
+        # Use longer timeout since Coordinator may trigger n8n workflows
+        response = requests.post(
             f"{COORDINATOR_API_URL}/session/{session_id}/section",
             json={
                 "sessionId": session_id,
@@ -139,8 +140,12 @@ def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: s
                 "userQuestion": user_question,
                 "language": language
             },
-            timeout=2
+            timeout=10  # Increased from 2 to 10 seconds to allow for n8n workflow triggering
         )
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        # Timeout is OK - the request was sent, Coordinator will process it
+        st.info("⏳ Section update sent (processing in background)")
     except Exception as e:
         st.warning(f"Failed to update section: {e}")
 
@@ -154,7 +159,7 @@ def notify_speech_ended(session_id: str, clip_id: str):
                 "sessionId": session_id,
                 "clipId": clip_id
             },
-            timeout=2
+            timeout=5  # Increased from 2 to 5 seconds
         )
     except Exception as e:
         st.warning(f"Failed to notify speech ended: {e}")
