@@ -1,6 +1,6 @@
 """
 Streamlit Frontend for 2-Teacher Live Classroom
-Left Avatar + Center Website + Right Avatar layout with SSE event streaming
+Professional, clean UI with Left Avatar + Center Website + Right Avatar layout
 """
 
 import streamlit as st
@@ -28,53 +28,132 @@ TEACHERS = {
 
 # Page config
 st.set_page_config(
-    page_title="AI Virtual Classroom - 2 Teacher Live",
+    page_title="AI Virtual Classroom",
     page_icon="👨‍🏫",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for 2-teacher layout
+# Professional CSS styling
 st.markdown("""
     <style>
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
+        background: #0f172a;
+        padding: 0;
     }
+    
+    /* Teacher panel styling */
     .teacher-panel {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        height: 600px;
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        height: calc(100vh - 120px);
+        min-height: 600px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
     }
+    
+    .teacher-panel.speaking {
+        border-color: #10b981;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        background: #1e3a3a;
+    }
+    
+    .teacher-panel.rendering {
+        border-color: #f59e0b;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+        opacity: 0.9;
+    }
+    
+    /* Center panel */
     .center-panel {
-        background: white;
-        border-radius: 10px;
+        background: #1e293b;
+        border-radius: 12px;
         padding: 20px;
-        margin: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        height: 600px;
+        margin: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        height: calc(100vh - 120px);
+        min-height: 600px;
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
     }
-    .speaking {
-        border: 3px solid #4CAF50;
-        box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    
+    /* Status indicators */
+    .status-speaking {
+        color: #10b981;
+        font-weight: 600;
+        font-size: 0.9rem;
     }
-    .rendering {
-        border: 3px solid #FF9800;
-        opacity: 0.8;
+    
+    .status-rendering {
+        color: #f59e0b;
+        font-weight: 600;
+        font-size: 0.9rem;
     }
+    
+    .status-idle {
+        color: #64748b;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    
+    /* Input styling */
+    .stTextInput>div>div>input {
+        background-color: #0f172a;
+        color: #f1f5f9;
+        border: 1px solid #334155;
+    }
+    
+    /* Button styling */
     .stButton>button {
-        width: 100%;
-        background-color: #667eea;
+        background-color: #3b82f6;
         color: white;
-        font-weight: bold;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .stButton>button:hover {
+        background-color: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #0f172a;
+    }
+    
+    /* Video container */
+    .video-container {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    /* Caption styling */
+    .caption-text {
+        color: #cbd5e1;
+        font-size: 0.9rem;
+        margin-top: 8px;
+        text-align: center;
+        padding: 8px;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 6px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -90,9 +169,9 @@ if "speaker" not in st.session_state:
 if "renderer" not in st.session_state:
     st.session_state.renderer = None
 if "clips" not in st.session_state:
-    st.session_state.clips = {}  # teacher_id -> clip data
+    st.session_state.clips = {}
 if "current_clip" not in st.session_state:
-    st.session_state.current_clip = None  # Currently playing clip
+    st.session_state.current_clip = None
 if "event_queue" not in st.session_state:
     st.session_state.event_queue = queue.Queue()
 if "sse_thread" not in st.session_state:
@@ -101,8 +180,8 @@ if "selected_language" not in st.session_state:
     st.session_state.selected_language = "English"
 if "chat_message" not in st.session_state:
     st.session_state.chat_message = ""
-if "push_to_talk_active" not in st.session_state:
-    st.session_state.push_to_talk_active = False
+if "website_url" not in st.session_state:
+    st.session_state.website_url = ""
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -127,7 +206,6 @@ def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None
 def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: str = "", selected_text: str = "", user_question: Optional[str] = None, language: Optional[str] = None):
     """Update current section snapshot"""
     try:
-        # Use longer timeout since Coordinator may trigger n8n workflows
         response = requests.post(
             f"{COORDINATOR_API_URL}/session/{session_id}/section",
             json={
@@ -140,12 +218,11 @@ def update_section(session_id: str, url: str, scroll_y: int = 0, visible_text: s
                 "userQuestion": user_question,
                 "language": language
             },
-            timeout=10  # Increased from 2 to 10 seconds to allow for n8n workflow triggering
+            timeout=10
         )
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        # Timeout is OK - the request was sent, Coordinator will process it
-        st.info("⏳ Section update sent (processing in background)")
+        pass  # Timeout is OK - request was sent
     except Exception as e:
         st.warning(f"Failed to update section: {e}")
 
@@ -159,10 +236,10 @@ def notify_speech_ended(session_id: str, clip_id: str):
                 "sessionId": session_id,
                 "clipId": clip_id
             },
-            timeout=5  # Increased from 2 to 5 seconds
+            timeout=5
         )
-    except Exception as e:
-        st.warning(f"Failed to notify speech ended: {e}")
+    except Exception:
+        pass  # Fail silently
 
 
 def listen_to_events(session_id: str, event_queue: queue.Queue):
@@ -179,7 +256,7 @@ def listen_to_events(session_id: str, event_queue: queue.Queue):
                 line_str = line.decode('utf-8')
                 if line_str.startswith('data: '):
                     try:
-                        event_data = json.loads(line_str[6:])  # Remove 'data: ' prefix
+                        event_data = json.loads(line_str[6:])
                         event_queue.put(event_data)
                     except json.JSONDecodeError:
                         pass
@@ -210,8 +287,6 @@ def process_events():
                 clip = event.get("clip")
                 if teacher and clip and isinstance(clip, dict):
                     st.session_state.clips[teacher] = clip
-                    
-                    # If this is the speaker's clip, start playing it
                     if teacher == st.session_state.speaker:
                         st.session_state.current_clip = clip
                         st.rerun()
@@ -224,7 +299,6 @@ def process_events():
                 if new_renderer:
                     st.session_state.renderer = new_renderer
                 
-                # Check if new speaker has a ready clip
                 if st.session_state.speaker and st.session_state.speaker in st.session_state.clips:
                     st.session_state.current_clip = st.session_state.clips[st.session_state.speaker]
                     st.rerun()
@@ -235,92 +309,78 @@ def process_events():
         
         except queue.Empty:
             break
-        except Exception as e:
-            st.warning(f"Error processing event: {e}")
+        except Exception:
             break
 
 
-# Main UI
-st.title("👨‍🏫 AI Virtual Classroom - 2 Teacher Live")
-
-# Sidebar for session management
+# Sidebar - Session Management
 with st.sidebar:
-    st.header("🎯 Session Control")
+    st.markdown("## 🎯 Session Control")
     
-    # Teacher selection (must choose exactly 2)
-    st.subheader("Select 2 Teachers")
-    available_teachers = list(TEACHERS.keys())
-    
-    teacher_1 = st.selectbox(
-        "Teacher 1 (Left)",
-        available_teachers,
-        format_func=lambda x: TEACHERS[x]["name"],
-        key="teacher_1"
-    )
-    
-    teacher_2_options = [t for t in available_teachers if t != teacher_1]
-    teacher_2 = st.selectbox(
-        "Teacher 2 (Right)",
-        teacher_2_options,
-        format_func=lambda x: TEACHERS[x]["name"],
-        key="teacher_2"
-    )
-    
-    lesson_url = st.text_input("Lesson URL (optional)", value="")
-    
-    # Language selection
-    st.markdown("---")
-    st.subheader("🌐 Language")
-    languages = {
-        "English": "en",
-        "Spanish": "es",
-        "French": "fr",
-        "German": "de",
-        "Chinese (Simplified)": "zh-CN",
-        "Japanese": "ja",
-        "Korean": "ko",
-        "Portuguese": "pt",
-        "Italian": "it",
-        "Russian": "ru"
-    }
-    selected_language = st.selectbox(
-        "Select Language",
-        options=list(languages.keys()),
-        index=0,
-        key="language_selectbox"
-    )
-    st.session_state.selected_language = selected_language
-    
-    if st.button("🚀 Start Session", type="primary"):
-        selected = [teacher_1, teacher_2]
-        session_id = start_session(selected, lesson_url if lesson_url else None)
+    if not st.session_state.session_id:
+        # Teacher selection
+        st.markdown("### Select Teachers")
+        available_teachers = list(TEACHERS.keys())
         
-        if session_id:
-            st.session_state.session_id = session_id
-            st.session_state.selected_teachers = selected
-            
-            # Start SSE listener thread
-            if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
-                st.session_state.sse_thread = threading.Thread(
-                    target=listen_to_events,
-                    args=(session_id, st.session_state.event_queue),
-                    daemon=True
-                )
-                st.session_state.sse_thread.start()
-            
-            st.success(f"✅ Session started: {session_id[:8]}...")
-            st.rerun()
-    
-    if st.session_state.session_id:
+        teacher_1 = st.selectbox(
+            "Teacher 1 (Left)",
+            available_teachers,
+            format_func=lambda x: TEACHERS[x]["name"],
+            key="teacher_1"
+        )
+        
+        teacher_2_options = [t for t in available_teachers if t != teacher_1]
+        teacher_2 = st.selectbox(
+            "Teacher 2 (Right)",
+            teacher_2_options,
+            format_func=lambda x: TEACHERS[x]["name"],
+            key="teacher_2"
+        )
+        
+        # Language selection
         st.markdown("---")
-        st.subheader("📊 Session Status")
-        st.info(f"**Session ID:** {st.session_state.session_id[:16]}...")
-        if st.session_state.speaker:
-            st.success(f"**Speaking:** {TEACHERS[st.session_state.speaker]['name']}")
-        if st.session_state.renderer:
-            st.info(f"**Rendering:** {TEACHERS[st.session_state.renderer]['name']}")
+        st.markdown("### 🌐 Language")
+        languages = ["English", "Spanish", "French", "German", "Chinese (Simplified)", "Japanese", "Korean"]
+        selected_language = st.selectbox(
+            "Select Language",
+            options=languages,
+            index=0,
+            key="language_selectbox",
+            label_visibility="collapsed"
+        )
+        st.session_state.selected_language = selected_language
         
-        if st.button("🛑 End Session"):
+        # Start session button
+        if st.button("🚀 Start Session", type="primary", use_container_width=True):
+            selected = [teacher_1, teacher_2]
+            session_id = start_session(selected, None)
+            
+            if session_id:
+                st.session_state.session_id = session_id
+                st.session_state.selected_teachers = selected
+                
+                if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
+                    st.session_state.sse_thread = threading.Thread(
+                        target=listen_to_events,
+                        args=(session_id, st.session_state.event_queue),
+                        daemon=True
+                    )
+                    st.session_state.sse_thread.start()
+                
+                st.success("✅ Session started!")
+                st.rerun()
+    else:
+        # Session active - show status and controls
+        st.markdown("### 📊 Session Active")
+        st.success(f"**Session:** `{st.session_state.session_id[:12]}...`")
+        
+        if st.session_state.speaker:
+            st.markdown(f"**Speaking:** {TEACHERS[st.session_state.speaker]['name']}")
+        if st.session_state.renderer:
+            st.markdown(f"**Rendering:** {TEACHERS[st.session_state.renderer]['name']}")
+        
+        st.markdown("---")
+        if st.button("🛑 End Session", use_container_width=True):
             st.session_state.session_id = None
             st.session_state.selected_teachers = []
             st.session_state.speaker = None
@@ -329,13 +389,16 @@ with st.sidebar:
             st.session_state.current_clip = None
             st.rerun()
 
+
 # Process events
 if st.session_state.session_id:
     process_events()
 
-# Main layout: Left Avatar | Center Website | Right Avatar
+
+# Main Content Area
 if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
-    col_left, col_center, col_right = st.columns([1, 2, 1])
+    # Main layout: Left Avatar | Center Website | Right Avatar
+    col_left, col_center, col_right = st.columns([1, 2.5, 1])
     
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
@@ -352,130 +415,99 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             panel_class += " rendering"
         
         st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
-        st.header(f"👨‍🏫 {TEACHERS[left_teacher]['name']}")
         
-        # Show video if clip is ready and this is the speaker
+        # Teacher name and status
+        st.markdown(f"### {TEACHERS[left_teacher]['name']}")
+        
+        if left_speaking:
+            st.markdown('<p class="status-speaking">🎤 Speaking</p>', unsafe_allow_html=True)
+        elif left_rendering:
+            st.markdown('<p class="status-rendering">⏳ Rendering</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="status-idle">💤 Idle</p>', unsafe_allow_html=True)
+        
+        # Show video/audio if clip is ready and this is the speaker
         if left_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
                     st.video(clip["videoUrl"])
-                    st.caption(clip.get("text", ""))
+                    if clip.get("text"):
+                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
                 elif clip.get("audioUrl"):
                     st.audio(clip["audioUrl"])
-                    st.caption(clip.get("text", ""))
-            except Exception as e:
-                st.error(f"Error displaying media: {e}")
+                    if clip.get("text"):
+                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+            except Exception:
                 if clip.get("audioUrl"):
                     try:
                         st.audio(clip["audioUrl"])
-                        st.caption(clip.get("text", ""))
-                    except Exception as e2:
-                        st.warning(f"Could not display audio: {e2}")
+                        if clip.get("text"):
+                            st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                    except Exception:
+                        pass
         else:
             # Show avatar image
             try:
                 st.image(TEACHERS[left_teacher]["image"], width='stretch')
-            except Exception as e:
-                st.warning(f"Could not load avatar image: {e}")
-                st.image("https://via.placeholder.com/400x300", width='stretch')
-            
-            if left_speaking:
-                st.info("🎤 Speaking...")
-            elif left_rendering:
-                st.info("⏳ Rendering next clip...")
-            else:
-                st.info("💤 Idle")
+            except Exception:
+                st.image("https://via.placeholder.com/400x300?text=Avatar", width='stretch')
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Center Panel (Website/Learning Project)
+    # Center Panel - Learning Content
     with col_center:
         st.markdown('<div class="center-panel">', unsafe_allow_html=True)
-        st.header("📚 Learning Content")
         
-        # URL input for website
-        website_url = st.text_input("Website URL", value=lesson_url or "https://example.com", key="website_url")
+        # Large URL input at top
+        st.markdown("### 📚 Learning Content")
+        website_url = st.text_input(
+            "Enter URL to load learning content",
+            value=st.session_state.website_url or "",
+            key="website_url_input",
+            placeholder="https://example.com/lesson",
+            label_visibility="visible"
+        )
+        st.session_state.website_url = website_url
         
-        # Embed website (using iframe)
+        # Embed website if URL provided
         if website_url:
-            st.components.v1.iframe(website_url, height=400, scrolling=True)
+            try:
+                st.components.v1.iframe(website_url, height=450, scrolling=True)
+            except Exception:
+                st.warning("Could not load website. Please check the URL.")
         
-        # Chat box with push-to-talk, send, and clear
+        # Chat interface (simplified)
         st.markdown("---")
-        st.subheader("💬 Chat with Teachers")
+        st.markdown("### 💬 Ask a Question")
         
-        # Chat input area
-        chat_col1, chat_col2, chat_col3, chat_col4 = st.columns([3, 1, 1, 1])
+        chat_col1, chat_col2 = st.columns([4, 1])
         
         with chat_col1:
             chat_message = st.text_input(
-                "Type your question or message",
+                "Type your question",
                 value=st.session_state.chat_message,
                 key="chat_input",
-                placeholder="Ask the teachers a question or provide feedback..."
+                placeholder="Ask the teachers about the content...",
+                label_visibility="collapsed"
             )
             st.session_state.chat_message = chat_message
         
         with chat_col2:
-            # Push-to-talk button
-            push_to_talk = st.button("🎤 Push to Talk", key="push_to_talk", width='stretch')
-            if push_to_talk:
-                st.session_state.push_to_talk_active = not st.session_state.push_to_talk_active
-                if st.session_state.push_to_talk_active:
-                    st.info("🎤 Recording... (Release to stop)")
-                else:
-                    st.info("⏹️ Recording stopped")
-        
-        with chat_col3:
-            # Send button
-            send_chat = st.button("📤 Send", key="send_chat", type="primary", width='stretch')
-            if send_chat and chat_message and st.session_state.session_id:
-                # Send chat message as user question with section update
-                update_section(
-                    st.session_state.session_id,
-                    website_url,
-                    0,
-                    "",  # visible_text - can be empty for chat-only
-                    "",  # selected_text
-                    chat_message,  # user_question
-                    st.session_state.selected_language
-                )
-                st.success(f"✅ Message sent: {chat_message[:50]}...")
-                st.session_state.chat_message = ""  # Clear after sending
-                st.rerun()
-        
-        with chat_col4:
-            # Clear button
-            clear_chat = st.button("🗑️ Clear", key="clear_chat", width='stretch')
-            if clear_chat:
-                st.session_state.chat_message = ""
-                st.rerun()
-        
-        # Show push-to-talk status
-        if st.session_state.push_to_talk_active:
-            st.warning("🎤 Push-to-talk is active - This feature requires browser microphone access (coming soon)")
-        
-        # Section snapshot controls
-        st.markdown("---")
-        st.subheader("📸 Section Snapshot")
-        if st.button("📷 Capture Current Section"):
-            # Extract visible text (simplified - in production, use browser extension)
-            visible_text = st.text_area("Visible Text (paste from browser)", height=100)
-            selected_text = st.text_input("Selected Text (if any)", "")
-            scroll_y = st.number_input("Scroll Position", value=0, min_value=0)
-            
-            if st.session_state.session_id:
-                update_section(
-                    st.session_state.session_id,
-                    website_url,
-                    int(scroll_y),
-                    visible_text,
-                    selected_text,
-                    None,  # user_question - can add separate field if needed
-                    st.session_state.selected_language
-                )
-                st.success("✅ Section snapshot sent to teachers!")
+            if st.button("📤 Send", type="primary", use_container_width=True):
+                if chat_message and st.session_state.session_id:
+                    update_section(
+                        st.session_state.session_id,
+                        website_url,
+                        0,
+                        "",
+                        "",
+                        chat_message,
+                        st.session_state.selected_language
+                    )
+                    st.success("✅ Question sent!")
+                    st.session_state.chat_message = ""
+                    st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -491,82 +523,78 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             panel_class += " rendering"
         
         st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
-        st.header(f"👨‍🏫 {TEACHERS[right_teacher]['name']}")
         
-        # Show video if clip is ready and this is the speaker
+        # Teacher name and status
+        st.markdown(f"### {TEACHERS[right_teacher]['name']}")
+        
+        if right_speaking:
+            st.markdown('<p class="status-speaking">🎤 Speaking</p>', unsafe_allow_html=True)
+        elif right_rendering:
+            st.markdown('<p class="status-rendering">⏳ Rendering</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="status-idle">💤 Idle</p>', unsafe_allow_html=True)
+        
+        # Show video/audio if clip is ready and this is the speaker
         if right_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
                     st.video(clip["videoUrl"])
-                    st.caption(clip.get("text", ""))
+                    if clip.get("text"):
+                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
                 elif clip.get("audioUrl"):
                     st.audio(clip["audioUrl"])
-                    st.caption(clip.get("text", ""))
-            except Exception as e:
-                st.error(f"Error displaying media: {e}")
+                    if clip.get("text"):
+                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+            except Exception:
                 if clip.get("audioUrl"):
                     try:
                         st.audio(clip["audioUrl"])
-                        st.caption(clip.get("text", ""))
-                    except Exception as e2:
-                        st.warning(f"Could not display audio: {e2}")
+                        if clip.get("text"):
+                            st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                    except Exception:
+                        pass
         else:
             # Show avatar image
             try:
                 st.image(TEACHERS[right_teacher]["image"], width='stretch')
-            except Exception as e:
-                st.warning(f"Could not load avatar image: {e}")
-                st.image("https://via.placeholder.com/400x300", width='stretch')
-            
-            if right_speaking:
-                st.info("🎤 Speaking...")
-            elif right_rendering:
-                st.info("⏳ Rendering next clip...")
-            else:
-                st.info("💤 Idle")
+            except Exception:
+                st.image("https://via.placeholder.com/400x300?text=Avatar", width='stretch')
         
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Bottom controls
-    st.markdown("---")
-    col_controls = st.columns(4)
-    
-    with col_controls[0]:
-        if st.button("⏸️ Pause"):
-            st.info("Pause functionality - coming soon")
-    
-    with col_controls[1]:
-        if st.button("⏭️ Next Section"):
-            st.info("Next section - coming soon")
-    
-    with col_controls[2]:
-        if st.button("🔄 Swap Teachers"):
-            st.info("Swap teachers - coming soon")
-    
-    with col_controls[3]:
-        if st.button("⚙️ Settings"):
-            st.info("Settings - coming soon")
 
 else:
     # Welcome screen - no session active
-    st.info("👆 **Start a session** using the sidebar to begin the 2-teacher live classroom!")
     st.markdown("""
-    ### How it works:
-    1. **Select 2 teachers** from the sidebar
-    2. **Click "Start Session"** to begin
-    3. **Load a website** in the center panel
-    4. **Capture section snapshots** to send context to teachers
-    5. Teachers will **alternate turns** automatically, with one speaking while the other renders
+    <div style="text-align: center; padding: 60px 20px;">
+        <h1 style="color: #f1f5f9; margin-bottom: 20px;">👨‍🏫 AI Virtual Classroom</h1>
+        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
+            Start a session with 2 AI teachers to begin your learning journey
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    ### Features:
-    - 🎥 **Live video** from LongCat-Video-Avatar
-    - 🔄 **Automatic turn-taking** (no waiting)
-    - 📚 **Website context** awareness
-    - 🎯 **Real-time events** via SSE
-    """)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### 🎯 Select Teachers
+        Choose 2 AI teachers from the sidebar to co-teach your lesson
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 🚀 Start Session
+        Click "Start Session" in the sidebar to begin the live classroom
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 📚 Load Content
+        Enter a URL in the center panel to load your learning material
+        """)
 
 # Auto-refresh for event processing
 if st.session_state.session_id:
-    time.sleep(0.5)  # Small delay to allow events to process
+    time.sleep(0.5)
     st.rerun()
