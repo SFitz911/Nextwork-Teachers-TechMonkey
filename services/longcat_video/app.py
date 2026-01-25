@@ -97,8 +97,13 @@ async def generate_video(request: GenerateRequest, background_tasks: BackgroundT
     Generate video from image + audio + prompt using LongCat-Video-Avatar
     """
     try:
+        logger.info(f"Received generate request: avatar_id={request.avatar_id}, audio_url={request.audio_url}")
+        logger.info(f"AVATAR_IMAGES_DIR: {AVATAR_IMAGES_DIR}")
+        logger.info(f"Available images in directory: {os.listdir(AVATAR_IMAGES_DIR) if os.path.exists(AVATAR_IMAGES_DIR) else 'DIRECTORY NOT FOUND'}")
+        
         # Validate avatar_id
         if request.avatar_id not in TEACHER_IMAGES:
+            logger.error(f"Invalid avatar_id: {request.avatar_id}. Valid options: {list(TEACHER_IMAGES.keys())}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid avatar_id: {request.avatar_id}. Must be one of: {list(TEACHER_IMAGES.keys())}"
@@ -107,8 +112,13 @@ async def generate_video(request: GenerateRequest, background_tasks: BackgroundT
         # Get avatar image path
         avatar_image = TEACHER_IMAGES[request.avatar_id]
         avatar_path = os.path.join(AVATAR_IMAGES_DIR, avatar_image)
+        logger.info(f"Looking for avatar image at: {avatar_path}")
         
         if not os.path.exists(avatar_path):
+            logger.error(f"Avatar image not found: {avatar_path}")
+            logger.error(f"AVATAR_IMAGES_DIR exists: {os.path.exists(AVATAR_IMAGES_DIR)}")
+            if os.path.exists(AVATAR_IMAGES_DIR):
+                logger.error(f"Files in AVATAR_IMAGES_DIR: {os.listdir(AVATAR_IMAGES_DIR)}")
             raise HTTPException(
                 status_code=404,
                 detail=f"Avatar image not found: {avatar_path}. Please ensure teacher images are in {AVATAR_IMAGES_DIR}"
