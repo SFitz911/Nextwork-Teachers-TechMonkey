@@ -553,142 +553,89 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         st.markdown("---")
         st.markdown("### 💬 Ask a Question")
         
-        # Speech recognition JavaScript component
-        speech_component = """
-        <div id="speech-recognition-container"></div>
-        <script>
-        (function() {
-            let recognition = null;
-            let isListening = false;
-            let transcriptText = '';
-            
-            function initSpeechRecognition() {
-                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                    console.warn('Speech recognition not supported in this browser');
-                    return;
-                }
-                
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
-                
-                recognition.onresult = function(event) {
-                    let interimTranscript = '';
-                    let finalTranscript = '';
+        # Speech recognition component that stores transcript in a hidden input
+        if st.session_state.speech_recognition_active:
+            speech_html = f"""
+            <div id="speech-recognition-wrapper">
+                <input type="hidden" id="speech-transcript" value="">
+                <script>
+                (function() {{
+                    let recognition = null;
+                    let transcriptText = '';
                     
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            finalTranscript += transcript + ' ';
-                        } else {
-                            interimTranscript += transcript;
-                        }
-                    }
-                    
-                    transcriptText = finalTranscript || interimTranscript;
-                    
-                    // Update the Streamlit text input via DOM manipulation
-                    const textInput = window.parent.document.querySelector('input[data-testid="stTextInput"]');
-                    if (textInput) {
-                        textInput.value = transcriptText;
-                        textInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                    if (event.error === 'no-speech') {
-                        // Restart if no speech detected
-                        if (isListening) {
-                            setTimeout(() => {
-                                if (isListening && recognition) {
+                    function initSpeechRecognition() {{
+                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {{
+                            alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+                            return;
+                        }}
+                        
+                        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                        recognition = new SpeechRecognition();
+                        recognition.continuous = true;
+                        recognition.interimResults = true;
+                        recognition.lang = 'en-US';
+                        
+                        recognition.onresult = function(event) {{
+                            transcriptText = '';
+                            for (let i = event.resultIndex; i < event.results.length; i++) {{
+                                transcriptText += event.results[i][0].transcript;
+                            }}
+                            
+                            // Store in hidden input
+                            const hiddenInput = document.getElementById('speech-transcript');
+                            if (hiddenInput) {{
+                                hiddenInput.value = transcriptText;
+                            }}
+                            
+                            // Update visible text input
+                            const textInputs = window.parent.document.querySelectorAll('input[type="text"]');
+                            for (let input of textInputs) {{
+                                if (input.placeholder && input.placeholder.includes('Ask the teachers')) {{
+                                    input.value = transcriptText;
+                                    // Trigger input event
+                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    break;
+                                }}
+                            }}
+                        }};
+                        
+                        recognition.onerror = function(event) {{
+                            console.error('Speech recognition error:', event.error);
+                            if (event.error === 'not-allowed') {{
+                                alert('Microphone permission denied. Please allow microphone access and try again.');
+                            }}
+                        }};
+                        
+                        recognition.onend = function() {{
+                            // Auto-restart if still active
+                            if (document.getElementById('speech-transcript')) {{
+                                try {{
                                     recognition.start();
-                                }
-                            }, 100);
-                        }
-                    }
-                };
-                
-                recognition.onend = function() {
-                    isListening = false;
-                    // Update button state
-                    const button = window.parent.document.querySelector('button[kind="secondary"]');
-                    if (button && button.textContent.includes('Stop')) {
-                        button.click();
-                    }
-                };
-            }
-            
-            function startListening() {
-                if (!recognition) {
-                    initSpeechRecognition();
-                }
-                if (recognition && !isListening) {
-                    try {
-                        recognition.start();
-                        isListening = true;
-                    } catch (e) {
-                        console.error('Error starting recognition:', e);
-                        isListening = false;
-                    }
-                }
-            }
-            
-            function stopListening() {
-                if (recognition && isListening) {
-                    recognition.stop();
-                    isListening = false;
-                }
-            }
-            
-            // Listen for button clicks
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    const buttons = window.parent.document.querySelectorAll('button');
-                    buttons.forEach(button => {
-                        if (button.textContent.includes('🎤 Talk')) {
-                            button.addEventListener('click', function() {
-                                setTimeout(startListening, 100);
-                            });
-                        } else if (button.textContent.includes('🎤 Stop')) {
-                            button.addEventListener('click', function() {
-                                stopListening();
-                            });
-                        }
-                    });
-                }, 500);
-            });
-            
-            // Also listen for Streamlit reruns
-            const observer = new MutationObserver(function(mutations) {
-                const buttons = window.parent.document.querySelectorAll('button');
-                buttons.forEach(button => {
-                    if (button.textContent.includes('🎤 Talk') && !button.hasAttribute('data-speech-listener')) {
-                        button.setAttribute('data-speech-listener', 'true');
-                        button.addEventListener('click', function() {
-                            setTimeout(startListening, 100);
-                        });
-                    } else if (button.textContent.includes('🎤 Stop') && !button.hasAttribute('data-speech-listener')) {
-                        button.setAttribute('data-speech-listener', 'true');
-                        button.addEventListener('click', function() {
-                            stopListening();
-                        });
-                    }
-                });
-            });
-            
-            if (window.parent.document.body) {
-                observer.observe(window.parent.document.body, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-        })();
-        </script>
-        """
-        st.components.v1.html(speech_component, height=0)
+                                }} catch (e) {{
+                                    // Already started or error
+                                }}
+                            }}
+                        }};
+                        
+                        try {{
+                            recognition.start();
+                        }} catch (e) {{
+                            console.error('Error starting recognition:', e);
+                        }}
+                    }}
+                    
+                    // Initialize when page loads
+                    if (document.readyState === 'loading') {{
+                        document.addEventListener('DOMContentLoaded', initSpeechRecognition);
+                    }} else {{
+                        setTimeout(initSpeechRecognition, 100);
+                    }}
+                }})();
+                </script>
+            </div>
+            """
+            st.components.v1.html(speech_html, height=0)
         
         # Chat input with speech-to-text
         chat_col1, chat_col2, chat_col3 = st.columns([3, 1, 1])
@@ -709,6 +656,9 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             button_type = "secondary" if st.session_state.speech_recognition_active else "primary"
             if st.button(button_label, type=button_type, use_container_width=True, key="speech_button"):
                 st.session_state.speech_recognition_active = not st.session_state.speech_recognition_active
+                if not st.session_state.speech_recognition_active:
+                    # Clear any partial transcript when stopping
+                    pass
                 st.rerun()
         
         with chat_col3:
@@ -730,6 +680,9 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         # Show speech recognition status
         if st.session_state.speech_recognition_active:
             st.info("🎤 Listening... Speak now! (Click Stop when done)")
+            # Auto-refresh to capture transcript updates
+            time.sleep(0.5)
+            st.rerun()
     
     # ===== RIGHT COLUMN: Teacher (Maximus) =====
     with col_right:
