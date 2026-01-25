@@ -66,6 +66,20 @@ if conda env list | grep -q "longcat-video"; then
     
     # Verify critical dependencies using conda Python
     "$CONDA_PYTHON" -c "import pyloudnorm; print('✅ pyloudnorm installed successfully in conda environment')" 2>/dev/null || echo "⚠️  pyloudnorm verification failed"
+    
+    # Install LongCat-Video API service dependencies
+    echo "Installing LongCat-Video API service dependencies..."
+    if [[ -f "$PROJECT_DIR/services/longcat_video/requirements.txt" ]]; then
+        "$CONDA_PIP" install -r "$PROJECT_DIR/services/longcat_video/requirements.txt" || {
+            echo "⚠️  Some API dependencies failed, installing minimal set..."
+            "$CONDA_PIP" install fastapi==0.104.1 "uvicorn[standard]==0.24.0" httpx==0.25.2 pydantic==2.5.0 || echo "⚠️  Failed to install API dependencies"
+        }
+    else
+        "$CONDA_PIP" install fastapi==0.104.1 "uvicorn[standard]==0.24.0" httpx==0.25.2 pydantic==2.5.0 || echo "⚠️  Failed to install API dependencies"
+    fi
+    
+    # Verify API dependencies
+    "$CONDA_PYTHON" -c "import fastapi; print('✅ FastAPI installed in conda environment')" 2>/dev/null || echo "⚠️  FastAPI verification failed"
 else
     echo "❌ longcat-video conda environment not found!"
     echo "   Run: bash scripts/deploy_longcat_video.sh"
