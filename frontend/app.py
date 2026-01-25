@@ -446,6 +446,7 @@ with st.sidebar:
                 st.session_state.session_id = session_id
                 st.session_state.selected_teachers = selected
                 st.session_state.website_url = url_to_use  # Set website URL for session page
+                st.session_state.show_session_page = True  # Show session page
                 
                 if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
                     st.session_state.sse_thread = threading.Thread(
