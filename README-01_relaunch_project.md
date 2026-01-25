@@ -92,8 +92,9 @@ cd Nextwork-Teachers-TechMonkey
 ls -la
 
 # Step 3: Run the complete setup (first time only)
-# This will install all dependencies, set up environments, etc.
+# This will install all dependencies, set up environments, Ollama, n8n, etc.
 bash scripts/deploy_no_docker.sh
+# Note: This installs Ollama and pulls mistral:7b model (~4GB, 5-10 minutes)
 
 # Step 4: Set up LongCat-Video (this downloads ~40GB of models, takes 30-60 minutes)
 bash scripts/deploy_longcat_video.sh

@@ -40,8 +40,17 @@ sleep 2
 echo "✅ Existing services stopped"
 echo ""
 
-# Step 2: Start Ollama
-echo "Step 2: Starting Ollama..."
+# Step 2: Check and install Ollama if missing
+echo "Step 2: Checking Ollama installation..."
+if ! command -v ollama >/dev/null 2>&1; then
+    echo "⚠️  Ollama is not installed!"
+    echo "   Installing Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh
+    echo "✅ Ollama installed"
+fi
+
+# Step 2a: Start Ollama
+echo "Step 2a: Starting Ollama..."
 if ! pgrep -f "ollama serve" > /dev/null; then
     mkdir -p logs
     nohup ollama serve > logs/ollama.log 2>&1 &

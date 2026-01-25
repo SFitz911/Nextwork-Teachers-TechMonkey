@@ -38,6 +38,28 @@ if ! command -v n8n >/dev/null 2>&1; then
 fi
 
 echo ""
+echo "Installing Ollama (LLM service)..."
+if ! command -v ollama >/dev/null 2>&1; then
+  curl -fsSL https://ollama.com/install.sh | sh
+  echo "✅ Ollama installed"
+else
+  echo "✅ Ollama already installed"
+fi
+
+# Check if mistral:7b model is installed
+if command -v ollama >/dev/null 2>&1; then
+  echo "   Checking for mistral:7b model..."
+  MODEL_INSTALLED=$(curl -s http://localhost:11434/api/tags 2>/dev/null | python3 -c "import json, sys; d=json.load(sys.stdin); models=[m.get('name') for m in d.get('models', [])]; print('yes' if 'mistral:7b' in models else 'no')" 2>/dev/null || echo "no")
+  
+  if [[ "$MODEL_INSTALLED" != "yes" ]]; then
+    echo "   Installing mistral:7b model (this takes 5-10 minutes, ~4GB)..."
+    ollama pull mistral:7b || echo "⚠️  Model installation failed (you can install later with: ollama pull mistral:7b)"
+  else
+    echo "✅ mistral:7b model already installed"
+  fi
+fi
+
+echo ""
 echo "Setting up Python virtualenv..."
 VENV_DIR="${VENV_DIR:-$HOME/ai-teacher-venv}"
 python3 -m venv "$VENV_DIR"
