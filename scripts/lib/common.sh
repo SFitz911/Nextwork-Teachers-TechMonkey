@@ -21,7 +21,7 @@ fi
 export N8N_USER="${N8N_USER:-admin}"
 export N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
 # Default API key (JWT token) - will be used if not in .env
-export N8N_API_KEY="${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4ZWM2NDU4Yy1hMjg0LTQ4ZTctYmE3OS0yOTNlNmY3MjJlMTYiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MzE3ODA3fQ.iAUgO1sHP11IDOJT38pn3wOwjHXQmVg4_SyrNyaMqbw}"
+export N8N_API_KEY="${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5ODg5NmQwZS00NWFhLTRiNmEtYTkwZi03ZTM0OWY4YjBmZTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MzY3MDM4LCJleHAiOjE3NzE5MDkyMDB9.nz4Uao_QXeIlxlC0Mw3rq6nl5MpLyuIL5_WE8YKHBck}"
 export N8N_URL="${N8N_URL:-http://localhost:5678}"
 export VENV_DIR="${VENV_DIR:-$HOME/ai-teacher-venv}"
 
