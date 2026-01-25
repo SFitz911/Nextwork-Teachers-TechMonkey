@@ -268,6 +268,11 @@ async def generate_video_background(
         
         # Run generation
         logger.info(f"Running command: {' '.join(cmd)}")
+        logger.info(f"Working directory: {LONGCAT_VIDEO_DIR}")
+        logger.info(f"Python executable: {python_exe}")
+        logger.info(f"CONDA_PREFIX: {os.getenv('CONDA_PREFIX', 'not set')}")
+        logger.info(f"CONDA_DEFAULT_ENV: {os.getenv('CONDA_DEFAULT_ENV', 'not set')}")
+        
         result = subprocess.run(
             cmd,
             cwd=LONGCAT_VIDEO_DIR,
@@ -278,9 +283,16 @@ async def generate_video_background(
         )
         
         if result.returncode != 0:
-            logger.error(f"Generation failed: {result.stderr}")
+            error_msg = f"Generation failed with exit code {result.returncode}"
+            if result.stdout:
+                logger.error(f"STDOUT: {result.stdout}")
+                error_msg += f"\nSTDOUT: {result.stdout}"
+            if result.stderr:
+                logger.error(f"STDERR: {result.stderr}")
+                error_msg += f"\nSTDERR: {result.stderr}"
+            logger.error(f"Full error: {error_msg}")
             jobs[job_id]["status"] = "failed"
-            jobs[job_id]["error"] = result.stderr
+            jobs[job_id]["error"] = error_msg
             return
         
         # Find output video

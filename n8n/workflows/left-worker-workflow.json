@@ -177,7 +177,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare clip-ready payload\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.sessionId || !input.teacher || !input.clip) {\n  throw new Error(`Missing required fields: sessionId=${!!input.sessionId}, teacher=${!!input.teacher}, clip=${!!input.clip}`);\n}\n\nreturn {\n  json: {\n    sessionId: input.sessionId,\n    teacher: input.teacher,\n    clip: input.clip\n  }\n};"
+        "jsCode": "// Prepare clip-ready payload and build URL\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.sessionId || !input.teacher || !input.clip) {\n  throw new Error(`Missing required fields: sessionId=${!!input.sessionId}, teacher=${!!input.teacher}, clip=${!!input.clip}`);\n}\n\n// Build the clip-ready URL\nconst clipReadyUrl = `http://localhost:8004/session/${input.sessionId}/clip-ready`;\n\nreturn {\n  json: {\n    sessionId: input.sessionId,\n    teacher: input.teacher,\n    clip: input.clip,\n    clipReadyUrl: clipReadyUrl\n  }\n};"
       },
       "id": "prepare-clip-ready",
       "name": "Prepare Clip Ready",
@@ -187,7 +187,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:8004/session/={{ $json.sessionId }}/clip-ready",
+        "url": "={{ $json.clipReadyUrl }}",
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
