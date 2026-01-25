@@ -558,10 +558,27 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             speech_html = f"""
             <div id="speech-recognition-wrapper">
                 <input type="hidden" id="speech-transcript" value="">
+                <input type="hidden" id="should-listen" value="true">
                 <script>
                 (function() {{
                     let recognition = null;
                     let transcriptText = '';
+                    let shouldListen = true;
+                    
+                    function stopRecognition() {{
+                        shouldListen = false;
+                        if (recognition) {{
+                            recognition.stop();
+                            recognition = null;
+                        }}
+                    }}
+                    
+                    // Listen for stop signal
+                    window.addEventListener('message', function(event) {{
+                        if (event.data === 'stop-speech-recognition') {{
+                            stopRecognition();
+                        }}
+                    }});
                     
                     function initSpeechRecognition() {{
                         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {{
@@ -576,6 +593,8 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                         recognition.lang = 'en-US';
                         
                         recognition.onresult = function(event) {{
+                            if (!shouldListen) return;
+                            
                             transcriptText = '';
                             for (let i = event.resultIndex; i < event.results.length; i++) {{
                                 transcriptText += event.results[i][0].transcript;
@@ -590,7 +609,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                             // Update visible text input
                             const textInputs = window.parent.document.querySelectorAll('input[type="text"]');
                             for (let input of textInputs) {{
-                                if (input.placeholder && input.placeholder.includes('Ask the teachers')) {{
+                                if (input.placeholder && (input.placeholder.includes('Type your question') || input.placeholder.includes('Talk to text'))) {{
                                     input.value = transcriptText;
                                     // Trigger input event
                                     input.dispatchEvent(new Event('input', {{ bubbles: true }}));
@@ -604,12 +623,13 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                             console.error('Speech recognition error:', event.error);
                             if (event.error === 'not-allowed') {{
                                 alert('Microphone permission denied. Please allow microphone access and try again.');
+                                shouldListen = false;
                             }}
                         }};
                         
                         recognition.onend = function() {{
-                            // Auto-restart if still active
-                            if (document.getElementById('speech-transcript')) {{
+                            // Only auto-restart if we should still be listening
+                            if (shouldListen && document.getElementById('speech-transcript')) {{
                                 try {{
                                     recognition.start();
                                 }} catch (e) {{
@@ -637,15 +657,30 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             """
             st.components.v1.html(speech_html, height=0)
         
+        # Stop recognition when button is clicked to stop
+        if not st.session_state.speech_recognition_active:
+            stop_script = """
+            <script>
+            window.postMessage('stop-speech-recognition', '*');
+            </script>
+            """
+            st.components.v1.html(stop_script, height=0)
+        
         # Chat input with speech-to-text
         chat_col1, chat_col2, chat_col3 = st.columns([3, 1, 1])
         
         with chat_col1:
+            # Dynamic placeholder based on speech recognition state
+            if st.session_state.speech_recognition_active:
+                placeholder_text = "🎤 Listening... Speak your question"
+            else:
+                placeholder_text = "Type your question or click 🎤 Talk for speech-to-text"
+            
             chat_message = st.text_input(
                 "Type your question",
                 value=st.session_state.chat_message,
                 key="chat_input",
-                placeholder="Ask the teachers about the content... (or use 🎤 Talk button)",
+                placeholder=placeholder_text,
                 label_visibility="collapsed"
             )
             st.session_state.chat_message = chat_message
@@ -656,9 +691,6 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             button_type = "secondary" if st.session_state.speech_recognition_active else "primary"
             if st.button(button_label, type=button_type, use_container_width=True, key="speech_button"):
                 st.session_state.speech_recognition_active = not st.session_state.speech_recognition_active
-                if not st.session_state.speech_recognition_active:
-                    # Clear any partial transcript when stopping
-                    pass
                 st.rerun()
         
         with chat_col3:
