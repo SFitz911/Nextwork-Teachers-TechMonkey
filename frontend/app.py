@@ -231,6 +231,8 @@ if "transcribed_text" not in st.session_state:
     st.session_state.transcribed_text = ""
 if "speech_recognition_id" not in st.session_state:
     st.session_state.speech_recognition_id = 0
+if "show_session_page" not in st.session_state:
+    st.session_state.show_session_page = False
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -473,7 +475,19 @@ with st.sidebar:
             st.session_state.renderer = None
             st.session_state.clips = {}
             st.session_state.current_clip = None
+            # Keep showing the session page
+            st.session_state.show_session_page = True
             st.rerun()
+        
+        # Back button to return to landing page
+        if st.session_state.show_session_page and not st.session_state.session_id:
+            st.markdown("---")
+            if st.button("← Back to Start", use_container_width=True):
+                st.session_state.show_session_page = False
+                st.session_state.selected_teachers = []
+                st.session_state.website_url = ""
+                st.session_state.chat_message = ""
+                st.rerun()
 
 
 # Process events
@@ -482,7 +496,8 @@ if st.session_state.session_id:
 
 
 # Main Content Area - Session Active Page
-if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
+# Show session page if session is active OR if we're showing it after ending
+if (st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2) or (st.session_state.show_session_page and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2):
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
     
