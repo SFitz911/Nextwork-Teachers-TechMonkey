@@ -91,10 +91,10 @@ pip install flash_attn==2.7.4.post1 || echo "[WARNING] Flash Attention installat
 
 # Install avatar requirements (skip libsndfile1 - it's a system package)
 echo "Installing avatar requirements..."
-# Filter out libsndfile1 and commented lines
-grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | pip install -r /dev/stdin || {
-    echo "⚠️  Some avatar requirements failed, trying individual packages..."
-    pip install scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 pyloudnorm==0.1.1 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 tritonserverclient==0.0.6 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || true
+# Filter out problematic packages: libsndfile1 (system package), tritonserverclient (not available)
+grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | grep -v "tritonserverclient" | pip install -r /dev/stdin || {
+    echo "⚠️  Some avatar requirements failed, trying essential packages only..."
+    pip install scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 pyloudnorm==0.1.1 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || echo "⚠️  Some packages failed, but continuing..."
 }
 
 # Install audio processing tools via conda (librosa, ffmpeg)
