@@ -36,6 +36,17 @@ else
 fi
 echo ""
 
+# Step 1.5: Setup LongCat-Video avatar images (if LongCat-Video exists)
+echo "Step 1.5: Setting up LongCat-Video avatar images..."
+if [[ -d "$PROJECT_DIR/LongCat-Video" ]] && [[ -d "$PROJECT_DIR/Nextwork-Teachers" ]]; then
+    mkdir -p "$PROJECT_DIR/LongCat-Video/assets/avatars"
+    bash "$PROJECT_DIR/scripts/fix_avatar_images.sh" >/dev/null 2>&1 || echo "⚠️  Avatar image setup skipped (images may need manual setup)"
+    echo "✅ Avatar images checked/setup"
+else
+    echo "⚠️  LongCat-Video or Nextwork-Teachers not found - skipping avatar setup"
+fi
+echo ""
+
 # Step 2: Stop existing services
 echo "Step 2: Stopping existing services..."
 pkill -f "ollama serve" 2>/dev/null || true

@@ -124,6 +124,13 @@ tmux send-keys -t "$SESSION":coordinator \
 tmux new-window -t "$SESSION" -n longcat
 LONGCAT_DIR="$PROJECT_DIR/LongCat-Video"
 if [[ -d "$LONGCAT_DIR" ]] && [[ -f "$PROJECT_DIR/services/longcat_video/app.py" ]]; then
+    # Ensure avatar images are set up before starting service
+    echo "Setting up LongCat-Video avatar images..."
+    mkdir -p "$LONGCAT_DIR/assets/avatars"
+    if [[ -d "$PROJECT_DIR/Nextwork-Teachers" ]]; then
+        bash "$PROJECT_DIR/scripts/fix_avatar_images.sh" >/dev/null 2>&1 || true
+    fi
+    
     tmux send-keys -t "$SESSION":longcat \
       "cd '$PROJECT_DIR' && \
        source \"\$(conda info --base)/etc/profile.d/conda.sh\" && \

@@ -89,22 +89,32 @@ fi
 AVATAR_IMAGES_DIR="$LONGCAT_DIR/assets/avatars"
 mkdir -p "$AVATAR_IMAGES_DIR"
 
+# Copy avatar images from Nextwork-Teachers if they exist
+echo "Setting up avatar images..."
+if [[ -d "$PROJECT_ROOT/Nextwork-Teachers" ]]; then
+    echo "Copying teacher images from Nextwork-Teachers..."
+    bash "$PROJECT_ROOT/scripts/fix_avatar_images.sh" || echo "⚠️  Avatar image setup had issues, but continuing..."
+else
+    echo "⚠️  Nextwork-Teachers directory not found. Avatar images will need to be added manually."
+    echo "   Expected location: $AVATAR_IMAGES_DIR"
+fi
+
 echo "=========================================="
 echo "✅ LongCat-Video-Avatar deployment complete!"
 echo "=========================================="
 echo ""
-echo "Next steps:"
-echo "1. Place teacher images in: $AVATAR_IMAGES_DIR"
+echo "Avatar images should be in: $AVATAR_IMAGES_DIR"
 echo "   - maya.png (teacher_a)"
 echo "   - maximus.png (teacher_b)"
 echo "   - krishna.png (teacher_c)"
 echo "   - techmonkey_steve.png (teacher_d)"
 echo "   - pano_bieber.png (teacher_e)"
 echo ""
-echo "2. Start the API service:"
+echo "Next steps:"
+echo "1. Start the API service:"
 echo "   cd $PROJECT_ROOT"
 echo "   conda activate longcat-video"
 echo "   python services/longcat_video/app.py"
 echo ""
-echo "3. Update n8n workflow to use LongCat-Video-Avatar service"
+echo "2. Update n8n workflow to use LongCat-Video-Avatar service"
 echo "   (port 8003 instead of animation service on 8002)"

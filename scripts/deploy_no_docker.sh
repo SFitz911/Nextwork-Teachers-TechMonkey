@@ -68,6 +68,15 @@ EOF
 fi
 
 echo ""
+echo "Setting up LongCat-Video avatar images (if LongCat-Video exists)..."
+if [[ -d "LongCat-Video" ]] && [[ -d "Nextwork-Teachers" ]]; then
+    mkdir -p "LongCat-Video/assets/avatars"
+    bash scripts/fix_avatar_images.sh >/dev/null 2>&1 || echo "⚠️  Avatar image setup skipped (images may need manual setup)"
+else
+    echo "⚠️  LongCat-Video or Nextwork-Teachers not found - skipping avatar setup"
+fi
+
+echo ""
 echo "Starting Redis (best-effort)..."
 redis-server --daemonize yes >/dev/null 2>&1 || true
 
