@@ -35,9 +35,32 @@ CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate longcat-video
 
-# Verify we're in the right environment
-echo "Python location: $(which python)"
-echo "Python version: $(python --version)"
+# CRITICAL: Verify we're in the right environment
+PYTHON_PATH=$(which python)
+PYTHON_VERSION=$(python --version 2>&1)
+echo "Python location: $PYTHON_PATH"
+echo "Python version: $PYTHON_VERSION"
+
+# Check if we're actually in conda environment
+if [[ ! "$PYTHON_PATH" == *"longcat-video"* ]] && [[ ! "$PYTHON_PATH" == *"conda"* ]]; then
+    echo "❌ ERROR: Not in conda longcat-video environment!"
+    echo "   Python path: $PYTHON_PATH"
+    echo "   Expected: .../conda/envs/longcat-video/..."
+    echo ""
+    echo "Please run:"
+    echo "  source $(conda info --base)/etc/profile.d/conda.sh"
+    echo "  conda activate longcat-video"
+    echo "  bash scripts/deploy_longcat_video.sh"
+    exit 1
+fi
+
+# Verify Python version is 3.10
+if [[ ! "$PYTHON_VERSION" == *"3.10"* ]]; then
+    echo "❌ ERROR: Wrong Python version! Need Python 3.10, got: $PYTHON_VERSION"
+    echo "   Please recreate conda environment:"
+    echo "   conda create -n longcat-video python=3.10 -y"
+    exit 1
+fi
 
 # Install system dependencies first
 echo "Installing system dependencies..."
