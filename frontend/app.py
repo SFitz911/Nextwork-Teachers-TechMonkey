@@ -815,7 +815,15 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
             st.caption("💤 Idle")
         
         # Show video/audio or avatar
-        if right_speaking and st.session_state.current_clip:
+        # Show video if teacher is speaking OR if we're replaying their clip
+        showing_video_right = (right_speaking and st.session_state.current_clip) or (
+            st.session_state.current_clip and 
+            st.session_state.current_clip == st.session_state.last_played_clip and
+            st.session_state.current_clip in st.session_state.clips.values() and
+            st.session_state.clips.get(right_teacher) == st.session_state.current_clip
+        )
+        
+        if showing_video_right:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
