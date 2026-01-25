@@ -229,6 +229,8 @@ if "speech_recognition_active" not in st.session_state:
     st.session_state.speech_recognition_active = False
 if "transcribed_text" not in st.session_state:
     st.session_state.transcribed_text = ""
+if "speech_recognition_id" not in st.session_state:
+    st.session_state.speech_recognition_id = 0
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -574,48 +576,61 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             )
             st.session_state.chat_message = chat_message
         
-        # Speech recognition component - runs in main window context
+        # Speech recognition component with proper stop functionality
+        rec_id = st.session_state.speech_recognition_id
         if st.session_state.speech_recognition_active:
-            speech_html = """
+            speech_html = f"""
+            <div id="speech-rec-{rec_id}"></div>
             <script>
-            (function() {
+            (function() {{
+                const recId = '{rec_id}';
                 let recognition = null;
                 let transcriptText = '';
-                let shouldListen = true;
+                let isActive = true;
                 
-                function findTextArea() {
-                    // Find the textarea by looking for the one with our placeholder
-                    const textareas = document.querySelectorAll('textarea');
-                    for (let textarea of textareas) {
-                        if (textarea.placeholder && (
-                            textarea.placeholder.includes('Listening') || 
-                            textarea.placeholder.includes('Type your question')
-                        )) {
-                            return textarea;
-                        }
-                    }
-                    // Fallback: find any textarea in the chat section
-                    return document.querySelector('textarea[data-testid="stTextArea"]') || 
-                           document.querySelector('textarea');
-                }
+                // Store recognition instance globally with ID
+                if (!window.speechRecognitionInstances) {{
+                    window.speechRecognitionInstances = {{}};
+                }}
                 
-                function updateTextArea(text) {
+                function findTextArea() {{
+                    // Try multiple methods to find the textarea
+                    const selectors = [
+                        'textarea[data-testid="stTextArea"]',
+                        'textarea[placeholder*="question"]',
+                        'textarea[placeholder*="Talk"]',
+                        'textarea[placeholder*="Listening"]',
+                        'textarea'
+                    ];
+                    
+                    for (let selector of selectors) {{
+                        const textarea = document.querySelector(selector);
+                        if (textarea) return textarea;
+                    }}
+                    return null;
+                }}
+                
+                function updateTextArea(text) {{
                     const textarea = findTextArea();
-                    if (textarea) {
+                    if (textarea) {{
                         textarea.value = text;
-                        // Trigger events to update Streamlit
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        textarea.dispatchEvent(new Event('change', { bubbles: true }));
-                        // Also trigger keyup to ensure Streamlit captures it
-                        textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-                    }
-                }
+                        textarea.focus();
+                        // Trigger multiple events to ensure Streamlit captures it
+                        const events = ['input', 'change', 'keyup', 'keydown'];
+                        events.forEach(eventType => {{
+                            textarea.dispatchEvent(new Event(eventType, {{ bubbles: true }}));
+                        }});
+                        // Also try setting value directly
+                        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, text);
+                        textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }}
                 
-                function initSpeechRecognition() {
-                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                        alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+                function initSpeechRecognition() {{
+                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {{
+                        alert('Speech recognition not supported. Please use Chrome, Edge, or Safari.');
                         return;
-                    }
+                    }}
                     
                     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                     recognition = new SpeechRecognition();
@@ -623,89 +638,80 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                     recognition.interimResults = true;
                     recognition.lang = 'en-US';
                     
-                    recognition.onresult = function(event) {
-                        if (!shouldListen) return;
+                    recognition.onresult = function(event) {{
+                        if (!isActive) return;
                         
                         transcriptText = '';
-                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                        for (let i = event.resultIndex; i < event.results.length; i++) {{
                             transcriptText += event.results[i][0].transcript;
-                        }
+                        }}
                         
-                        updateTextArea(transcriptText);
-                    };
+                        if (transcriptText) {{
+                            updateTextArea(transcriptText);
+                        }}
+                    }};
                     
-                    recognition.onerror = function(event) {
+                    recognition.onerror = function(event) {{
                         console.error('Speech recognition error:', event.error);
-                        if (event.error === 'not-allowed') {
-                            alert('Microphone permission denied. Please allow microphone access and try again.');
-                            shouldListen = false;
-                        } else if (event.error === 'no-speech') {
-                            // Restart if no speech detected
-                            if (shouldListen) {
-                                setTimeout(() => {
-                                    if (shouldListen && recognition) {
-                                        try {
-                                            recognition.start();
-                                        } catch (e) {
-                                            console.log('Recognition already started');
-                                        }
-                                    }
-                                }, 100);
-                            }
-                        }
-                    };
+                        if (event.error === 'not-allowed') {{
+                            alert('Microphone permission denied. Please allow access.');
+                            isActive = false;
+                        }}
+                    }};
                     
-                    recognition.onend = function() {
-                        // Auto-restart if we should still be listening
-                        if (shouldListen) {
-                            setTimeout(() => {
-                                if (shouldListen && recognition) {
-                                    try {
+                    recognition.onend = function() {{
+                        // Only restart if still active
+                        if (isActive && document.getElementById('speech-rec-' + recId)) {{
+                            setTimeout(() => {{
+                                if (isActive && recognition) {{
+                                    try {{
                                         recognition.start();
-                                    } catch (e) {
-                                        // Already started or error
-                                    }
-                                }
-                            }, 100);
-                        }
-                    };
+                                    }} catch (e) {{
+                                        // Ignore
+                                    }}
+                                }}
+                            }}, 100);
+                        }}
+                    }};
                     
-                    try {
+                    // Store stop function
+                    window.speechRecognitionInstances[recId] = {{
+                        stop: function() {{
+                            isActive = false;
+                            if (recognition) {{
+                                recognition.stop();
+                                recognition = null;
+                            }}
+                            delete window.speechRecognitionInstances[recId];
+                        }}
+                    }};
+                    
+                    try {{
                         recognition.start();
-                        console.log('Speech recognition started');
-                    } catch (e) {
+                        console.log('Speech recognition started:', recId);
+                    }} catch (e) {{
                         console.error('Error starting recognition:', e);
-                    }
-                }
+                    }}
+                }}
                 
-                // Stop function
-                window.stopSpeechRecognition = function() {
-                    shouldListen = false;
-                    if (recognition) {
-                        recognition.stop();
-                        recognition = null;
-                        console.log('Speech recognition stopped');
-                    }
-                };
-                
-                // Initialize when script loads
-                if (document.readyState === 'loading') {
+                // Initialize
+                if (document.readyState === 'loading') {{
                     document.addEventListener('DOMContentLoaded', initSpeechRecognition);
-                } else {
-                    setTimeout(initSpeechRecognition, 200);
-                }
-            })();
+                }} else {{
+                    setTimeout(initSpeechRecognition, 300);
+                }}
+            }})();
             </script>
             """
             st.components.v1.html(speech_html, height=0)
         
         # Stop recognition when button is clicked to stop
-        if not st.session_state.speech_recognition_active:
-            stop_script = """
+        if not st.session_state.speech_recognition_active and rec_id > 0:
+            stop_script = f"""
             <script>
-            if (window.stopSpeechRecognition) {
-                window.stopSpeechRecognition();
-            }
+            if (window.speechRecognitionInstances && window.speechRecognitionInstances['{rec_id}']) {{
+                window.speechRecognitionInstances['{rec_id}'].stop();
+            }}
             </script>
             """
             st.components.v1.html(stop_script, height=0)
@@ -715,6 +721,12 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             button_label = "🎤 Stop" if st.session_state.speech_recognition_active else "🎤 Talk"
             button_type = "secondary" if st.session_state.speech_recognition_active else "primary"
             if st.button(button_label, type=button_type, use_container_width=True, key="speech_button"):
+                if st.session_state.speech_recognition_active:
+                    # Stopping - increment ID to create new instance next time
+                    st.session_state.speech_recognition_id += 1
+                else:
+                    # Starting - increment ID for new instance
+                    st.session_state.speech_recognition_id += 1
                 st.session_state.speech_recognition_active = not st.session_state.speech_recognition_active
                 st.rerun()
         
