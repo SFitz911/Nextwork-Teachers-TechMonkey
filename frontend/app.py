@@ -443,71 +443,60 @@ if st.session_state.session_id:
     process_events()
 
 
-# Main Content Area
+# Main Content Area - Session Active Page
 if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
-    # Main layout: Left Avatar | Center Website | Right Avatar
-    col_left, col_center, col_right = st.columns([1, 2.5, 1])
-    
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
     
-    # Left Teacher Panel
+    # Clean three-column layout: Teacher Left | URL Box Center | Teacher Right
+    col_left, col_center, col_right = st.columns([1, 2, 1], gap="medium")
+    
+    # ===== LEFT COLUMN: Teacher (Maya) =====
     with col_left:
         left_speaking = (st.session_state.speaker == left_teacher)
         left_rendering = (st.session_state.renderer == left_teacher)
         
-        panel_class = "teacher-panel"
-        if left_speaking:
-            panel_class += " speaking"
-        elif left_rendering:
-            panel_class += " rendering"
-        
-        st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
-        
-        # Teacher name and status
+        # Teacher name
         st.markdown(f"### {TEACHERS[left_teacher]['name']}")
         
+        # Status indicator
         if left_speaking:
-            st.markdown('<p class="status-speaking">🎤 Speaking</p>', unsafe_allow_html=True)
+            st.success("🎤 Speaking")
         elif left_rendering:
-            st.markdown('<p class="status-rendering">⏳ Rendering</p>', unsafe_allow_html=True)
+            st.info("⏳ Rendering")
         else:
-            st.markdown('<p class="status-idle">💤 Idle</p>', unsafe_allow_html=True)
+            st.caption("💤 Idle")
         
-        # Show video/audio if clip is ready and this is the speaker
+        # Show video/audio or avatar
         if left_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
                     st.video(clip["videoUrl"])
                     if clip.get("text"):
-                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                        st.caption(clip.get("text", ""))
                 elif clip.get("audioUrl"):
                     st.audio(clip["audioUrl"])
                     if clip.get("text"):
-                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                        st.caption(clip.get("text", ""))
             except Exception:
                 if clip.get("audioUrl"):
                     try:
                         st.audio(clip["audioUrl"])
                         if clip.get("text"):
-                            st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                            st.caption(clip.get("text", ""))
                     except Exception:
                         pass
         else:
             # Show avatar image
             try:
-                st.image(TEACHERS[left_teacher]["image"], width='stretch')
+                st.image(TEACHERS[left_teacher]["image"], use_container_width=True)
             except Exception:
-                st.image("https://via.placeholder.com/400x300?text=Avatar", width='stretch')
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.image("https://via.placeholder.com/400x300?text=Avatar", use_container_width=True)
     
-    # Center Panel - Learning Content
+    # ===== CENTER COLUMN: URL Lesson Box =====
     with col_center:
-        st.markdown('<div class="center-panel">', unsafe_allow_html=True)
-        
-        # Large, prominent URL input at top - this is the main focus
+        # Large, prominent URL input box
         website_url = st.text_input(
             "Enter URL to load learning content",
             value=st.session_state.website_url or "",
@@ -517,22 +506,18 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         )
         st.session_state.website_url = website_url
         
-        # Add spacing
-        st.markdown("<br>", unsafe_allow_html=True)
-        
         # Embed website if URL provided
         if website_url:
             try:
-                st.components.v1.iframe(website_url, height=450, scrolling=True)
+                st.components.v1.iframe(website_url, height=500, scrolling=True)
             except Exception:
                 st.warning("Could not load website. Please check the URL.")
         
-        # Chat interface (simplified)
+        # Chat interface
         st.markdown("---")
         st.markdown("### 💬 Ask a Question")
         
         chat_col1, chat_col2 = st.columns([4, 1])
-        
         with chat_col1:
             chat_message = st.text_input(
                 "Type your question",
@@ -558,60 +543,49 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                     st.success("✅ Question sent!")
                     st.session_state.chat_message = ""
                     st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
-    # Right Teacher Panel
+    # ===== RIGHT COLUMN: Teacher (Maximus) =====
     with col_right:
         right_speaking = (st.session_state.speaker == right_teacher)
         right_rendering = (st.session_state.renderer == right_teacher)
         
-        panel_class = "teacher-panel"
-        if right_speaking:
-            panel_class += " speaking"
-        elif right_rendering:
-            panel_class += " rendering"
-        
-        st.markdown(f'<div class="{panel_class}">', unsafe_allow_html=True)
-        
-        # Teacher name and status
+        # Teacher name
         st.markdown(f"### {TEACHERS[right_teacher]['name']}")
         
+        # Status indicator
         if right_speaking:
-            st.markdown('<p class="status-speaking">🎤 Speaking</p>', unsafe_allow_html=True)
+            st.success("🎤 Speaking")
         elif right_rendering:
-            st.markdown('<p class="status-rendering">⏳ Rendering</p>', unsafe_allow_html=True)
+            st.info("⏳ Rendering")
         else:
-            st.markdown('<p class="status-idle">💤 Idle</p>', unsafe_allow_html=True)
+            st.caption("💤 Idle")
         
-        # Show video/audio if clip is ready and this is the speaker
+        # Show video/audio or avatar
         if right_speaking and st.session_state.current_clip:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
                     st.video(clip["videoUrl"])
                     if clip.get("text"):
-                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                        st.caption(clip.get("text", ""))
                 elif clip.get("audioUrl"):
                     st.audio(clip["audioUrl"])
                     if clip.get("text"):
-                        st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                        st.caption(clip.get("text", ""))
             except Exception:
                 if clip.get("audioUrl"):
                     try:
                         st.audio(clip["audioUrl"])
                         if clip.get("text"):
-                            st.markdown(f'<div class="caption-text">{clip.get("text", "")}</div>', unsafe_allow_html=True)
+                            st.caption(clip.get("text", ""))
                     except Exception:
                         pass
         else:
             # Show avatar image
             try:
-                st.image(TEACHERS[right_teacher]["image"], width='stretch')
+                st.image(TEACHERS[right_teacher]["image"], use_container_width=True)
             except Exception:
-                st.image("https://via.placeholder.com/400x300?text=Avatar", width='stretch')
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.image("https://via.placeholder.com/400x300?text=Avatar", use_container_width=True)
 
 else:
     # Welcome screen - no session active
