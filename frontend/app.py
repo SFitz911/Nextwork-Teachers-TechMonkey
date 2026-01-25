@@ -553,120 +553,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         st.markdown("---")
         st.markdown("### 💬 Ask a Question")
         
-        # Speech recognition component that stores transcript in a hidden input
-        if st.session_state.speech_recognition_active:
-            speech_html = f"""
-            <div id="speech-recognition-wrapper">
-                <input type="hidden" id="speech-transcript" value="">
-                <input type="hidden" id="should-listen" value="true">
-                <script>
-                (function() {{
-                    let recognition = null;
-                    let transcriptText = '';
-                    let shouldListen = true;
-                    
-                    function stopRecognition() {{
-                        shouldListen = false;
-                        if (recognition) {{
-                            recognition.stop();
-                            recognition = null;
-                        }}
-                    }}
-                    
-                    // Listen for stop signal
-                    window.addEventListener('message', function(event) {{
-                        if (event.data === 'stop-speech-recognition') {{
-                            stopRecognition();
-                        }}
-                    }});
-                    
-                    function initSpeechRecognition() {{
-                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {{
-                            alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
-                            return;
-                        }}
-                        
-                        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                        recognition = new SpeechRecognition();
-                        recognition.continuous = true;
-                        recognition.interimResults = true;
-                        recognition.lang = 'en-US';
-                        
-                        recognition.onresult = function(event) {{
-                            if (!shouldListen) return;
-                            
-                            transcriptText = '';
-                            for (let i = event.resultIndex; i < event.results.length; i++) {{
-                                transcriptText += event.results[i][0].transcript;
-                            }}
-                            
-                            // Store in hidden input
-                            const hiddenInput = document.getElementById('speech-transcript');
-                            if (hiddenInput) {{
-                                hiddenInput.value = transcriptText;
-                            }}
-                            
-                            // Update visible text input
-                            const textInputs = window.parent.document.querySelectorAll('input[type="text"]');
-                            for (let input of textInputs) {{
-                                if (input.placeholder && (input.placeholder.includes('Type your question') || input.placeholder.includes('Talk to text'))) {{
-                                    input.value = transcriptText;
-                                    // Trigger input event
-                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    break;
-                                }}
-                            }}
-                        }};
-                        
-                        recognition.onerror = function(event) {{
-                            console.error('Speech recognition error:', event.error);
-                            if (event.error === 'not-allowed') {{
-                                alert('Microphone permission denied. Please allow microphone access and try again.');
-                                shouldListen = false;
-                            }}
-                        }};
-                        
-                        recognition.onend = function() {{
-                            // Only auto-restart if we should still be listening
-                            if (shouldListen && document.getElementById('speech-transcript')) {{
-                                try {{
-                                    recognition.start();
-                                }} catch (e) {{
-                                    // Already started or error
-                                }}
-                            }}
-                        }};
-                        
-                        try {{
-                            recognition.start();
-                        }} catch (e) {{
-                            console.error('Error starting recognition:', e);
-                        }}
-                    }}
-                    
-                    // Initialize when page loads
-                    if (document.readyState === 'loading') {{
-                        document.addEventListener('DOMContentLoaded', initSpeechRecognition);
-                    }} else {{
-                        setTimeout(initSpeechRecognition, 100);
-                    }}
-                }})();
-                </script>
-            </div>
-            """
-            st.components.v1.html(speech_html, height=0)
-        
-        # Stop recognition when button is clicked to stop
-        if not st.session_state.speech_recognition_active:
-            stop_script = """
-            <script>
-            window.postMessage('stop-speech-recognition', '*');
-            </script>
-            """
-            st.components.v1.html(stop_script, height=0)
-        
-        # Chat input with speech-to-text
+        # Chat input with speech-to-text - using text_area for bigger box
         chat_col1, chat_col2, chat_col3 = st.columns([3, 1, 1])
         
         with chat_col1:
@@ -676,14 +563,152 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
             else:
                 placeholder_text = "Type your question or click 🎤 Talk for speech-to-text"
             
-            chat_message = st.text_input(
+            # Use text_area instead of text_input for bigger box
+            chat_message = st.text_area(
                 "Type your question",
                 value=st.session_state.chat_message,
                 key="chat_input",
                 placeholder=placeholder_text,
-                label_visibility="collapsed"
+                label_visibility="collapsed",
+                height=100
             )
             st.session_state.chat_message = chat_message
+        
+        # Speech recognition component - runs in main window context
+        if st.session_state.speech_recognition_active:
+            speech_html = """
+            <script>
+            (function() {
+                let recognition = null;
+                let transcriptText = '';
+                let shouldListen = true;
+                
+                function findTextArea() {
+                    // Find the textarea by looking for the one with our placeholder
+                    const textareas = document.querySelectorAll('textarea');
+                    for (let textarea of textareas) {
+                        if (textarea.placeholder && (
+                            textarea.placeholder.includes('Listening') || 
+                            textarea.placeholder.includes('Type your question')
+                        )) {
+                            return textarea;
+                        }
+                    }
+                    // Fallback: find any textarea in the chat section
+                    return document.querySelector('textarea[data-testid="stTextArea"]') || 
+                           document.querySelector('textarea');
+                }
+                
+                function updateTextArea(text) {
+                    const textarea = findTextArea();
+                    if (textarea) {
+                        textarea.value = text;
+                        // Trigger events to update Streamlit
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                        // Also trigger keyup to ensure Streamlit captures it
+                        textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+                    }
+                }
+                
+                function initSpeechRecognition() {
+                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                        alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+                        return;
+                    }
+                    
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onresult = function(event) {
+                        if (!shouldListen) return;
+                        
+                        transcriptText = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            transcriptText += event.results[i][0].transcript;
+                        }
+                        
+                        updateTextArea(transcriptText);
+                    };
+                    
+                    recognition.onerror = function(event) {
+                        console.error('Speech recognition error:', event.error);
+                        if (event.error === 'not-allowed') {
+                            alert('Microphone permission denied. Please allow microphone access and try again.');
+                            shouldListen = false;
+                        } else if (event.error === 'no-speech') {
+                            // Restart if no speech detected
+                            if (shouldListen) {
+                                setTimeout(() => {
+                                    if (shouldListen && recognition) {
+                                        try {
+                                            recognition.start();
+                                        } catch (e) {
+                                            console.log('Recognition already started');
+                                        }
+                                    }
+                                }, 100);
+                            }
+                        }
+                    };
+                    
+                    recognition.onend = function() {
+                        // Auto-restart if we should still be listening
+                        if (shouldListen) {
+                            setTimeout(() => {
+                                if (shouldListen && recognition) {
+                                    try {
+                                        recognition.start();
+                                    } catch (e) {
+                                        // Already started or error
+                                    }
+                                }
+                            }, 100);
+                        }
+                    };
+                    
+                    try {
+                        recognition.start();
+                        console.log('Speech recognition started');
+                    } catch (e) {
+                        console.error('Error starting recognition:', e);
+                    }
+                }
+                
+                // Stop function
+                window.stopSpeechRecognition = function() {
+                    shouldListen = false;
+                    if (recognition) {
+                        recognition.stop();
+                        recognition = null;
+                        console.log('Speech recognition stopped');
+                    }
+                };
+                
+                // Initialize when script loads
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initSpeechRecognition);
+                } else {
+                    setTimeout(initSpeechRecognition, 200);
+                }
+            })();
+            </script>
+            """
+            st.components.v1.html(speech_html, height=0)
+        
+        # Stop recognition when button is clicked to stop
+        if not st.session_state.speech_recognition_active:
+            stop_script = """
+            <script>
+            if (window.stopSpeechRecognition) {
+                window.stopSpeechRecognition();
+            }
+            </script>
+            """
+            st.components.v1.html(stop_script, height=0)
         
         with chat_col2:
             # Push-to-talk button
