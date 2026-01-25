@@ -337,6 +337,15 @@ with st.sidebar:
             key="teacher_2"
         )
         
+        # URL input for lesson
+        st.markdown("---")
+        lesson_url = st.text_input(
+            "Lesson URL (optional)",
+            value="",
+            key="lesson_url_sidebar",
+            placeholder="https://example.com/lesson"
+        )
+        
         # Language selection
         st.markdown("---")
         st.markdown("### 🌐 Language")
@@ -353,7 +362,7 @@ with st.sidebar:
         # Start session button
         if st.button("🚀 Start Session", type="primary", use_container_width=True):
             selected = [teacher_1, teacher_2]
-            session_id = start_session(selected, None)
+            session_id = start_session(selected, lesson_url if lesson_url else None)
             
             if session_id:
                 st.session_state.session_id = session_id
@@ -459,8 +468,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
     with col_center:
         st.markdown('<div class="center-panel">', unsafe_allow_html=True)
         
-        # Large URL input at top
-        st.markdown("### 📚 Learning Content")
+        # Large URL input at top (no header box)
         website_url = st.text_input(
             "Enter URL to load learning content",
             value=st.session_state.website_url or "",
@@ -566,33 +574,13 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
 else:
     # Welcome screen - no session active
     st.markdown("""
-    <div style="text-align: center; padding: 60px 20px;">
+    <div style="text-align: center; padding: 40px 20px;">
         <h1 style="color: #f1f5f9; margin-bottom: 20px;">👨‍🏫 AI Virtual Classroom</h1>
-        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
+        <p style="color: #94a3b8; font-size: 1.2rem;">
             Start a session with 2 AI teachers to begin your learning journey
         </p>
     </div>
     """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        ### 🎯 Select Teachers
-        Choose 2 AI teachers from the sidebar to co-teach your lesson
-        """)
-    
-    with col2:
-        st.markdown("""
-        ### 🚀 Start Session
-        Click "Start Session" in the sidebar to begin the live classroom
-        """)
-    
-    with col3:
-        st.markdown("""
-        ### 📚 Load Content
-        Enter a URL in the center panel to load your learning material
-        """)
 
 # Auto-refresh for event processing
 if st.session_state.session_id:
