@@ -427,19 +427,6 @@ if st.session_state.session_id:
 
 # Main Content Area
 if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
-    # URL input at the very top (full width, outside columns)
-    website_url = st.text_input(
-        "Enter URL to load learning content",
-        value=st.session_state.website_url or "",
-        key="website_url_input",
-        placeholder="https://example.com/lesson",
-        label_visibility="visible"
-    )
-    st.session_state.website_url = website_url
-    
-    # Add spacing
-    st.markdown("<br>", unsafe_allow_html=True)
-    
     # Main layout: Left Avatar | Center Website | Right Avatar
     col_left, col_center, col_right = st.columns([1, 2.5, 1])
     
@@ -501,6 +488,19 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
     # Center Panel - Learning Content
     with col_center:
         st.markdown('<div class="center-panel">', unsafe_allow_html=True)
+        
+        # Large, prominent URL input at top - this is the main focus
+        website_url = st.text_input(
+            "Enter URL to load learning content",
+            value=st.session_state.website_url or "",
+            key="website_url_input",
+            placeholder="https://example.com/lesson",
+            label_visibility="visible"
+        )
+        st.session_state.website_url = website_url
+        
+        # Add spacing
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # Embed website if URL provided
         if website_url:
