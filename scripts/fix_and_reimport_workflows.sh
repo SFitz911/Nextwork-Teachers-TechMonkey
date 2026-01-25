@@ -179,7 +179,35 @@ EOF
 fi
 
 echo ""
-echo "Step 5: Restarting all services..."
+echo "Step 5: Verifying main project dependencies..."
+echo ""
+
+VENV_DIR="${VENV_DIR:-$HOME/ai-teacher-venv}"
+
+# Check and install main project dependencies if needed
+if [[ -d "$VENV_DIR" ]]; then
+    source "$VENV_DIR/bin/activate"
+    
+    # Check for Coordinator API dependencies
+    if ! python -c "import httpx" 2>/dev/null; then
+        echo "Installing Coordinator API dependencies..."
+        pip install -r services/coordinator/requirements.txt
+    fi
+    
+    # Check for LongCat-Video API service dependencies
+    if ! python -c "import fastapi" 2>/dev/null; then
+        echo "Installing LongCat-Video API service dependencies..."
+        pip install -r services/longcat_video/requirements.txt
+    fi
+    
+    deactivate
+    echo "✅ Main project dependencies verified"
+else
+    echo "⚠️  Virtual environment not found. Run: bash scripts/deploy_no_docker.sh"
+fi
+
+echo ""
+echo "Step 6: Restarting all services..."
 echo ""
 
 # Restart all services using quick start
@@ -191,7 +219,8 @@ echo "✅ Fix and Re-import Complete!"
 echo "=========================================="
 echo ""
 echo "Summary:"
-echo "  ✅ Installed pyloudnorm in conda environment"
+echo "  ✅ Installed LongCat-Video dependencies in conda environment"
+echo "  ✅ Verified main project dependencies (venv)"
 echo "  ✅ Updated LongCat-Video service code"
 echo "  ✅ Re-imported n8n workflows"
 echo "  ✅ Restarted all services"
