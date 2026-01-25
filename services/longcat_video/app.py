@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import os
+import sys
 import json
 import uuid
 import subprocess
@@ -210,11 +211,16 @@ async def generate_video_background(
         job_output_dir = os.path.join(OUTPUT_DIR, f"job_{job_id}")
         os.makedirs(job_output_dir, exist_ok=True)
         
-        # Build command
+        # Build command - use python -m torch.distributed.run to ensure correct environment
         script_path = os.path.join(LONGCAT_VIDEO_DIR, "run_demo_avatar_single_audio_to_video.py")
         
+        # Use the Python from the current environment (should be conda longcat-video)
+        # Get Python executable from current process
+        python_exe = sys.executable
+        
         cmd = [
-            "torchrun",
+            python_exe,
+            "-m", "torch.distributed.run",
             f"--nproc_per_node={CONTEXT_PARALLEL_SIZE}",
             script_path,
             f"--context_parallel_size={CONTEXT_PARALLEL_SIZE}",

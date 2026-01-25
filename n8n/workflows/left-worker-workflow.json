@@ -187,7 +187,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:8004/session/{{ $json.sessionId }}/clip-ready",
+        "url": "http://localhost:8004/session/={{ $json.sessionId }}/clip-ready",
         "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
