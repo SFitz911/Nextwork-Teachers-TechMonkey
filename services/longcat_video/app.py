@@ -20,10 +20,15 @@ import logging
 app = FastAPI(title="LongCat-Video-Avatar Service")
 
 # Configuration
-LONGCAT_VIDEO_DIR = os.getenv("LONGCAT_VIDEO_DIR", "/app/longcat-video")
+LONGCAT_VIDEO_DIR = os.getenv("LONGCAT_VIDEO_DIR", os.path.expanduser("~/Nextwork-Teachers-TechMonkey/LongCat-Video"))
 CHECKPOINT_DIR = os.getenv("CHECKPOINT_DIR", f"{LONGCAT_VIDEO_DIR}/weights/LongCat-Video-Avatar")
 AVATAR_IMAGES_DIR = os.getenv("AVATAR_IMAGES_DIR", f"{LONGCAT_VIDEO_DIR}/assets/avatars")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "/app/output")
+# Use storage volume if available, otherwise fallback to local output
+VAST_STORAGE = os.getenv("VAST_STORAGE_PATH", os.getenv("VAST_STORAGE", ""))
+if VAST_STORAGE and os.path.exists(VAST_STORAGE):
+    OUTPUT_DIR = os.getenv("VIDEO_OUTPUT_DIR", os.path.join(VAST_STORAGE, "data/videos"))
+else:
+    OUTPUT_DIR = os.getenv("OUTPUT_DIR", os.path.expanduser("~/Nextwork-Teachers-TechMonkey/outputs/longcat"))
 CONTEXT_PARALLEL_SIZE = int(os.getenv("CONTEXT_PARALLEL_SIZE", "1"))
 RESOLUTION = os.getenv("RESOLUTION", "480p")
 NUM_SEGMENTS = int(os.getenv("NUM_SEGMENTS", "1"))

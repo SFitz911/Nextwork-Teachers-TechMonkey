@@ -14,15 +14,36 @@ import asyncio
 from collections import defaultdict
 import logging
 import httpx
+import os
 
 app = FastAPI(title="AI Teacher Coordinator API")
+
+# Configure logging to use storage volume if available
+VAST_STORAGE = os.getenv("VAST_STORAGE_PATH", os.getenv("VAST_STORAGE", ""))
+if VAST_STORAGE and os.path.exists(VAST_STORAGE):
+    LOGS_DIR = os.getenv("COORDINATOR_LOGS_DIR", os.path.join(VAST_STORAGE, "logs/coordinator"))
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    LOG_FILE = os.path.join(LOGS_DIR, "coordinator.log")
+else:
+    LOGS_DIR = os.getenv("LOGS_DIR", "logs")
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    LOG_FILE = os.path.join(LOGS_DIR, "coordinator.log")
 
 # In-memory session store (replace with Redis/DB in production)
 sessions: Dict[str, Dict] = {}
 event_streams: Dict[str, List] = defaultdict(list)  # sessionId -> list of event listeners
 
-logging.basicConfig(level=logging.INFO)
+# Set up logging with file handler
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Coordinator API starting - Logs: {LOG_FILE}")
 
 
 # ============================================================================
