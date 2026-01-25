@@ -31,11 +31,18 @@ if conda env list | grep -q "longcat-video"; then
     conda activate longcat-video
     echo "✅ Activated longcat-video conda environment"
     
-    # Install missing dependency
-    echo "Installing pyloudnorm..."
-    pip install pyloudnorm==0.1.1 || echo "⚠️  pyloudnorm installation had issues, continuing..."
+    # Install missing dependencies
+    echo "Installing missing LongCat-Video dependencies..."
     
-    # Verify installation
+    # Install from requirements_avatar.txt (filtering out problematic packages)
+    cd "$PROJECT_DIR/LongCat-Video"
+    grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | grep -v "tritonserverclient" | pip install -r /dev/stdin || {
+        echo "⚠️  Some avatar requirements failed, installing essential packages..."
+        pip install pyloudnorm==0.1.1 scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || echo "⚠️  Some packages failed, but continuing..."
+    }
+    cd "$PROJECT_DIR"
+    
+    # Verify critical dependencies
     python -c "import pyloudnorm; print('✅ pyloudnorm installed successfully')" 2>/dev/null || echo "⚠️  pyloudnorm verification failed"
 else
     echo "❌ longcat-video conda environment not found!"

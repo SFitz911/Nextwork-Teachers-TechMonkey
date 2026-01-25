@@ -50,6 +50,8 @@ echo "Installing Python deps (frontend + services)..."
 pip install -r frontend/requirements.txt
 pip install -r services/tts/requirements.txt
 pip install -r services/animation/requirements.txt
+pip install -r services/coordinator/requirements.txt
+pip install -r services/longcat_video/requirements.txt
 
 echo ""
 echo "Creating local .env (for n8n auth) if missing..."

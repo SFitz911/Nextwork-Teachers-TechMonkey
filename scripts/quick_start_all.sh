@@ -81,6 +81,20 @@ if [[ ! -d "$VENV_DIR" ]]; then
     exit 1
 fi
 
+# Verify critical dependencies are installed
+echo "Verifying dependencies..."
+source "$VENV_DIR/bin/activate"
+if ! python -c "import httpx" 2>/dev/null; then
+    echo "⚠️  Missing httpx dependency. Installing Coordinator API dependencies..."
+    pip install -r services/coordinator/requirements.txt
+fi
+if ! python -c "import fastapi" 2>/dev/null; then
+    echo "⚠️  Missing fastapi dependency. Installing service dependencies..."
+    pip install -r services/coordinator/requirements.txt
+    pip install -r services/longcat_video/requirements.txt
+fi
+deactivate
+
 # Use environment variables with sensible defaults
 N8N_USER="${N8N_USER:-admin}"
 N8N_PASSWORD="${N8N_PASSWORD:-changeme}"
