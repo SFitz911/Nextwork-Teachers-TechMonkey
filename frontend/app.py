@@ -375,10 +375,10 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         else:
             # Show avatar image
             try:
-                st.image(TEACHERS[left_teacher]["image"], use_container_width=True)
+                st.image(TEACHERS[left_teacher]["image"], width='stretch')
             except Exception as e:
                 st.warning(f"Could not load avatar image: {e}")
-                st.image("https://via.placeholder.com/400x300", use_container_width=True)
+                st.image("https://via.placeholder.com/400x300", width='stretch')
             
             if left_speaking:
                 st.info("🎤 Speaking...")
@@ -419,7 +419,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         
         with chat_col2:
             # Push-to-talk button
-            push_to_talk = st.button("🎤 Push to Talk", key="push_to_talk", use_container_width=True)
+            push_to_talk = st.button("🎤 Push to Talk", key="push_to_talk", width='stretch')
             if push_to_talk:
                 st.session_state.push_to_talk_active = not st.session_state.push_to_talk_active
                 if st.session_state.push_to_talk_active:
@@ -429,7 +429,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         
         with chat_col3:
             # Send button
-            send_chat = st.button("📤 Send", key="send_chat", type="primary", use_container_width=True)
+            send_chat = st.button("📤 Send", key="send_chat", type="primary", width='stretch')
             if send_chat and chat_message and st.session_state.session_id:
                 # Send chat message as user question with section update
                 update_section(
@@ -447,7 +447,7 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         
         with chat_col4:
             # Clear button
-            clear_chat = st.button("🗑️ Clear", key="clear_chat", use_container_width=True)
+            clear_chat = st.button("🗑️ Clear", key="clear_chat", width='stretch')
             if clear_chat:
                 st.session_state.chat_message = ""
                 st.rerun()
@@ -514,10 +514,10 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         else:
             # Show avatar image
             try:
-                st.image(TEACHERS[right_teacher]["image"], use_container_width=True)
+                st.image(TEACHERS[right_teacher]["image"], width='stretch')
             except Exception as e:
                 st.warning(f"Could not load avatar image: {e}")
-                st.image("https://via.placeholder.com/400x300", use_container_width=True)
+                st.image("https://via.placeholder.com/400x300", width='stretch')
             
             if right_speaking:
                 st.info("🎤 Speaking...")
