@@ -376,14 +376,32 @@ with st.sidebar:
             key="teacher_2"
         )
         
-        # URL input for lesson
+        # URL input for lesson with history dropdown
         st.markdown("---")
+        st.markdown("### 📚 Lesson URL")
+        
+        # URL history dropdown
+        if st.session_state.url_history:
+            selected_history_url = st.selectbox(
+                "Select from history",
+                options=st.session_state.url_history,
+                key="url_history_select",
+                label_visibility="collapsed"
+            )
+            if selected_history_url:
+                st.session_state.selected_url = selected_history_url
+        
+        # URL input with default value
         lesson_url = st.text_input(
-            "Lesson URL (optional)",
-            value="",
+            "Enter or select URL",
+            value=st.session_state.selected_url,
             key="lesson_url_sidebar",
-            placeholder="https://example.com/lesson"
+            placeholder="https://www.nextwork.org/projects"
         )
+        
+        # Update selected URL when user types
+        if lesson_url:
+            st.session_state.selected_url = lesson_url
         
         # Language selection
         st.markdown("---")
@@ -401,11 +419,21 @@ with st.sidebar:
         # Start session button
         if st.button("🚀 Start Session", type="primary", use_container_width=True):
             selected = [teacher_1, teacher_2]
-            session_id = start_session(selected, lesson_url if lesson_url else None)
+            url_to_use = lesson_url if lesson_url else st.session_state.selected_url
+            
+            # Add URL to history if it's not already there
+            if url_to_use and url_to_use not in st.session_state.url_history:
+                st.session_state.url_history.insert(0, url_to_use)
+                # Keep only last 10 URLs in history
+                if len(st.session_state.url_history) > 10:
+                    st.session_state.url_history = st.session_state.url_history[:10]
+            
+            session_id = start_session(selected, url_to_use if url_to_use else None)
             
             if session_id:
                 st.session_state.session_id = session_id
                 st.session_state.selected_teachers = selected
+                st.session_state.website_url = url_to_use  # Set website URL for session page
                 
                 if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
                     st.session_state.sse_thread = threading.Thread(
