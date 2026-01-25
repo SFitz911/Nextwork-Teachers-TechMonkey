@@ -172,9 +172,15 @@ async def generate_video(request: GenerateRequest, background_tasks: BackgroundT
             status="processing"
         )
     
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is (they already have proper status codes)
+        raise
     except Exception as e:
         logger.error(f"Error generating video: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"AVATAR_IMAGES_DIR: {AVATAR_IMAGES_DIR}")
+        logger.error(f"CHECKPOINT_DIR: {CHECKPOINT_DIR}")
+        logger.error(f"OUTPUT_DIR: {OUTPUT_DIR}")
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
 
 
 async def generate_video_background(
