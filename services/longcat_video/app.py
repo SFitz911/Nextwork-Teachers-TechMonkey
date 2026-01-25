@@ -214,9 +214,33 @@ async def generate_video_background(
         # Build command - use python -m torch.distributed.run to ensure correct environment
         script_path = os.path.join(LONGCAT_VIDEO_DIR, "run_demo_avatar_single_audio_to_video.py")
         
-        # Use the Python from the current environment (should be conda longcat-video)
-        # Get Python executable from current process
+        # CRITICAL: Use conda Python explicitly, not venv Python
+        # Check if we're in conda environment
         python_exe = sys.executable
+        conda_prefix = os.getenv("CONDA_PREFIX", "")
+        
+        # If we're in conda, use conda Python explicitly
+        if conda_prefix and "longcat-video" in conda_prefix:
+            # We're in conda environment, use it
+            conda_python = os.path.join(conda_prefix, "bin", "python")
+            if os.path.exists(conda_python):
+                python_exe = conda_python
+                logger.info(f"Using conda Python: {python_exe}")
+            else:
+                logger.warning(f"Conda Python not found at {conda_python}, using {python_exe}")
+        else:
+            # Try to find conda Python from CONDA_DEFAULT_ENV
+            conda_env = os.getenv("CONDA_DEFAULT_ENV", "")
+            if conda_env == "longcat-video":
+                conda_base = os.getenv("CONDA_BASE", os.path.expanduser("~/.conda"))
+                conda_python = os.path.join(conda_base, "envs", "longcat-video", "bin", "python")
+                if os.path.exists(conda_python):
+                    python_exe = conda_python
+                    logger.info(f"Found conda Python via CONDA_DEFAULT_ENV: {python_exe}")
+                else:
+                    logger.warning(f"Conda Python not found, using {python_exe}")
+            else:
+                logger.warning(f"Not in conda longcat-video environment (CONDA_DEFAULT_ENV={conda_env}), using {python_exe}")
         
         cmd = [
             python_exe,

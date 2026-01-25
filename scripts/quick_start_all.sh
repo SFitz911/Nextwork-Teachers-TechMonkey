@@ -153,8 +153,10 @@ if [[ -d "$LONGCAT_DIR" ]] && [[ -f "$PROJECT_DIR/services/longcat_video/app.py"
        export CHECKPOINT_DIR=\"$LONGCAT_DIR/weights/LongCat-Video-Avatar\" && \
        export AVATAR_IMAGES_DIR=\"$LONGCAT_DIR/assets/avatars\" && \
        export OUTPUT_DIR=\"$PROJECT_DIR/outputs/longcat\" && \
+       export CONDA_PREFIX=\"\$(conda info --base)/envs/longcat-video\" && \
+       export CONDA_DEFAULT_ENV=\"longcat-video\" && \
        mkdir -p \"\$OUTPUT_DIR\" && \
-       python services/longcat_video/app.py 2>&1 | tee logs/longcat_video.log" C-m
+       \$(which python) services/longcat_video/app.py 2>&1 | tee logs/longcat_video.log" C-m
     echo "✅ LongCat-Video service added to tmux"
 else
     echo "⚠️  LongCat-Video not found - skipping (run: bash scripts/deploy_longcat_video.sh)"
