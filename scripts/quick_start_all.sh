@@ -145,6 +145,17 @@ if [[ -d "$LONGCAT_DIR" ]] && [[ -f "$PROJECT_DIR/services/longcat_video/app.py"
         bash "$PROJECT_DIR/scripts/fix_avatar_images.sh" >/dev/null 2>&1 || true
     fi
     
+    # Verify critical dependencies before starting
+    echo "Verifying LongCat-Video dependencies..."
+    source "$(conda info --base)/etc/profile.d/conda.sh" 2>/dev/null || true
+    conda activate longcat-video 2>/dev/null || true
+    if python -c "import audio_separator, pyloudnorm" 2>/dev/null; then
+        echo "✅ Critical dependencies verified"
+    else
+        echo "⚠️  Missing dependencies, installing..."
+        pip install audio-separator==0.30.2 pyloudnorm==0.1.1 2>/dev/null || true
+    fi
+    
     tmux send-keys -t "$SESSION":longcat \
       "cd '$PROJECT_DIR' && \
        source \"\$(conda info --base)/etc/profile.d/conda.sh\" && \

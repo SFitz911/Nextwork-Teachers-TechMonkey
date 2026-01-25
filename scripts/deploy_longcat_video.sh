@@ -97,6 +97,49 @@ grep -v "^#" requirements_avatar.txt | grep -v "^$" | grep -v "libsndfile1" | gr
     pip install scikit-learn==1.6.1 scikit-image==0.25.2 scipy==1.15.3 soundfile==0.13.1 soxr==0.5.0.post1 librosa==0.11.0 sympy==1.13.1 audio-separator==0.30.2 pyloudnorm==0.1.1 nvidia-ml-py==13.580.65 tzdata==2025.2 onnx==1.18.0 onnxruntime==1.16.3 openai==1.75.0 numpy==1.26.4 cffi==2.0.0 chardet==5.2.0 || echo "⚠️  Some packages failed, but continuing..."
 }
 
+# Verify critical dependencies are installed
+echo "Verifying critical dependencies..."
+CRITICAL_DEPS=("pyloudnorm" "audio_separator" "librosa" "soundfile")
+MISSING_DEPS=()
+for dep in "${CRITICAL_DEPS[@]}"; do
+    if ! python -c "import ${dep//-/_}" 2>/dev/null; then
+        MISSING_DEPS+=("$dep")
+    fi
+done
+
+if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    echo "⚠️  Missing critical dependencies: ${MISSING_DEPS[*]}"
+    echo "   Installing missing dependencies..."
+    for dep in "${MISSING_DEPS[@]}"; do
+        case "$dep" in
+            "audio_separator")
+                pip install audio-separator==0.30.2 || echo "⚠️  Failed to install audio-separator"
+                ;;
+            "pyloudnorm")
+                pip install pyloudnorm==0.1.1 || echo "⚠️  Failed to install pyloudnorm"
+                ;;
+            "librosa")
+                pip install librosa==0.11.0 || conda install -c conda-forge librosa -y || echo "⚠️  Failed to install librosa"
+                ;;
+            "soundfile")
+                pip install soundfile==0.13.1 || echo "⚠️  Failed to install soundfile"
+                ;;
+        esac
+    done
+    
+    # Verify again
+    echo "Re-verifying dependencies..."
+    for dep in "${MISSING_DEPS[@]}"; do
+        if python -c "import ${dep//-/_}" 2>/dev/null; then
+            echo "   ✅ $dep installed successfully"
+        else
+            echo "   ❌ $dep still missing!"
+        fi
+    done
+else
+    echo "✅ All critical dependencies verified"
+fi
+
 # Install audio processing tools via conda (librosa, ffmpeg)
 echo "Installing audio processing tools via conda..."
 conda install -c conda-forge librosa ffmpeg -y >/dev/null 2>&1 || echo "⚠️  Conda audio tools installation had issues, continuing..."
