@@ -65,7 +65,7 @@ fi
 # Install system dependencies first
 echo "Installing system dependencies..."
 apt-get update -qq
-apt-get install -y libsndfile1 ffmpeg >/dev/null 2>&1 || echo "⚠️  System package installation had issues, continuing..."
+apt-get install -y libsndfile1 ffmpeg build-essential gcc g++ >/dev/null 2>&1 || echo "⚠️  System package installation had issues, continuing..."
 
 # Install PyTorch FIRST (required for flash-attn)
 echo "Installing PyTorch..."
