@@ -43,68 +43,61 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "teacher-active",
-              "leftValue": "={{ $json.activeTeachers }}",
-              "rightValue": "={{ $('Extract Payload').item.json.teacher }}",
-              "operator": {
-                "type": "array",
-                "operation": "contains"
-              }
-            },
-            {
-              "id": "role-valid",
-              "leftValue": "={{ $('Extract Payload').item.json.role }}",
-              "rightValue": "renderer",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "// Validate teacher is still active and role is valid\nconst sessionState = $input.item.json;\nconst payload = $('Extract Payload').item.json;\nconst teacher = payload.teacher;\n\n// Check if teacher is in active teachers\nconst isActive = sessionState.activeTeachers && sessionState.activeTeachers.includes(teacher);\n\n// Check if teacher is current speaker or renderer\nconst isSpeaker = sessionState.speaker === teacher;\nconst isRenderer = sessionState.renderer === teacher;\nconst hasValidRole = isSpeaker || isRenderer;\n\n// Both conditions must be true\nconst isValid = isActive && hasValidRole;\n\nif (!isValid) {\n  throw new Error(`Teacher ${teacher} is not active or role is invalid. Active: ${isActive}, Speaker: ${isSpeaker}, Renderer: ${isRenderer}`);\n}\n\n// Pass through session state for next node\nreturn {\n  json: {\n    ...sessionState,\n    validated: true,\n    teacher: teacher\n  }\n};"
       },
       "id": "validate-active",
       "name": "Validate Still Active",
-      "type": "n8n-nodes-base.if",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [850, 300]
     },
     {
       "parameters": {
-        "model": "mistralai/Mistral-7B-Instruct-v0.2",
+        "jsCode": "// Build prompt for Ollama\nconst payload = $('Extract Payload').item.json;\nconst teacher = payload.teacher;\nconst coTeacher = payload.coTeacher;\nconst role = payload.role;\nconst language = payload.language || 'English';\nconst sectionPayload = payload.sectionPayload || {};\n\nconst prompt = `You are ${teacher}, co-teaching with ${coTeacher}. You are currently the ${role}.\n\nIMPORTANT: The user's preferred language is ${language}. You must respond in this language.\n\nThe user is viewing: ${sectionPayload.url || 'a webpage'}\n\nVisible text on screen:\n${sectionPayload.visibleText || 'No text visible'}\n\nSelected text: ${sectionPayload.selectedText || 'None'}\n\nUser question: ${sectionPayload.userQuestion || 'None'}\n\nGenerate a short, natural response (8-12 seconds when spoken) in ${language} that:\n- References what's visible on screen\n- Speaks naturally, not like an AI\n- Ends with a handoff cue for the other teacher\n- Keeps it conversational and engaging\n- Responds in the user's preferred language\n\nResponse:`;\n\nreturn {\n  json: {\n    prompt: prompt,\n    model: 'mistral:7b',\n    stream: false,\n    options: {\n      temperature: 0.7,\n      top_p: 0.9,\n      num_predict: 150\n    }\n  }\n};"
+      },
+      "id": "prepare-llm",
+      "name": "Prepare LLM Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Ollama API request body\nconst input = $input.item.json;\n\nconst requestBody = {\n  model: input.model || 'mistral:7b',\n  prompt: input.prompt,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    top_p: 0.9,\n    num_predict: 150\n  }\n};\n\nreturn {\n  json: {\n    ...input,\n    requestBody: requestBody\n  }\n};"
+      },
+      "id": "prepare-llm-body",
+      "name": "Prepare LLM Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
         "options": {
-          "max_new_tokens": 150,
-          "temperature": 0.7,
-          "top_p": 0.9
-        },
-        "inputs": "=You are {{ $('Extract Payload').item.json.teacher }}, co-teaching with {{ $('Extract Payload').item.json.coTeacher }}. You are currently the {{ $('Extract Payload').item.json.role }}.\\n\\nIMPORTANT: The user's preferred language is {{ $('Extract Payload').item.json.language || 'English' }}. You must respond in this language.\\n\\nThe user is viewing: {{ $('Extract Payload').item.json.sectionPayload.url || 'a webpage' }}\\n\\nVisible text on screen:\\n{{ $('Extract Payload').item.json.sectionPayload.visibleText || 'No text visible' }}\\n\\nSelected text: {{ $('Extract Payload').item.json.sectionPayload.selectedText || 'None' }}\\n\\nUser question: {{ $('Extract Payload').item.json.sectionPayload.userQuestion || 'None' }}\\n\\nGenerate a short, natural response (8-12 seconds when spoken) in {{ $('Extract Payload').item.json.language || 'English' }} that:\\n- References what's visible on screen\\n- Speaks naturally, not like an AI\\n- Ends with a handoff cue for the other teacher\\n- Keeps it conversational and engaging\\n- Responds in the user's preferred language\\n\\nResponse:"
+          "timeout": 60000
+        }
       },
       "id": "llm-generate",
-      "name": "Hugging Face Inference",
-      "type": "@n8n/n8n-nodes-langchain.huggingFaceInference",
-      "typeVersion": 1,
-      "position": [1050, 200],
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 200],
       "continueOnFail": false
     },
     {
       "parameters": {
-        "jsCode": "// Extract and normalize LLM response (Hugging Face format)\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\n// Handle Hugging Face Inference API response format\nif (llmResponse.generated_text) {\n  responseText = llmResponse.generated_text.trim();\n} else if (Array.isArray(llmResponse) && llmResponse.length > 0) {\n  // Handle array response\n  responseText = llmResponse[0].generated_text || llmResponse[0].text || '';\n  responseText = responseText.trim();\n} else if (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (llmResponse.message && llmResponse.message.content) {\n  responseText = llmResponse.message.content.trim();\n} else {\n  // Fallback: try to extract from any text field\n  responseText = JSON.stringify(llmResponse).substring(0, 200);\n}\n\n// Safety: ensure minimum length\nif (!responseText || responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(/\\s+/).filter(w => w.length > 0);\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
+        "jsCode": "// Extract and normalize LLM response (Ollama format)\nconst llmResponse = $input.item.json;\nlet responseText = '';\n\n// Handle Ollama API response format\nif (llmResponse.response) {\n  responseText = llmResponse.response.trim();\n} else if (llmResponse.text) {\n  responseText = llmResponse.text.trim();\n} else if (typeof llmResponse === 'string') {\n  responseText = llmResponse.trim();\n} else if (Array.isArray(llmResponse) && llmResponse.length > 0) {\n  // Handle array response (streaming format)\n  responseText = llmResponse.map(item => item.response || item.text || '').join('').trim();\n} else {\n  // Fallback: try to extract from any text field\n  responseText = JSON.stringify(llmResponse).substring(0, 200);\n}\n\n// Safety: ensure minimum length\nif (!responseText || responseText.length < 10) {\n  responseText = 'Let me continue explaining this section.';\n}\n\n// Trim to reasonable length (target ~8-12 seconds = ~20-30 words)\nconst words = responseText.split(/\\s+/).filter(w => w.length > 0);\nif (words.length > 35) {\n  responseText = words.slice(0, 35).join(' ') + '...';\n}\n\nreturn {\n  json: {\n    text: responseText,\n    teacher: $('Extract Payload').item.json.teacher,\n    sessionId: $('Extract Payload').item.json.sessionId,\n    turn: $('Extract Payload').item.json.turn\n  }\n};"
       },
       "id": "extract-response",
       "name": "Extract Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 200]
+      "position": [1550, 200]
     },
     {
       "parameters": {
@@ -153,7 +146,7 @@
       "name": "Prepare Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1750, 200]
+      "position": [2050, 200]
     },
     {
       "parameters": {
@@ -170,17 +163,17 @@
       "name": "Video Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1950, 200]
+      "position": [2250, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Format clip data for Coordinator\nconst videoResponse = $input.item.json;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = 'processing';\n\nif (videoResponse) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  }\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: $('TTS Generate').item.json.audio_url || '',\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
+        "jsCode": "// Format clip data for Coordinator\n// Handle both success and failure cases from Video Generate\nconst input = $input.item;\nconst teacher = $('Extract Response').item.json.teacher;\nconst text = $('Extract Response').item.json.text;\nconst sessionId = $('Extract Response').item.json.sessionId;\nconst turn = $('Extract Response').item.json.turn;\n\n// Get audio URL from Prepare Video node (stored there)\nconst audioUrl = $('Prepare Video').item.json.audioUrl || $('Prepare Video').item.json.audio_url || '';\n\n// Generate clip ID\nconst clipId = `clip-${sessionId}-${teacher}-${turn}-${Date.now()}`;\n\n// Check if Video Generate succeeded or failed\nlet videoResponse = null;\nlet hasError = false;\nlet errorMessage = '';\n\nif (input.error) {\n  // Video generation failed\n  hasError = true;\n  errorMessage = input.error.message || 'Video generation service unavailable';\n  console.log(`Video generation failed: ${errorMessage}`);\n} else {\n  // Video generation succeeded\n  videoResponse = input.json;\n}\n\n// Extract video URL\nlet videoUrl = '';\nlet jobId = '';\nlet status = hasError ? 'error' : 'processing';\n\nif (videoResponse && !hasError) {\n  status = videoResponse.status || 'processing';\n  jobId = videoResponse.job_id || videoResponse.jobId || '';\n  \n  if (jobId) {\n    videoUrl = `http://localhost:8003/video/${jobId}`;\n  } else if (videoResponse.video_url) {\n    videoUrl = videoResponse.video_url;\n  } else if (videoResponse.videoUrl) {\n    videoUrl = videoResponse.videoUrl;\n  }\n}\n\n// If video generation failed, still create clip with audio-only\n// The UI can handle audio-only clips with a placeholder video\nif (hasError && !videoUrl) {\n  // Fallback: use audio URL as video URL (UI will handle audio-only playback)\n  videoUrl = audioUrl;\n  status = 'audio_only';\n}\n\n// Construct clip object\nconst clip = {\n  clipId: clipId,\n  text: text,\n  audioUrl: audioUrl,\n  videoUrl: videoUrl,\n  jobId: jobId,\n  durationMs: Math.ceil(text.split(' ').length * 0.5 * 1000), // Rough estimate\n  status: status,\n  sectionId: $('Extract Payload').item.json.sectionPayload?.sectionId || null,\n  turn: turn,\n  error: hasError ? errorMessage : null\n};\n\nreturn {\n  json: {\n    sessionId: sessionId,\n    teacher: teacher,\n    clip: clip\n  }\n};"
       },
       "id": "format-clip",
       "name": "Format Clip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2150, 200]
+      "position": [2450, 200]
     },
     {
       "parameters": {
@@ -220,7 +213,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2650, 200]
+      "position": [2850, 200]
     },
     {
       "parameters": {
@@ -230,7 +223,7 @@
       "name": "Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2650, 400]
+      "position": [2850, 400]
     }
   ],
   "connections": {
@@ -280,6 +273,37 @@
       "main": [
         [
           {
+            "node": "Prepare LLM Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Request": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Body": {
+      "main": [
+        [
+          {
             "node": "LLM Generate",
             "type": "main",
             "index": 0
@@ -287,11 +311,20 @@
         ]
       ]
     },
-    "Hugging Face Inference": {
+    "LLM Generate": {
       "main": [
         [
           {
             "node": "Extract Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
@@ -329,6 +362,15 @@
             "index": 0
           }
         ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare Video": {
@@ -342,7 +384,7 @@
         ]
       ]
     },
-    "LongCat Generator": {
+    "Video Generate": {
       "main": [
         [
           {
@@ -380,6 +422,15 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
             "type": "main",
             "index": 0
           }
