@@ -225,6 +225,10 @@ if "url_history" not in st.session_state:
     st.session_state.url_history = ["https://www.nextwork.org/projects"]
 if "selected_url" not in st.session_state:
     st.session_state.selected_url = "https://www.nextwork.org/projects"
+if "speech_recognition_active" not in st.session_state:
+    st.session_state.speech_recognition_active = False
+if "transcribed_text" not in st.session_state:
+    st.session_state.transcribed_text = ""
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -549,18 +553,165 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
         st.markdown("---")
         st.markdown("### 💬 Ask a Question")
         
-        chat_col1, chat_col2 = st.columns([4, 1])
+        # Speech recognition JavaScript component
+        speech_component = """
+        <div id="speech-recognition-container"></div>
+        <script>
+        (function() {
+            let recognition = null;
+            let isListening = false;
+            let transcriptText = '';
+            
+            function initSpeechRecognition() {
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    console.warn('Speech recognition not supported in this browser');
+                    return;
+                }
+                
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    transcriptText = finalTranscript || interimTranscript;
+                    
+                    // Update the Streamlit text input via DOM manipulation
+                    const textInput = window.parent.document.querySelector('input[data-testid="stTextInput"]');
+                    if (textInput) {
+                        textInput.value = transcriptText;
+                        textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    if (event.error === 'no-speech') {
+                        // Restart if no speech detected
+                        if (isListening) {
+                            setTimeout(() => {
+                                if (isListening && recognition) {
+                                    recognition.start();
+                                }
+                            }, 100);
+                        }
+                    }
+                };
+                
+                recognition.onend = function() {
+                    isListening = false;
+                    // Update button state
+                    const button = window.parent.document.querySelector('button[kind="secondary"]');
+                    if (button && button.textContent.includes('Stop')) {
+                        button.click();
+                    }
+                };
+            }
+            
+            function startListening() {
+                if (!recognition) {
+                    initSpeechRecognition();
+                }
+                if (recognition && !isListening) {
+                    try {
+                        recognition.start();
+                        isListening = true;
+                    } catch (e) {
+                        console.error('Error starting recognition:', e);
+                        isListening = false;
+                    }
+                }
+            }
+            
+            function stopListening() {
+                if (recognition && isListening) {
+                    recognition.stop();
+                    isListening = false;
+                }
+            }
+            
+            // Listen for button clicks
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    const buttons = window.parent.document.querySelectorAll('button');
+                    buttons.forEach(button => {
+                        if (button.textContent.includes('🎤 Talk')) {
+                            button.addEventListener('click', function() {
+                                setTimeout(startListening, 100);
+                            });
+                        } else if (button.textContent.includes('🎤 Stop')) {
+                            button.addEventListener('click', function() {
+                                stopListening();
+                            });
+                        }
+                    });
+                }, 500);
+            });
+            
+            // Also listen for Streamlit reruns
+            const observer = new MutationObserver(function(mutations) {
+                const buttons = window.parent.document.querySelectorAll('button');
+                buttons.forEach(button => {
+                    if (button.textContent.includes('🎤 Talk') && !button.hasAttribute('data-speech-listener')) {
+                        button.setAttribute('data-speech-listener', 'true');
+                        button.addEventListener('click', function() {
+                            setTimeout(startListening, 100);
+                        });
+                    } else if (button.textContent.includes('🎤 Stop') && !button.hasAttribute('data-speech-listener')) {
+                        button.setAttribute('data-speech-listener', 'true');
+                        button.addEventListener('click', function() {
+                            stopListening();
+                        });
+                    }
+                });
+            });
+            
+            if (window.parent.document.body) {
+                observer.observe(window.parent.document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        })();
+        </script>
+        """
+        st.components.v1.html(speech_component, height=0)
+        
+        # Chat input with speech-to-text
+        chat_col1, chat_col2, chat_col3 = st.columns([3, 1, 1])
+        
         with chat_col1:
             chat_message = st.text_input(
                 "Type your question",
                 value=st.session_state.chat_message,
                 key="chat_input",
-                placeholder="Ask the teachers about the content...",
+                placeholder="Ask the teachers about the content... (or use 🎤 Talk button)",
                 label_visibility="collapsed"
             )
             st.session_state.chat_message = chat_message
         
         with chat_col2:
+            # Push-to-talk button
+            button_label = "🎤 Stop" if st.session_state.speech_recognition_active else "🎤 Talk"
+            button_type = "secondary" if st.session_state.speech_recognition_active else "primary"
+            if st.button(button_label, type=button_type, use_container_width=True, key="speech_button"):
+                st.session_state.speech_recognition_active = not st.session_state.speech_recognition_active
+                st.rerun()
+        
+        with chat_col3:
             if st.button("📤 Send", type="primary", use_container_width=True):
                 if chat_message and st.session_state.session_id:
                     update_section(
@@ -575,6 +726,10 @@ if st.session_state.session_id and st.session_state.selected_teachers and len(st
                     st.success("✅ Question sent!")
                     st.session_state.chat_message = ""
                     st.rerun()
+        
+        # Show speech recognition status
+        if st.session_state.speech_recognition_active:
+            st.info("🎤 Listening... Speak now! (Click Stop when done)")
     
     # ===== RIGHT COLUMN: Teacher (Maximus) =====
     with col_right:
