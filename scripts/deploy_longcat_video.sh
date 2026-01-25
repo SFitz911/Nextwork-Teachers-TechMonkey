@@ -184,6 +184,23 @@ else
     echo "   Expected location: $AVATAR_IMAGES_DIR"
 fi
 
+# Install LongCat-Video API service dependencies
+echo "Installing LongCat-Video API service dependencies..."
+if [[ -f "$PROJECT_ROOT/services/longcat_video/requirements.txt" ]]; then
+    pip install -r "$PROJECT_ROOT/services/longcat_video/requirements.txt" || echo "⚠️  Some API service dependencies failed, but continuing..."
+    
+    # Verify critical API dependencies
+    if python -c "import fastapi" 2>/dev/null; then
+        echo "✅ FastAPI installed"
+    else
+        echo "⚠️  FastAPI not found, installing..."
+        pip install fastapi==0.104.1 "uvicorn[standard]==0.24.0" httpx==0.25.2 pydantic==2.5.0 || echo "⚠️  Failed to install API dependencies"
+    fi
+else
+    echo "⚠️  API service requirements.txt not found, installing minimal dependencies..."
+    pip install fastapi==0.104.1 "uvicorn[standard]==0.24.0" httpx==0.25.2 pydantic==2.5.0 || echo "⚠️  Failed to install API dependencies"
+fi
+
 echo "=========================================="
 echo "✅ LongCat-Video-Avatar deployment complete!"
 echo "=========================================="

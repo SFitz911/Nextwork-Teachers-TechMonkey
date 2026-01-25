@@ -149,11 +149,25 @@ if [[ -d "$LONGCAT_DIR" ]] && [[ -f "$PROJECT_DIR/services/longcat_video/app.py"
     echo "Verifying LongCat-Video dependencies..."
     source "$(conda info --base)/etc/profile.d/conda.sh" 2>/dev/null || true
     conda activate longcat-video 2>/dev/null || true
+    
+    # Check LongCat-Video model dependencies
     if python -c "import audio_separator, pyloudnorm" 2>/dev/null; then
-        echo "✅ Critical dependencies verified"
+        echo "✅ Model dependencies verified"
     else
-        echo "⚠️  Missing dependencies, installing..."
+        echo "⚠️  Missing model dependencies, installing..."
         pip install audio-separator==0.30.2 pyloudnorm==0.1.1 2>/dev/null || true
+    fi
+    
+    # Check API service dependencies
+    if python -c "import fastapi" 2>/dev/null; then
+        echo "✅ API service dependencies verified"
+    else
+        echo "⚠️  Missing API dependencies, installing..."
+        if [[ -f "$PROJECT_DIR/services/longcat_video/requirements.txt" ]]; then
+            pip install -r "$PROJECT_DIR/services/longcat_video/requirements.txt" 2>/dev/null || true
+        else
+            pip install fastapi==0.104.1 "uvicorn[standard]==0.24.0" httpx==0.25.2 pydantic==2.5.0 2>/dev/null || true
+        fi
     fi
     
     tmux send-keys -t "$SESSION":longcat \
