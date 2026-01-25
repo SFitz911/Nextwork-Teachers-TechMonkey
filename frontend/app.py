@@ -233,6 +233,10 @@ if "speech_recognition_id" not in st.session_state:
     st.session_state.speech_recognition_id = 0
 if "show_session_page" not in st.session_state:
     st.session_state.show_session_page = False
+if "last_played_clip" not in st.session_state:
+    st.session_state.last_played_clip = None
+if "replay_clip" not in st.session_state:
+    st.session_state.replay_clip = False
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
@@ -340,6 +344,7 @@ def process_events():
                     st.session_state.clips[teacher] = clip
                     if teacher == st.session_state.speaker:
                         st.session_state.current_clip = clip
+                        st.session_state.last_played_clip = clip  # Store for replay
                         st.rerun()
             
             elif event_type == "SPEAKER_CHANGED":
@@ -351,7 +356,9 @@ def process_events():
                     st.session_state.renderer = new_renderer
                 
                 if st.session_state.speaker and st.session_state.speaker in st.session_state.clips:
-                    st.session_state.current_clip = st.session_state.clips[st.session_state.speaker]
+                    clip = st.session_state.clips[st.session_state.speaker]
+                    st.session_state.current_clip = clip
+                    st.session_state.last_played_clip = clip  # Store for replay
                     st.rerun()
             
             elif event_type == "ERROR":
@@ -469,6 +476,19 @@ with st.sidebar:
             st.markdown(f"**Rendering:** {TEACHERS[st.session_state.renderer]['name']}")
         
         st.markdown("---")
+        
+        # Replay button - show if there's a last played clip
+        if st.session_state.last_played_clip:
+            if st.button("🔄 Replay Last Video", use_container_width=True, key="replay_button"):
+                st.session_state.current_clip = st.session_state.last_played_clip
+                # Determine which teacher to show as speaking for replay
+                # Find which teacher the clip belongs to
+                for teacher_id, clip in st.session_state.clips.items():
+                    if clip == st.session_state.last_played_clip:
+                        st.session_state.speaker = teacher_id
+                        break
+                st.rerun()
+        
         if st.button("🛑 End Session", use_container_width=True):
             st.session_state.session_id = None
             st.session_state.selected_teachers = []
@@ -488,6 +508,7 @@ with st.sidebar:
                 st.session_state.selected_teachers = []
                 st.session_state.website_url = ""
                 st.session_state.chat_message = ""
+                st.session_state.last_played_clip = None
                 st.rerun()
 
 
@@ -522,7 +543,15 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
             st.caption("💤 Idle")
         
         # Show video/audio or avatar
-        if left_speaking and st.session_state.current_clip:
+        # Show video if teacher is speaking OR if we're replaying their clip
+        showing_video = (left_speaking and st.session_state.current_clip) or (
+            st.session_state.current_clip and 
+            st.session_state.current_clip == st.session_state.last_played_clip and
+            st.session_state.current_clip in st.session_state.clips.values() and
+            st.session_state.clips.get(left_teacher) == st.session_state.current_clip
+        )
+        
+        if showing_video:
             clip = st.session_state.current_clip
             try:
                 if clip.get("videoUrl") and clip.get("videoUrl") != "empty":
