@@ -25,9 +25,74 @@ echo "Force Re-importing n8n Workflows"
 echo "=========================================="
 echo ""
 
+# Function to make authenticated request
+make_auth_request() {
+    local method="$1"
+    local url="$2"
+    local data="${3:-}"
+    
+    # Try API key first
+    if [[ -n "$N8N_API_KEY" ]]; then
+        if [[ -n "$data" ]]; then
+            curl -s -X "$method" \
+                -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                -H "Content-Type: application/json" \
+                -d "$data" \
+                "$url" 2>/dev/null
+        else
+            curl -s -X "$method" \
+                -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "$url" 2>/dev/null
+        fi
+    else
+        # Fall back to basic auth
+        if [[ -n "$data" ]]; then
+            curl -s -X "$method" \
+                -u "${N8N_USER}:${N8N_PASSWORD}" \
+                -H "Content-Type: application/json" \
+                -d "$data" \
+                "$url" 2>/dev/null
+        else
+            curl -s -X "$method" \
+                -u "${N8N_USER}:${N8N_PASSWORD}" \
+                "$url" 2>/dev/null
+        fi
+    fi
+}
+
+# Test authentication
+echo "Testing n8n authentication..."
+TEST_RESPONSE=$(make_auth_request "GET" "${N8N_URL}/api/v1/workflows")
+if echo "$TEST_RESPONSE" | grep -q "unauthorized\|Unauthorized\|401"; then
+    echo "   ⚠️  API key authentication failed, trying basic auth..."
+    # Try basic auth
+    TEST_RESPONSE=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo "")
+    if echo "$TEST_RESPONSE" | grep -q "unauthorized\|Unauthorized\|401"; then
+        echo "   ❌ Both API key and basic auth failed!"
+        echo "   Please check:"
+        echo "     1. n8n is running: ps aux | grep n8n"
+        echo "     2. N8N_USER and N8N_PASSWORD in .env"
+        echo "     3. API key is valid (get from n8n UI: Settings → API)"
+        exit 1
+    else
+        echo "   ✅ Basic auth works, using it for all requests"
+        USE_BASIC_AUTH=true
+    fi
+else
+    echo "   ✅ API key authentication works"
+    USE_BASIC_AUTH=false
+fi
+echo ""
+
 # Get all workflows
-WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-    "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+    WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+else
+    WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+fi
 
 # Workflows to delete and re-import
 WORKFLOW_NAMES=(
@@ -56,14 +121,22 @@ except:
         echo "   Deleting: $wf_name (ID: $WF_ID)..."
         
         # Deactivate first
-        curl -s -X POST \
-            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-            "${N8N_URL}/api/v1/workflows/${WF_ID}/deactivate" > /dev/null 2>&1 || true
+        if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+            curl -s -X POST -u "${N8N_USER}:${N8N_PASSWORD}" \
+                "${N8N_URL}/api/v1/workflows/${WF_ID}/deactivate" > /dev/null 2>&1 || true
+        else
+            curl -s -X POST -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${WF_ID}/deactivate" > /dev/null 2>&1 || true
+        fi
         
         # Delete
-        DELETE_RESPONSE=$(curl -s -X DELETE \
-            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-            "${N8N_URL}/api/v1/workflows/${WF_ID}" 2>/dev/null || echo "")
+        if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+            DELETE_RESPONSE=$(curl -s -X DELETE -u "${N8N_USER}:${N8N_PASSWORD}" \
+                "${N8N_URL}/api/v1/workflows/${WF_ID}" 2>/dev/null || echo "")
+        else
+            DELETE_RESPONSE=$(curl -s -X DELETE -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+                "${N8N_URL}/api/v1/workflows/${WF_ID}" 2>/dev/null || echo "")
+        fi
         
         sleep 1
         echo "   ✅ Deleted: $wf_name"
@@ -80,8 +153,13 @@ echo ""
 sleep 2
 
 # Get fresh workflow list
-WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-    "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+    WORKFLOWS_JSON=$(curl -s -u "${N8N_USER}:${N8N_PASSWORD}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+else
+    WORKFLOWS_JSON=$(curl -s -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+        "${N8N_URL}/api/v1/workflows" 2>/dev/null || echo '{"data":[]}')
+fi
 
 WORKFLOWS=(
     "session-start-workflow.json:Session Start - Fast Webhook"
@@ -130,11 +208,19 @@ EOF
     fi
     
     # Import workflow
-    RESPONSE=$(curl -s -X POST \
-        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-        -H "Content-Type: application/json" \
-        -d "$CLEANED_WORKFLOW" \
-        "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+        RESPONSE=$(curl -s -X POST \
+            -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d "$CLEANED_WORKFLOW" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    else
+        RESPONSE=$(curl -s -X POST \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$CLEANED_WORKFLOW" \
+            "${N8N_URL}/api/v1/workflows" 2>/dev/null)
+    fi
     
     WORKFLOW_ID=$(echo "$RESPONSE" | python3 -c "import json, sys; d=json.load(sys.stdin); print(d.get('id', 'error'))" 2>/dev/null || echo "error")
     
@@ -149,10 +235,17 @@ EOF
     
     # Activate workflow
     sleep 1
-    ACTIVATE_RESPONSE=$(curl -s -X POST \
-        -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-        -H "Content-Type: application/json" \
-        "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}/activate" 2>/dev/null)
+    if [[ "$USE_BASIC_AUTH" == "true" ]]; then
+        ACTIVATE_RESPONSE=$(curl -s -X POST \
+            -u "${N8N_USER}:${N8N_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}/activate" 2>/dev/null)
+    else
+        ACTIVATE_RESPONSE=$(curl -s -X POST \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "${N8N_URL}/api/v1/workflows/${WORKFLOW_ID}/activate" 2>/dev/null)
+    fi
     
     if echo "$ACTIVATE_RESPONSE" | grep -q "active.*true\|success"; then
         echo "   ✅ Activated: $display_name"
