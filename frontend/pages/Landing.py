@@ -10,41 +10,8 @@ from common import (
     start_session, listen_to_events
 )
 
-# Page config
-st.set_page_config(
-    page_title="AI Virtual Classroom",
-    page_icon="👨‍🏫",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Initialize session state
 initialize_session_state()
-
-# Check for auto-navigation flag BEFORE rendering anything
-if st.session_state.get("auto_navigate_to_session", False) and st.session_state.session_id:
-    st.session_state.auto_navigate_to_session = False  # Clear flag immediately
-    # Force navigation using JavaScript - this is the most reliable method
-    st.markdown(
-        """
-        <script>
-            // Navigate to Session page by replacing /app with /Session in the URL
-            const currentPath = window.location.pathname;
-            const newPath = currentPath.replace('/app', '/Session');
-            window.location.href = window.location.origin + newPath;
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
-    # Also try Streamlit's native navigation
-    try:
-        st.switch_page("pages/Session")
-    except:
-        try:
-            st.switch_page("Session")
-        except:
-            pass
-    st.stop()  # Stop rendering to allow JavaScript redirect to work
 
 # Apply CSS
 st.markdown(get_css_styles(), unsafe_allow_html=True)
