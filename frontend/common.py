@@ -248,6 +248,8 @@ def initialize_session_state():
         st.session_state.last_played_clip = None
     if "replay_clip" not in st.session_state:
         st.session_state.replay_clip = False
+    if "auto_navigate_to_session" not in st.session_state:
+        st.session_state.auto_navigate_to_session = False
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:

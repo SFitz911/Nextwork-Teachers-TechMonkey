@@ -67,7 +67,8 @@ with st.sidebar:
         st.session_state.renderer = None
         st.session_state.clips = {}
         st.session_state.current_clip = None
-        st.rerun()
+        st.session_state.last_played_clip = None
+        st.switch_page("app")  # Navigate back to landing page
 
 # Clean three-column layout: Teacher Left | URL Box Center | Teacher Right
 col_left, col_center, col_right = st.columns([1, 2, 1], gap="medium")

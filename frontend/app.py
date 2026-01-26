@@ -21,6 +21,19 @@ st.set_page_config(
 # Initialize session state
 initialize_session_state()
 
+# Check for auto-navigation flag BEFORE rendering anything
+if st.session_state.get("auto_navigate_to_session", False) and st.session_state.session_id:
+    st.session_state.auto_navigate_to_session = False  # Clear flag immediately
+    # Try navigation - Streamlit should find pages/Session.py when run from frontend/
+    try:
+        st.switch_page("pages/Session")
+    except:
+        try:
+            st.switch_page("Session")
+        except:
+            # If both fail, the navigation button will appear below
+            pass
+
 # Apply CSS
 st.markdown(get_css_styles(), unsafe_allow_html=True)
 
@@ -113,22 +126,12 @@ with st.sidebar:
                     )
                     st.session_state.sse_thread.start()
                 
-                # Navigate to session page using Streamlit's native navigation
-                # Streamlit auto-discovers pages in pages/ directory
-                try:
-                    # Try just the page name first (Streamlit should find it in pages/)
-                    st.switch_page("Session")
-                except:
-                    try:
-                        # Fallback: Try with pages/ prefix
-                        st.switch_page("pages/Session")
-                    except Exception as e:
-                        st.error(f"Could not navigate to session page: {e}")
-                        st.info("💡 Please manually navigate to the Session page using the sidebar menu.")
-                        st.rerun()
+                # Set flag to trigger navigation on next rerun (handled at top of page)
+                st.session_state.auto_navigate_to_session = True
+                st.rerun()
         
-        # Navigation: Go to Session button (if session exists)
-        if st.session_state.session_id:
+        # Navigation: Go to Session button (if session exists but not auto-navigating)
+        if st.session_state.session_id and not st.session_state.get("auto_navigate_to_session", False):
             st.markdown("---")
             st.markdown("### 🧭 Navigation")
             if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_sidebar"):
@@ -297,19 +300,13 @@ with col_center:
                 )
                 st.session_state.sse_thread.start()
             
-            # Navigate to session page using Streamlit's native navigation
-            try:
-                st.switch_page("Session")
-            except:
-                try:
-                    st.switch_page("pages/Session")
-                except Exception as e:
-                    st.error(f"Could not navigate to session page: {e}")
-                    st.info("💡 Please manually navigate to the Session page using the sidebar menu.")
-                    st.rerun()
+            # Navigate to session page - use query parameter approach as fallback
+            # Set a flag to trigger navigation on next rerun
+            st.session_state.auto_navigate_to_session = True
+            st.rerun()
     
-    # Navigation: Go to Session button (if session exists)
-    if st.session_state.session_id:
+    # Navigation: Go to Session button (if session exists but not auto-navigating)
+    if st.session_state.session_id and not st.session_state.get("auto_navigate_to_session", False):
         st.markdown("---")
         st.markdown("### 🧭 Navigation")
         if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_landing"):
