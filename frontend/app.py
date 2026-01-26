@@ -43,6 +43,17 @@ st.markdown("""
     /* Keep MainMenu visible so users can restore sidebar */
     #MainMenu {visibility: visible !important;}
     
+    /* Ensure sidebar is always visible */
+    [data-testid="stSidebar"] {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
+    section[data-testid="stSidebar"] {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
     /* Floating button to restore sidebar */
     .sidebar-toggle-btn {
         position: fixed;
