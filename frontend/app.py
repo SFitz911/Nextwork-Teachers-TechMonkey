@@ -125,6 +125,10 @@ with st.sidebar:
             
             session_id = start_session(selected, url_to_use if url_to_use else None)
             
+            if not session_id:
+                st.error("❌ Failed to start session. Please check the coordinator service is running.")
+                st.stop()
+            
             if session_id:
                 st.session_state.session_id = session_id
                 st.session_state.selected_teachers = selected
@@ -321,6 +325,10 @@ with col_center:
                 st.session_state.url_history = st.session_state.url_history[:10]
         
         session_id = start_session(selected, url_to_use if url_to_use else None)
+        
+        if not session_id:
+            st.error("❌ Failed to start session. Please check the coordinator service is running.")
+            st.stop()
         
         if session_id:
             st.session_state.session_id = session_id
