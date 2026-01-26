@@ -312,6 +312,17 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     
+    /* Style Streamlit images inside showcase */
+    .teacher-showcase img,
+    .teacher-showcase .stImage img {
+        width: 100% !important;
+        max-width: 400px !important;
+        height: auto !important;
+        border-radius: 12px !important;
+        margin-bottom: 20px !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    
     .teacher-showcase-name {
         color: #f1f5f9;
         font-size: 2rem;
@@ -1128,10 +1139,18 @@ else:
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        st.markdown(f"""
+        # Maya showcase
+        st.markdown("""
         <div class="teacher-showcase">
-            <img src="{TEACHERS['teacher_a']['image']}" alt="Maya" class="teacher-showcase-image" />
-            <div class="teacher-showcase-name">{TEACHERS['teacher_a']['name']}</div>
+        """, unsafe_allow_html=True)
+        # Display Maya's image
+        try:
+            st.image(TEACHERS['teacher_a']['image'], use_container_width=True)
+        except Exception as e:
+            # Fallback to HTML if Streamlit image fails
+            st.markdown(f'<img src="{TEACHERS["teacher_a"]["image"]}" alt="Maya" class="teacher-showcase-image" />', unsafe_allow_html=True)
+        st.markdown("""
+            <div class="teacher-showcase-name">Maya</div>
             <div class="teacher-showcase-statement">
                 Your knowledgeable guide through complex topics, bringing clarity and expertise to every lesson.
             </div>
@@ -1139,10 +1158,18 @@ else:
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
+        # Maximus showcase
+        st.markdown("""
         <div class="teacher-showcase">
-            <img src="{TEACHERS['teacher_b']['image']}" alt="Maximus" class="teacher-showcase-image" />
-            <div class="teacher-showcase-name">{TEACHERS['teacher_b']['name']}</div>
+        """, unsafe_allow_html=True)
+        # Display Maximus's image
+        try:
+            st.image(TEACHERS['teacher_b']['image'], use_container_width=True)
+        except Exception as e:
+            # Fallback to HTML if Streamlit image fails
+            st.markdown(f'<img src="{TEACHERS["teacher_b"]["image"]}" alt="Maximus" class="teacher-showcase-image" />', unsafe_allow_html=True)
+        st.markdown("""
+            <div class="teacher-showcase-name">Maximus</div>
             <div class="teacher-showcase-statement">
                 Your engaging companion who makes learning fun and interactive, bringing energy to every session.
             </div>
