@@ -281,20 +281,43 @@ st.markdown("""
         padding-top: 80px !important;
     }
     
-    /* Teacher showcase boxes */
+    /* Teacher showcase boxes - images ON TOP of blue boxes */
     .teacher-showcase {
         background: #1e293b;
         border-radius: 16px;
-        padding: 30px;
+        padding: 0;
         margin: 20px;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
         border: 2px solid #334155;
         transition: all 0.3s ease;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         text-align: center;
         min-height: 500px;
+        overflow: hidden;
+    }
+    
+    /* Image container at top of box */
+    .teacher-showcase-image-container {
+        width: 100%;
+        height: 300px;
+        overflow: hidden;
+        background: #1e293b;
+        flex-shrink: 0;
+    }
+    
+    .teacher-showcase-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    
+    /* Content below image */
+    .teacher-showcase-content {
+        padding: 20px;
+        flex: 1;
     }
     
     .teacher-showcase:hover {
@@ -312,20 +335,21 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     
-    /* Style Streamlit images - position at top of box */
-    .teacher-showcase .stImage,
-    .teacher-showcase .stImage > div {
+    /* Style Streamlit images - position at top of box, inside image-container */
+    .teacher-showcase-image-container .stImage,
+    .teacher-showcase-image-container .stImage > div {
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
+        height: 300px !important;
     }
     
-    .teacher-showcase .stImage img {
+    .teacher-showcase-image-container .stImage img {
         width: 100% !important;
         height: 300px !important;
         object-fit: cover !important;
-        border-radius: 16px 16px 0 0 !important;
         display: block !important;
+        border-radius: 0 !important;
     }
     
     .teacher-showcase-name {
@@ -523,6 +547,8 @@ if "last_played_clip" not in st.session_state:
     st.session_state.last_played_clip = None
 if "replay_clip" not in st.session_state:
     st.session_state.replay_clip = False
+if "nav_action" not in st.session_state:
+    st.session_state.nav_action = None
 
 
 def start_session(selected_teachers: List[str], lesson_url: Optional[str] = None) -> Optional[str]:
