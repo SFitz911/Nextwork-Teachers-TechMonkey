@@ -138,24 +138,32 @@ with st.sidebar:
                     )
                     st.session_state.sse_thread.start()
                 
-                # Force immediate navigation using JavaScript
-                st.markdown(
-                    """
-                    <script>
-                        window.location.href = window.location.origin + window.location.pathname.replace('/app', '/Session');
-                    </script>
-                    """,
-                    unsafe_allow_html=True
-                )
-                # Also try Streamlit navigation
+                # Use components.html for more reliable JavaScript execution
+                navigation_script = """
+                <script>
+                    (function() {
+                        const currentPath = window.location.pathname;
+                        const newPath = currentPath.replace('/app', '/Session');
+                        const newUrl = window.location.origin + newPath;
+                        console.log('Navigating to:', newUrl);
+                        window.location.href = newUrl;
+                    })();
+                </script>
+                """
+                st.components.v1.html(navigation_script, height=0)
+                
+                # Also try Streamlit navigation as backup
                 try:
                     st.switch_page("pages/Session")
-                except:
+                except Exception as e1:
                     try:
                         st.switch_page("Session")
-                    except:
-                        pass
-                st.stop()
+                    except Exception as e2:
+                        st.error(f"Navigation failed. Please use sidebar menu. Errors: {e1}, {e2}")
+                        st.info("💡 Click 'Go to Session' button below or use the sidebar menu.")
+                
+                # Don't stop - let JavaScript redirect work
+                st.rerun()
         
         # Navigation: Go to Session button (if session exists but not auto-navigating)
         if st.session_state.session_id and not st.session_state.get("auto_navigate_to_session", False):
@@ -327,24 +335,32 @@ with col_center:
                 )
                 st.session_state.sse_thread.start()
             
-            # Force immediate navigation using JavaScript
-            st.markdown(
-                """
-                <script>
-                    window.location.href = window.location.origin + window.location.pathname.replace('/app', '/Session');
-                </script>
-                """,
-                unsafe_allow_html=True
-            )
-            # Also try Streamlit navigation
+            # Use components.html for more reliable JavaScript execution
+            navigation_script = """
+            <script>
+                (function() {
+                    const currentPath = window.location.pathname;
+                    const newPath = currentPath.replace('/app', '/Session');
+                    const newUrl = window.location.origin + newPath;
+                    console.log('Navigating to:', newUrl);
+                    window.location.href = newUrl;
+                })();
+            </script>
+            """
+            st.components.v1.html(navigation_script, height=0)
+            
+            # Also try Streamlit navigation as backup
             try:
                 st.switch_page("pages/Session")
-            except:
+            except Exception as e1:
                 try:
                     st.switch_page("Session")
-                except:
-                    pass
-            st.stop()
+                except Exception as e2:
+                    st.error(f"Navigation failed. Please use sidebar menu. Errors: {e1}, {e2}")
+                    st.info("💡 Click 'Go to Session' button below or use the sidebar menu.")
+            
+            # Don't stop - let JavaScript redirect work
+            st.rerun()
     
     # Navigation: Go to Session button (if session exists but not auto-navigating)
     if st.session_state.session_id and not st.session_state.get("auto_navigate_to_session", False):
