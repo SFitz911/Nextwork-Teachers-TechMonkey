@@ -20,6 +20,9 @@ DEFAULT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODU4OGE3Mi0xN2
 N8N_API_KEY="${N8N_API_KEY:-$DEFAULT_API_KEY}"
 N8N_URL="http://localhost:5678"
 
+# Initialize auth method (will be set during test)
+USE_BASIC_AUTH=false
+
 echo "=========================================="
 echo "Force Re-importing n8n Workflows"
 echo "=========================================="
