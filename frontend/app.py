@@ -549,6 +549,14 @@ with st.sidebar:
                 
                 st.success("✅ Session started!")
                 st.rerun()
+        
+        # Navigation: Go to Session button (if session exists but we're on landing page)
+        if st.session_state.session_id and not st.session_state.show_session_page:
+            st.markdown("---")
+            st.markdown("### 🧭 Navigation")
+            if st.button("▶️ Go to Session", use_container_width=True, type="primary"):
+                st.session_state.show_session_page = True
+                st.rerun()
     else:
         # Session active - show status and controls
         st.markdown("### 📊 Session Active")
@@ -584,15 +592,21 @@ with st.sidebar:
             st.session_state.show_session_page = True
             st.rerun()
         
+        # Navigation buttons
+        st.markdown("---")
+        st.markdown("### 🧭 Navigation")
+        
         # Back button to return to landing page
-        if st.session_state.show_session_page and not st.session_state.session_id:
-            st.markdown("---")
-            if st.button("← Back to Start", use_container_width=True):
+        if st.session_state.show_session_page:
+            if st.button("← Back to Landing", use_container_width=True):
                 st.session_state.show_session_page = False
-                st.session_state.selected_teachers = []
-                st.session_state.website_url = ""
-                st.session_state.chat_message = ""
-                st.session_state.last_played_clip = None
+                # Don't clear session_id - allow user to come back
+                st.rerun()
+        
+        # Forward button to go to session (if session exists but we're on landing)
+        if not st.session_state.show_session_page and st.session_state.session_id:
+            if st.button("▶️ Go to Session", use_container_width=True, type="primary"):
+                st.session_state.show_session_page = True
                 st.rerun()
 
 
