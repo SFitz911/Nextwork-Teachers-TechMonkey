@@ -41,7 +41,7 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     /* Keep MainMenu visible so users can restore sidebar */
-    /* #MainMenu {visibility: hidden;} */
+    #MainMenu {visibility: visible !important;}
     
     /* Floating button to restore sidebar */
     .sidebar-toggle-btn {
@@ -312,27 +312,20 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     
-    /* Style Streamlit images inside showcase - make them fit at top of box */
-    .teacher-showcase img,
+    /* Style Streamlit images - position at top of box */
     .teacher-showcase .stImage,
-    .teacher-showcase .stImage > div,
-    .teacher-showcase .stImage img {
+    .teacher-showcase .stImage > div {
         width: 100% !important;
-        max-width: 100% !important;
-        height: auto !important;
-        border-radius: 12px 12px 0 0 !important;
-        margin-bottom: 15px !important;
-        margin-top: -20px !important;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-        object-fit: cover !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
-    /* Ensure the image container is at the top */
-    .teacher-showcase > div:first-child {
+    .teacher-showcase .stImage img {
         width: 100% !important;
-        margin-top: -20px !important;
-        margin-left: -20px !important;
-        margin-right: -20px !important;
+        height: 300px !important;
+        object-fit: cover !important;
+        border-radius: 16px 16px 0 0 !important;
+        display: block !important;
     }
     
     .teacher-showcase-name {
@@ -1171,39 +1164,45 @@ else:
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        # Maya showcase - image inside the box
+        # Maya showcase - image ON TOP of the blue box
         st.markdown("""
         <div class="teacher-showcase">
+            <div class="teacher-showcase-image-container">
         """, unsafe_allow_html=True)
-        # Display Maya's image inside the box
+        # Display Maya's image at top of box
         try:
             st.image(TEACHERS['teacher_a']['image'], use_container_width=True)
         except Exception as e:
-            # Fallback to HTML if Streamlit image fails
-            st.markdown(f'<img src="{TEACHERS["teacher_a"]["image"]}" alt="Maya" class="teacher-showcase-image" />', unsafe_allow_html=True)
+            st.markdown(f'<img src="{TEACHERS["teacher_a"]["image"]}" alt="Maya" />', unsafe_allow_html=True)
         st.markdown("""
-            <div class="teacher-showcase-name">Maya</div>
-            <div class="teacher-showcase-statement">
-                Your knowledgeable guide through complex topics, bringing clarity and expertise to every lesson.
+            </div>
+            <div class="teacher-showcase-content">
+                <div class="teacher-showcase-name">Maya</div>
+                <div class="teacher-showcase-statement">
+                    Your knowledgeable guide through complex topics, bringing clarity and expertise to every lesson.
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        # Maximus showcase - image inside the box
+        # Maximus showcase - image ON TOP of the blue box
         st.markdown("""
         <div class="teacher-showcase">
+            <div class="teacher-showcase-image-container">
         """, unsafe_allow_html=True)
-        # Display Maximus's image inside the box
+        # Display Maximus's image at top of box
         try:
             st.image(TEACHERS['teacher_b']['image'], use_container_width=True)
         except Exception as e:
-            # Fallback to HTML if Streamlit image fails
-            st.markdown(f'<img src="{TEACHERS["teacher_b"]["image"]}" alt="Maximus" class="teacher-showcase-image" />', unsafe_allow_html=True)
+            st.markdown(f'<img src="{TEACHERS["teacher_b"]["image"]}" alt="Maximus" />', unsafe_allow_html=True)
         st.markdown("""
-            <div class="teacher-showcase-name">Maximus</div>
-            <div class="teacher-showcase-statement">
-                Your engaging companion who makes learning fun and interactive, bringing energy to every session.
+            </div>
+            <div class="teacher-showcase-content">
+                <div class="teacher-showcase-name">Maximus</div>
+                <div class="teacher-showcase-statement">
+                    Your engaging companion who makes learning fun and interactive, bringing energy to every session.
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
