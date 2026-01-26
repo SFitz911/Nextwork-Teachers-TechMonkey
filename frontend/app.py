@@ -225,6 +225,61 @@ st.markdown("""
         background: rgba(15, 23, 42, 0.5);
         border-radius: 6px;
     }
+    
+    /* Navigation bar styling */
+    .nav-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #1e293b;
+        padding: 12px 20px;
+        z-index: 998;
+        border-bottom: 2px solid #334155;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .nav-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .nav-btn {
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+    
+    .nav-btn:hover:not(:disabled) {
+        background-color: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    .nav-btn:disabled {
+        background-color: #64748b;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    
+    .nav-title {
+        color: #f1f5f9;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    /* Add padding to main content to account for nav bar */
+    .main .block-container {
+        padding-top: 80px !important;
+    }
     </style>
     
     <!-- Floating button to restore sidebar -->
@@ -277,6 +332,72 @@ st.markdown("""
         document.addEventListener('DOMContentLoaded', checkSidebarVisibility);
     } else {
         checkSidebarVisibility();
+    }
+    </script>
+    
+    <!-- Top Navigation Bar -->
+    <div class="nav-bar">
+        <div class="nav-title">
+            👨‍🏫 AI Virtual Classroom
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" id="nav-back-btn" onclick="navigateToLanding()" title="Back to Landing">
+                ← Landing
+            </button>
+            <button class="nav-btn" id="nav-forward-btn" onclick="navigateToSession()" title="Go to Session">
+                Session →
+            </button>
+        </div>
+    </div>
+    
+    <script>
+    // Navigation functions - trigger Streamlit buttons
+    function navigateToLanding() {
+        // Find and click the "Back to Landing" button in sidebar
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const backBtn = buttons.find(btn => btn.textContent.includes('Back to Landing'));
+        if (backBtn) {
+            backBtn.click();
+        }
+    }
+    
+    function navigateToSession() {
+        // Find and click the "Go to Session" button in sidebar
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const forwardBtn = buttons.find(btn => btn.textContent.includes('Go to Session'));
+        if (forwardBtn) {
+            forwardBtn.click();
+        }
+    }
+    
+    // Update navigation button states based on current page
+    function updateNavButtons() {
+        const backBtn = document.getElementById('nav-back-btn');
+        const forwardBtn = document.getElementById('nav-forward-btn');
+        
+        if (!backBtn || !forwardBtn) return;
+        
+        // Check if we're on session page (look for teacher panels or session-specific elements)
+        const isSessionPage = document.querySelector('[data-testid="column"]') !== null &&
+                             (document.body.textContent.includes('Speaking') ||
+                              document.body.textContent.includes('Rendering') ||
+                              document.querySelector('video') !== null);
+        
+        // Check if session exists (look for session ID or session controls)
+        const hasSession = document.body.textContent.includes('Session Active') ||
+                          document.body.textContent.includes('Session:');
+        
+        // Enable/disable buttons
+        backBtn.disabled = !isSessionPage;
+        forwardBtn.disabled = isSessionPage || !hasSession;
+    }
+    
+    // Update buttons periodically
+    setInterval(updateNavButtons, 500);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateNavButtons);
+    } else {
+        updateNavButtons();
     }
     </script>
     """, unsafe_allow_html=True)
