@@ -616,11 +616,10 @@ def process_events():
             break
 
 
-# Sidebar - Session Management
+# Sidebar - Session Management (moved to bottom of page for landing)
+# Only show sidebar controls when session is active
 with st.sidebar:
-    st.markdown("## 🎯 Session Control")
-    
-    if not st.session_state.session_id:
+    if st.session_state.session_id:
         # Teacher selection
         st.markdown("### Select Teachers")
         available_teachers = list(TEACHERS.keys())
