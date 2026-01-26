@@ -407,37 +407,43 @@ st.markdown("""
     </div>
     
     <script>
-    // Navigation functions - use Streamlit's window.postMessage to trigger navigation
+    // Navigation functions - find and click the actual Streamlit buttons
     function navigateToLanding() {
-        // Send message to Streamlit to navigate back
-        window.parent.postMessage({
-            type: 'streamlit:setComponentValue',
-            value: {action: 'navigate_back'}
-        }, '*');
-        // Also try clicking the button directly
+        // Wait a bit for DOM to be ready, then find and click
         setTimeout(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
-            const backBtn = buttons.find(btn => btn.textContent && btn.textContent.includes('Back to Landing'));
+            // Look for button with "Back to Landing" text
+            const backBtn = buttons.find(btn => {
+                const text = btn.textContent || btn.innerText || '';
+                return text.includes('Back to Landing') || text.includes('← Back');
+            });
             if (backBtn) {
+                backBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                backBtn.focus();
                 backBtn.click();
+            } else {
+                console.log('Back button not found');
             }
-        }, 100);
+        }, 200);
     }
     
     function navigateToSession() {
-        // Send message to Streamlit to navigate forward
-        window.parent.postMessage({
-            type: 'streamlit:setComponentValue',
-            value: {action: 'navigate_forward'}
-        }, '*');
-        // Also try clicking the button directly
+        // Wait a bit for DOM to be ready, then find and click
         setTimeout(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
-            const forwardBtn = buttons.find(btn => btn.textContent && btn.textContent.includes('Go to Session'));
+            // Look for button with "Go to Session" text
+            const forwardBtn = buttons.find(btn => {
+                const text = btn.textContent || btn.innerText || '';
+                return text.includes('Go to Session') || text.includes('▶️ Go');
+            });
             if (forwardBtn) {
+                forwardBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                forwardBtn.focus();
                 forwardBtn.click();
+            } else {
+                console.log('Forward button not found');
             }
-        }, 100);
+        }, 200);
     }
     
     // Update navigation button states based on current page
@@ -789,14 +795,14 @@ with st.sidebar:
         
         # Back button to return to landing page
         if st.session_state.show_session_page:
-            if st.button("← Back to Landing", use_container_width=True):
+            if st.button("← Back to Landing", use_container_width=True, key="nav_back_sidebar"):
                 st.session_state.show_session_page = False
                 # Don't clear session_id - allow user to come back
                 st.rerun()
         
         # Forward button to go to session (if session exists but we're on landing)
         if not st.session_state.show_session_page and st.session_state.session_id:
-            if st.button("▶️ Go to Session", use_container_width=True, type="primary"):
+            if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_sidebar"):
                 st.session_state.show_session_page = True
                 st.rerun()
 
