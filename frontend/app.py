@@ -1024,7 +1024,8 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
             except Exception:
                 st.image("https://via.placeholder.com/400x300?text=Avatar", use_container_width=True)
 
-else:
+# Landing Page - Only show if NOT on session page
+elif not st.session_state.show_session_page or not (st.session_state.session_id and st.session_state.selected_teachers):
     # Original landing page - Welcome screen with teacher showcase
     st.markdown("""
     <div style="text-align: center; padding: 40px 20px 20px 20px;">
