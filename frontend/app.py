@@ -691,6 +691,11 @@ with st.sidebar:
 if st.session_state.session_id:
     process_events()
 
+# CRITICAL: If we have a session but show_session_page is False, navigate immediately
+# This prevents both pages from rendering
+if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2 and not st.session_state.show_session_page:
+    st.session_state.show_session_page = True
+    st.rerun()
 
 # Main Content Area - Show EITHER session page OR landing page (mutually exclusive)
 # Show session page ONLY if show_session_page is True AND we have valid session data
