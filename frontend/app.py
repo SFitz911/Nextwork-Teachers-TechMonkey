@@ -38,9 +38,40 @@ st.set_page_config(
 st.markdown("""
     <style>
     /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    /* Keep MainMenu visible so users can restore sidebar */
+    /* #MainMenu {visibility: hidden;} */
+    
+    /* Floating button to restore sidebar */
+    .sidebar-toggle-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 999;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .sidebar-toggle-btn:hover {
+        background-color: #2563eb;
+        transform: scale(1.1);
+    }
+    
+    .sidebar-toggle-btn:active {
+        transform: scale(0.95);
+    }
     
     /* Hide any default Streamlit containers that might create boxes */
     .stApp > header {display: none;}
