@@ -1161,6 +1161,112 @@ else:
             </div>
         </div>
         """, unsafe_allow_html=True)
+    
+    # Session controls at bottom of landing page (moved from sidebar)
+    st.markdown("---")
+    st.markdown("## 🎯 Start Your Session")
+    
+    # Teacher selection in two columns
+    st.markdown("### Select Teachers")
+    available_teachers = list(TEACHERS.keys())
+    
+    col_teacher1, col_teacher2 = st.columns(2, gap="medium")
+    
+    with col_teacher1:
+        teacher_1 = st.selectbox(
+            "Teacher 1 (Left)",
+            available_teachers,
+            format_func=lambda x: TEACHERS[x]["name"],
+            key="teacher_1_landing"
+        )
+    
+    with col_teacher2:
+        teacher_2_options = [t for t in available_teachers if t != teacher_1]
+        teacher_2 = st.selectbox(
+            "Teacher 2 (Right)",
+            teacher_2_options,
+            format_func=lambda x: TEACHERS[x]["name"],
+            key="teacher_2_landing"
+        )
+    
+    # URL input for lesson with history dropdown
+    st.markdown("---")
+    st.markdown("### 📚 Lesson URL")
+    
+    # URL history dropdown
+    if st.session_state.url_history:
+        selected_history_url = st.selectbox(
+            "Select from history",
+            options=st.session_state.url_history,
+            key="url_history_select_landing",
+            label_visibility="collapsed"
+        )
+        if selected_history_url:
+            st.session_state.selected_url = selected_history_url
+    
+    # URL input with default value
+    lesson_url = st.text_input(
+        "Enter or select URL",
+        value=st.session_state.selected_url,
+        key="lesson_url_landing",
+        placeholder="https://www.nextwork.org/projects"
+    )
+    
+    # Update selected URL when user types
+    if lesson_url:
+        st.session_state.selected_url = lesson_url
+    
+    # Language selection
+    st.markdown("---")
+    st.markdown("### 🌐 Language")
+    languages = ["English", "Spanish", "French", "German", "Chinese (Simplified)", "Japanese", "Korean"]
+    selected_language = st.selectbox(
+        "Select Language",
+        options=languages,
+        index=0,
+        key="language_selectbox_landing",
+        label_visibility="collapsed"
+    )
+    st.session_state.selected_language = selected_language
+    
+    # Start session button
+    if st.button("🚀 Start Session", type="primary", use_container_width=True, key="start_session_landing"):
+        selected = [teacher_1, teacher_2]
+        url_to_use = lesson_url if lesson_url else st.session_state.selected_url
+        
+        # Add URL to history if it's not already there
+        if url_to_use and url_to_use not in st.session_state.url_history:
+            st.session_state.url_history.insert(0, url_to_use)
+            # Keep only last 10 URLs in history
+            if len(st.session_state.url_history) > 10:
+                st.session_state.url_history = st.session_state.url_history[:10]
+        
+        session_id = start_session(selected, url_to_use if url_to_use else None)
+        
+        if session_id:
+            st.session_state.session_id = session_id
+            st.session_state.selected_teachers = selected
+            st.session_state.website_url = url_to_use
+            st.session_state.show_session_page = True
+            
+            if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
+                st.session_state.sse_thread = threading.Thread(
+                    target=listen_to_events,
+                    args=(session_id, st.session_state.event_queue),
+                    daemon=True
+                )
+                st.session_state.sse_thread.start()
+            
+            st.success("✅ Session started!")
+            st.rerun()
+    
+    # Navigation: Go to Session button (if session exists but we're on landing page)
+    if st.session_state.session_id and not st.session_state.show_session_page:
+        st.markdown("---")
+        st.markdown("### 🧭 Navigation")
+        if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_landing"):
+            st.session_state.show_session_page = True
+            st.rerun()
 
 # Auto-refresh for event processing
 if st.session_state.session_id:
