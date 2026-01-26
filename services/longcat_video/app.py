@@ -272,8 +272,7 @@ async def generate_video_background(
             f"--input_json={input_json_path}",
             f"--output_dir={job_output_dir}",
             f"--resolution={resolution}",
-            f"--num_segments={num_segments}",
-            "--enable_compile"  # Faster inference
+            f"--num_segments={num_segments}"
         ]
         
         # Set environment
