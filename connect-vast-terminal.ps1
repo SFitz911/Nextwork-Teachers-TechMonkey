@@ -17,9 +17,9 @@ Write-Host "Connecting..." -ForegroundColor Green
 Write-Host ""
 
 # Connect via gateway (most reliable)
-# Direct: ssh -p 28259 root@24.124.32.70
-# Proxy: ssh -p 24285 root@ssh4.vast.ai
-ssh -p 24285 root@ssh4.vast.ai
+# Direct: ssh -p 19936 root@175.155.64.235
+# Proxy: ssh -p 10873 root@ssh4.vast.ai
+ssh -p 10873 root@ssh4.vast.ai
 
 Write-Host ""
 Write-Host "Connection closed." -ForegroundColor Yellow
