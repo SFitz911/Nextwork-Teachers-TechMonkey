@@ -155,15 +155,27 @@ if [ ! -d "$AVATAR_MODEL_DIR" ] || [ ! -d "$BASE_MODEL_DIR" ]; then
     
     mkdir -p "$WEIGHTS_DIR"
     
-    # Install huggingface-cli if not present
-    pip install "huggingface_hub[cli]"
+    # Install huggingface-cli if not present (in conda environment)
+    echo "Installing huggingface-cli..."
+    pip install "huggingface_hub[cli]" || {
+        echo "⚠️  Failed to install huggingface-cli, trying alternative method..."
+        pip install huggingface_hub
+    }
+    
+    # Verify huggingface-cli is available
+    if ! command -v huggingface-cli >/dev/null 2>&1; then
+        echo "⚠️  huggingface-cli not in PATH, using python -m huggingface_hub.cli instead"
+        HF_CLI="python -m huggingface_hub.cli"
+    else
+        HF_CLI="huggingface-cli"
+    fi
     
     # Download models
     echo "Downloading LongCat-Video-Avatar..."
-    huggingface-cli download meituan-longcat/LongCat-Video-Avatar --local-dir "$AVATAR_MODEL_DIR"
+    $HF_CLI download meituan-longcat/LongCat-Video-Avatar --local-dir "$AVATAR_MODEL_DIR"
     
     echo "Downloading LongCat-Video base model..."
-    huggingface-cli download meituan-longcat/LongCat-Video --local-dir "$BASE_MODEL_DIR"
+    $HF_CLI download meituan-longcat/LongCat-Video --local-dir "$BASE_MODEL_DIR"
     
     echo "✅ Models downloaded"
 else

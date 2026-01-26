@@ -86,8 +86,18 @@ mkdir -p logs
 
 # Check if venv exists
 if [[ ! -d "$VENV_DIR" ]]; then
-    echo "❌ Virtual environment not found. Run: bash scripts/deploy_no_docker.sh"
-    exit 1
+    echo "❌ Virtual environment not found."
+    echo "   Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    python -m pip install --upgrade pip
+    echo "   Installing Python dependencies..."
+    pip install -r frontend/requirements.txt
+    pip install -r services/tts/requirements.txt
+    pip install -r services/animation/requirements.txt
+    pip install -r services/coordinator/requirements.txt
+    pip install -r services/longcat_video/requirements.txt
+    echo "✅ Virtual environment created and dependencies installed"
 fi
 
 # Verify critical dependencies are installed
