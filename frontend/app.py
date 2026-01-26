@@ -292,6 +292,12 @@ st.markdown("""
         padding-top: 80px !important;
     }
     
+    /* Ensure images display properly in showcase boxes */
+    div[data-testid="stImage"] img {
+        border-radius: 16px 16px 0 0 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
     </style>
     
     <!-- Floating button to restore sidebar -->
