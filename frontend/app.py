@@ -616,8 +616,7 @@ def process_events():
             break
 
 
-# Sidebar - Session Management (moved to bottom of page for landing)
-# Only show sidebar controls when session is active
+# Sidebar - Only show session controls when session is active
 with st.sidebar:
     if st.session_state.session_id:
         # Teacher selection
