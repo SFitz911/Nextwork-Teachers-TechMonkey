@@ -46,9 +46,9 @@ st.markdown("""
     /* Floating button to restore sidebar */
     .sidebar-toggle-btn {
         position: fixed;
-        top: 20px;
+        top: 70px;
         left: 20px;
-        z-index: 999;
+        z-index: 997;
         background-color: #3b82f6;
         color: white;
         border: none;
@@ -407,23 +407,37 @@ st.markdown("""
     </div>
     
     <script>
-    // Navigation functions - trigger Streamlit buttons
+    // Navigation functions - use Streamlit's window.postMessage to trigger navigation
     function navigateToLanding() {
-        // Find and click the "Back to Landing" button in sidebar
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const backBtn = buttons.find(btn => btn.textContent.includes('Back to Landing'));
-        if (backBtn) {
-            backBtn.click();
-        }
+        // Send message to Streamlit to navigate back
+        window.parent.postMessage({
+            type: 'streamlit:setComponentValue',
+            value: {action: 'navigate_back'}
+        }, '*');
+        // Also try clicking the button directly
+        setTimeout(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const backBtn = buttons.find(btn => btn.textContent && btn.textContent.includes('Back to Landing'));
+            if (backBtn) {
+                backBtn.click();
+            }
+        }, 100);
     }
     
     function navigateToSession() {
-        // Find and click the "Go to Session" button in sidebar
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const forwardBtn = buttons.find(btn => btn.textContent.includes('Go to Session'));
-        if (forwardBtn) {
-            forwardBtn.click();
-        }
+        // Send message to Streamlit to navigate forward
+        window.parent.postMessage({
+            type: 'streamlit:setComponentValue',
+            value: {action: 'navigate_forward'}
+        }, '*');
+        // Also try clicking the button directly
+        setTimeout(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const forwardBtn = buttons.find(btn => btn.textContent && btn.textContent.includes('Go to Session'));
+            if (forwardBtn) {
+                forwardBtn.click();
+            }
+        }, 100);
     }
     
     // Update navigation button states based on current page
@@ -1126,16 +1140,7 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
 
 else:
     # Welcome screen - no session active
-    st.markdown("""
-    <div style="text-align: center; padding: 40px 20px 20px 20px;">
-        <h1 style="color: #f1f5f9; margin-bottom: 10px;">👨‍🏫 AI Virtual Classroom</h1>
-        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
-            Start a session with 2 AI teachers to begin your learning journey
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Teacher showcase - Maya and Maximus
+    # Teacher showcase - Maya and Maximus (welcome message removed)
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
