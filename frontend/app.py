@@ -1103,26 +1103,31 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
                 st.image("https://via.placeholder.com/400x300?text=Avatar", use_container_width=True)
 
 else:
-    # Brand new landing page design
+    # Original landing page - Welcome screen with teacher showcase
     st.markdown("""
-    <div style="text-align: center; padding: 60px 20px 40px 20px;">
-        <h1 style="color: #f1f5f9; font-size: 3rem; margin-bottom: 15px; font-weight: 700;">👨‍🏫 AI Virtual Classroom</h1>
-        <p style="color: #94a3b8; font-size: 1.3rem; margin-bottom: 50px; max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div style="text-align: center; padding: 40px 20px 20px 20px;">
+        <h1 style="color: #f1f5f9; margin-bottom: 10px;">👨‍🏫 AI Virtual Classroom</h1>
+        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
             Start a session with 2 AI teachers to begin your learning journey
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Teacher showcase - Clean design with images on blue boxes
+    # Teacher showcase - Maya and Maximus with images ON the blue boxes
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        # Maya showcase box
-        st.markdown(f"""
+        # Maya showcase - image on top of blue box
+        st.markdown("""
         <div style="background: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border: 2px solid #334155; margin: 20px;">
-            <div style="width: 100%; height: 350px; overflow: hidden; background: #0f172a;">
-                <img src="{TEACHERS['teacher_a']['image']}" alt="Maya" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-            </div>
+        """, unsafe_allow_html=True)
+        # Display Maya's image using Streamlit (works better than HTML img)
+        try:
+            st.image(TEACHERS['teacher_a']['image'], use_container_width=True)
+        except Exception:
+            # Fallback if image path doesn't work
+            st.markdown(f'<div style="width: 100%; height: 350px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: #64748b;">Image not found</div>', unsafe_allow_html=True)
+        st.markdown("""
             <div style="padding: 30px; text-align: center;">
                 <h2 style="color: #f1f5f9; font-size: 2rem; margin-bottom: 15px; font-weight: 700;">Maya</h2>
                 <p style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.6;">
@@ -1133,12 +1138,17 @@ else:
         """, unsafe_allow_html=True)
     
     with col2:
-        # Maximus showcase box
-        st.markdown(f"""
+        # Maximus showcase - image on top of blue box
+        st.markdown("""
         <div style="background: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border: 2px solid #334155; margin: 20px;">
-            <div style="width: 100%; height: 350px; overflow: hidden; background: #0f172a;">
-                <img src="{TEACHERS['teacher_b']['image']}" alt="Maximus" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-            </div>
+        """, unsafe_allow_html=True)
+        # Display Maximus's image using Streamlit (works better than HTML img)
+        try:
+            st.image(TEACHERS['teacher_b']['image'], use_container_width=True)
+        except Exception:
+            # Fallback if image path doesn't work
+            st.markdown(f'<div style="width: 100%; height: 350px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: #64748b;">Image not found</div>', unsafe_allow_html=True)
+        st.markdown("""
             <div style="padding: 30px; text-align: center;">
                 <h2 style="color: #f1f5f9; font-size: 2rem; margin-bottom: 15px; font-weight: 700;">Maximus</h2>
                 <p style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.6;">
