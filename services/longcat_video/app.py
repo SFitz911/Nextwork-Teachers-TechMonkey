@@ -278,6 +278,9 @@ async def generate_video_background(
         # Set environment
         env = os.environ.copy()
         env["PYTHONPATH"] = f"{LONGCAT_VIDEO_DIR}:{env.get('PYTHONPATH', '')}"
+        # Set CUDA device to GPU 1 (which is empty) and memory optimization
+        env["CUDA_VISIBLE_DEVICES"] = "1"  # Use GPU 1 instead of GPU 0
+        env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"  # Help with memory fragmentation
         
         # Run generation
         logger.info(f"Running command: {' '.join(cmd)}")
