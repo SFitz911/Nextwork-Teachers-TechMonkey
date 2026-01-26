@@ -280,6 +280,51 @@ st.markdown("""
     .main .block-container {
         padding-top: 80px !important;
     }
+    
+    /* Teacher showcase boxes */
+    .teacher-showcase {
+        background: #1e293b;
+        border-radius: 16px;
+        padding: 30px;
+        margin: 20px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        border: 2px solid #334155;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        min-height: 500px;
+    }
+    
+    .teacher-showcase:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+        border-color: #3b82f6;
+    }
+    
+    .teacher-showcase-image {
+        width: 100%;
+        max-width: 400px;
+        height: auto;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .teacher-showcase-name {
+        color: #f1f5f9;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+    }
+    
+    .teacher-showcase-statement {
+        color: #cbd5e1;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        max-width: 400px;
+    }
     </style>
     
     <!-- Floating button to restore sidebar -->
@@ -1071,13 +1116,38 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
 else:
     # Welcome screen - no session active
     st.markdown("""
-    <div style="text-align: center; padding: 40px 20px;">
-        <h1 style="color: #f1f5f9; margin-bottom: 20px;">👨‍🏫 AI Virtual Classroom</h1>
-        <p style="color: #94a3b8; font-size: 1.2rem;">
+    <div style="text-align: center; padding: 40px 20px 20px 20px;">
+        <h1 style="color: #f1f5f9; margin-bottom: 10px;">👨‍🏫 AI Virtual Classroom</h1>
+        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
             Start a session with 2 AI teachers to begin your learning journey
         </p>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Teacher showcase - Maya and Maximus
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        st.markdown(f"""
+        <div class="teacher-showcase">
+            <img src="{TEACHERS['teacher_a']['image']}" alt="Maya" class="teacher-showcase-image" />
+            <div class="teacher-showcase-name">{TEACHERS['teacher_a']['name']}</div>
+            <div class="teacher-showcase-statement">
+                Your knowledgeable guide through complex topics, bringing clarity and expertise to every lesson.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="teacher-showcase">
+            <img src="{TEACHERS['teacher_b']['image']}" alt="Maximus" class="teacher-showcase-image" />
+            <div class="teacher-showcase-name">{TEACHERS['teacher_b']['name']}</div>
+            <div class="teacher-showcase-statement">
+                Your engaging companion who makes learning fun and interactive, bringing energy to every session.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # Auto-refresh for event processing
 if st.session_state.session_id:
