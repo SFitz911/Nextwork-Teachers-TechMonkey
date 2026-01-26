@@ -718,8 +718,9 @@ with st.sidebar:
                 st.rerun()
     else:
         # Session active - show status and controls
-        st.markdown("### 📊 Session Active")
-        st.success(f"**Session:** `{st.session_state.session_id[:12]}...`")
+        if st.session_state.session_id:
+            st.markdown("### 📊 Session Active")
+            st.success(f"**Session:** `{st.session_state.session_id[:12]}...`")
         
         if st.session_state.speaker:
             st.markdown(f"**Speaking:** {TEACHERS[st.session_state.speaker]['name']}")
