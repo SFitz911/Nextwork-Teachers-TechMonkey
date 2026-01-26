@@ -2,7 +2,19 @@
 
 This document lists **everything** that needs to be downloaded/installed on a fresh VAST instance to get back to where you were.
 
+
+cd ~/Nextwork-Teachers-TechMonkey
+
+# Make it executable
+chmod +x master_setup-01.sh
+
+# Run it (one click!)
+bash master_setup-01.sh
+
+
 ---
+
+
 
 ## 📦 What Gets Downloaded/Installed
 
@@ -294,3 +306,10 @@ bash scripts/check_all_services_status.sh
 **Total time:** ~60-100 minutes (mostly waiting for Hugging Face models)
 
 **Total disk space:** ~60GB
+
+
+
+
+
+
+bash scripts/check_all_services_status.sh
