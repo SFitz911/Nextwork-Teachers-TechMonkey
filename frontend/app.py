@@ -692,9 +692,9 @@ if st.session_state.session_id:
     process_events()
 
 
-# Main Content Area - Session Active Page
-# Show session page if session is active OR if we're showing it after ending
-if (st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2) or (st.session_state.show_session_page and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2):
+# Main Content Area - Show EITHER session page OR landing page (mutually exclusive)
+# Show session page if we explicitly want to show it AND have valid session data
+if st.session_state.show_session_page and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
     
