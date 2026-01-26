@@ -226,6 +226,59 @@ st.markdown("""
         border-radius: 6px;
     }
     </style>
+    
+    <!-- Floating button to restore sidebar -->
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Show Sidebar">
+        ☰
+    </button>
+    
+    <script>
+    function toggleSidebar() {
+        // Try to find and click the Streamlit sidebar toggle button
+        const sidebarToggle = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebarToggle) {
+            // Find the hamburger menu button
+            const menuButton = document.querySelector('[data-testid="baseButton-header"]') ||
+                              document.querySelector('button[aria-label*="menu"]') ||
+                              document.querySelector('button[aria-label*="Menu"]') ||
+                              document.querySelector('[aria-label="View sidebar"]') ||
+                              document.querySelector('button[aria-label="Close sidebar"]') ||
+                              document.querySelector('[class*="hamburger"]');
+            
+            if (menuButton) {
+                menuButton.click();
+            } else {
+                // Fallback: try to show sidebar by clicking on the left edge
+                const sidebar = document.querySelector('[data-testid="stSidebar"]');
+                if (sidebar) {
+                    sidebar.style.transform = 'translateX(0)';
+                    sidebar.style.display = 'block';
+                }
+            }
+        }
+    }
+    
+    // Hide the floating button when sidebar is visible
+    function checkSidebarVisibility() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const toggleBtn = document.querySelector('.sidebar-toggle-btn');
+        if (sidebar && toggleBtn) {
+            const isVisible = window.getComputedStyle(sidebar).display !== 'none' &&
+                            sidebar.offsetWidth > 0 &&
+                            window.getComputedStyle(sidebar).transform !== 'translateX(-100%)';
+            toggleBtn.style.display = isVisible ? 'none' : 'flex';
+        }
+    }
+    
+    // Check sidebar visibility periodically
+    setInterval(checkSidebarVisibility, 500);
+    // Also check on page load and after DOM changes
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkSidebarVisibility);
+    } else {
+        checkSidebarVisibility();
+    }
+    </script>
     """, unsafe_allow_html=True)
 
 
