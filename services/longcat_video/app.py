@@ -1,6 +1,11 @@
 """
 LongCat-Video-Avatar API Service
 Wraps LongCat-Video-Avatar pipeline for HTTP API access
+
+Memory Management:
+- Queue system: Only 1 video generation at a time (prevents concurrent model loads)
+- Process monitoring: Track and kill stuck processes
+- Explicit cleanup: Clear GPU memory after each job
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -12,10 +17,15 @@ import json
 import uuid
 import subprocess
 import tempfile
+import signal
+import psutil
 from pathlib import Path
 from typing import Optional
 import asyncio
 import logging
+from collections import deque
+import threading
+import time
 
 app = FastAPI(title="LongCat-Video-Avatar Service")
 
@@ -73,6 +83,109 @@ class GenerateResponse(BaseModel):
 # Job tracking
 jobs = {}
 
+# Queue system: Only allow 1 video generation at a time
+generation_queue = deque()
+generation_lock = threading.Lock()
+current_generation = None  # Track current generation process
+current_generation_pid = None  # Track PID for cleanup
+
+
+def cleanup_gpu_memory():
+    """Explicitly clear GPU memory"""
+    try:
+        # Try to clear via Python if torch is available
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            logger.info("✅ GPU memory cache cleared")
+    except ImportError:
+        # torch not available in this process, that's okay
+        pass
+    except Exception as e:
+        logger.warning(f"Failed to clear GPU memory: {e}")
+
+
+def kill_stuck_processes():
+    """Kill any stuck video generation processes"""
+    try:
+        # Find processes related to video generation
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info.get('cmdline', [])
+                if cmdline:
+                    cmdline_str = ' '.join(cmdline)
+                    # Look for torch.distributed.run or run_demo_avatar processes
+                    if 'torch.distributed.run' in cmdline_str and 'avatar' in cmdline_str:
+                        pid = proc.info['pid']
+                        logger.warning(f"Found stuck process {pid}, killing it...")
+                        try:
+                            proc.kill()
+                            proc.wait(timeout=5)
+                            logger.info(f"✅ Killed stuck process {pid}")
+                        except (psutil.NoSuchProcess, psutil.TimeoutExpired):
+                            pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except Exception as e:
+        logger.warning(f"Error killing stuck processes: {e}")
+
+
+def process_generation_queue():
+    """Process the generation queue (runs in background thread)"""
+    global current_generation, current_generation_pid
+    
+    while True:
+        try:
+            with generation_lock:
+                if not generation_queue or current_generation is not None:
+                    time.sleep(1)
+                    continue
+                
+                # Get next job from queue
+                job_data = generation_queue.popleft()
+                current_generation = job_data
+                current_generation_pid = None
+            
+            # Process the job
+            job_id = job_data['job_id']
+            logger.info(f"Processing queued job {job_id}")
+            
+            try:
+                # Run generation
+                generate_video_background_sync(
+                    job_id,
+                    job_data['input_json_path'],
+                    job_data['audio_path'],
+                    job_data['resolution'],
+                    job_data['num_segments']
+                )
+            finally:
+                # Cleanup after job completes
+                with generation_lock:
+                    current_generation = None
+                    current_generation_pid = None
+                
+                # Clear GPU memory
+                cleanup_gpu_memory()
+                
+                # Kill any stuck processes
+                kill_stuck_processes()
+                
+                logger.info(f"Job {job_id} completed, queue has {len(generation_queue)} items remaining")
+        
+        except Exception as e:
+            logger.error(f"Error in queue processor: {e}", exc_info=True)
+            with generation_lock:
+                current_generation = None
+                current_generation_pid = None
+            time.sleep(1)
+
+
+# Start queue processor thread
+queue_thread = threading.Thread(target=process_generation_queue, daemon=True)
+queue_thread.start()
+
 
 @app.get("/")
 async def root():
@@ -80,7 +193,9 @@ async def root():
         "service": "LongCat-Video-Avatar",
         "status": "ready",
         "checkpoint_dir": CHECKPOINT_DIR,
-        "resolution": RESOLUTION
+        "resolution": RESOLUTION,
+        "queue_size": len(generation_queue),
+        "current_generation": current_generation['job_id'] if current_generation else None
     }
 
 
@@ -93,7 +208,9 @@ async def status():
         "model_path": CHECKPOINT_DIR,
         "model_exists": model_exists,
         "output_dir": OUTPUT_DIR,
-        "active_jobs": len([j for j in jobs.values() if j["status"] == "processing"])
+        "active_jobs": len([j for j in jobs.values() if j["status"] == "processing"]),
+        "queue_size": len(generation_queue),
+        "current_generation": current_generation['job_id'] if current_generation else None
     }
 
 
@@ -171,15 +288,16 @@ async def generate_video(request: GenerateRequest, background_tasks: BackgroundT
             "output_path": None
         }
         
-        # Start generation in background
-        background_tasks.add_task(
-            generate_video_background,
-            job_id,
-            input_json_path,
-            audio_path,
-            request.resolution,
-            request.num_segments
-        )
+        # Add to queue instead of starting immediately
+        with generation_lock:
+            generation_queue.append({
+                "job_id": job_id,
+                "input_json_path": input_json_path,
+                "audio_path": audio_path,
+                "resolution": request.resolution,
+                "num_segments": request.num_segments
+            })
+            logger.info(f"Job {job_id} added to queue (queue size: {len(generation_queue)})")
         
         return GenerateResponse(
             video_url=f"/video/{job_id}",
@@ -199,7 +317,7 @@ async def generate_video(request: GenerateRequest, background_tasks: BackgroundT
         raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
 
 
-async def generate_video_background(
+def generate_video_background_sync(
     job_id: str,
     input_json_path: str,
     audio_path: str,
@@ -207,8 +325,10 @@ async def generate_video_background(
     num_segments: int
 ):
     """
-    Background task to generate video using LongCat-Video-Avatar
+    Synchronous video generation (called from queue processor)
     """
+    global current_generation_pid
+    
     try:
         logger.info(f"Starting video generation for job {job_id}")
         
@@ -289,23 +409,39 @@ async def generate_video_background(
         logger.info(f"CONDA_PREFIX: {os.getenv('CONDA_PREFIX', 'not set')}")
         logger.info(f"CONDA_DEFAULT_ENV: {os.getenv('CONDA_DEFAULT_ENV', 'not set')}")
         
-        result = subprocess.run(
+        # Start process and track PID
+        process = subprocess.Popen(
             cmd,
             cwd=LONGCAT_VIDEO_DIR,
             env=env,
-            capture_output=True,
-            text=True,
-            timeout=3600  # 1 hour timeout
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
         
-        if result.returncode != 0:
-            error_msg = f"Generation failed with exit code {result.returncode}"
-            if result.stdout:
-                logger.error(f"STDOUT: {result.stdout}")
-                error_msg += f"\nSTDOUT: {result.stdout}"
-            if result.stderr:
-                logger.error(f"STDERR: {result.stderr}")
-                error_msg += f"\nSTDERR: {result.stderr}"
+        current_generation_pid = process.pid
+        logger.info(f"Started generation process with PID: {current_generation_pid}")
+        
+        # Wait for completion with timeout
+        try:
+            stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+            returncode = process.returncode
+        except subprocess.TimeoutExpired:
+            logger.error(f"Generation timeout for job {job_id}, killing process {process.pid}")
+            process.kill()
+            process.wait()
+            jobs[job_id]["status"] = "failed"
+            jobs[job_id]["error"] = "Generation timeout"
+            return
+        
+        if returncode != 0:
+            error_msg = f"Generation failed with exit code {returncode}"
+            if stdout:
+                logger.error(f"STDOUT: {stdout}")
+                error_msg += f"\nSTDOUT: {stdout[-2000:]}"  # Last 2000 chars
+            if stderr:
+                logger.error(f"STDERR: {stderr}")
+                error_msg += f"\nSTDERR: {stderr[-2000:]}"  # Last 2000 chars
             logger.error(f"Full error: {error_msg}")
             jobs[job_id]["status"] = "failed"
             jobs[job_id]["error"] = error_msg
@@ -348,11 +484,6 @@ async def generate_video_background(
             os.remove(audio_path)
         except:
             pass
-    
-    except subprocess.TimeoutExpired:
-        logger.error(f"Generation timeout for job {job_id}")
-        jobs[job_id]["status"] = "failed"
-        jobs[job_id]["error"] = "Generation timeout"
     
     except Exception as e:
         logger.error(f"Error in background generation: {e}", exc_info=True)
