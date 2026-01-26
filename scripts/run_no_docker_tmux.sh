@@ -80,7 +80,7 @@ tmux send-keys -t "$SESSION":frontend \
    export N8N_WEBHOOK_URL='http://localhost:5678/webhook/session/start' && \
    export TTS_API_URL='http://localhost:8001' && \
    export ANIMATION_API_URL='http://localhost:8002' && \
-   streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee logs/frontend.log" C-m
+   cd '$PROJECT_DIR/frontend' && streamlit run app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee ../logs/frontend.log" C-m
 
 echo "✅ Started. Attach with: tmux attach -t $SESSION"
 

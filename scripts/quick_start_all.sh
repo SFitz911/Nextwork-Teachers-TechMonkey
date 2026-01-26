@@ -216,7 +216,7 @@ tmux send-keys -t "$SESSION":frontend \
    export TTS_API_URL='http://localhost:8001' && \
    export ANIMATION_API_URL='http://localhost:8002' && \
    export LONGCAT_API_URL='http://localhost:8003' && \
-   streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee logs/frontend.log" C-m
+   cd frontend && streamlit run app.py --server.address 0.0.0.0 --server.port 8501 2>&1 | tee ../logs/frontend.log" C-m
 
 echo "✅ All services started in tmux session '$SESSION'"
 echo ""

@@ -30,7 +30,9 @@ export ANIMATION_API_URL='http://localhost:8002'
 # Start frontend
 echo "Starting frontend with updated code..."
 mkdir -p logs
-nohup streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 > logs/frontend.log 2>&1 &
+cd frontend
+nohup streamlit run app.py --server.address 0.0.0.0 --server.port 8501 > ../logs/frontend.log 2>&1 &
+cd ..
 
 sleep 3
 

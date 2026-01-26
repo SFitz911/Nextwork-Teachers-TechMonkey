@@ -154,7 +154,8 @@ export TTS_API_URL='http://localhost:8001'
 export ANIMATION_API_URL='http://localhost:8002'
 export LONGCAT_API_URL='http://localhost:8003'
 cd "$PROJECT_DIR"
-nohup streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 > "$LOGS_DIR/frontend.log" 2>&1 &
+cd frontend && nohup streamlit run app.py --server.address 0.0.0.0 --server.port 8501 > "../$LOGS_DIR/frontend.log" 2>&1 &
+cd ..
 FRONTEND_PID=$!
 sleep 3
 if ps -p $FRONTEND_PID > /dev/null; then
