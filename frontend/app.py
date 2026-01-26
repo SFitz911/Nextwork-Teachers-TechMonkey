@@ -54,36 +54,6 @@ st.markdown("""
         display: block !important;
     }
     
-    /* Floating button to restore sidebar */
-    .sidebar-toggle-btn {
-        position: fixed;
-        top: 70px;
-        left: 20px;
-        z-index: 997;
-        background-color: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 24px;
-        cursor: pointer;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .sidebar-toggle-btn:hover {
-        background-color: #2563eb;
-        transform: scale(1.1);
-    }
-    
-    .sidebar-toggle-btn:active {
-        transform: scale(0.95);
-    }
-    
     /* Hide any default Streamlit containers that might create boxes */
     .stApp > header {display: none;}
     .stAppViewContainer > div:first-child {padding-top: 0 !important;}
@@ -299,59 +269,6 @@ st.markdown("""
         height: auto !important;
     }
     </style>
-    
-    <!-- Floating button to restore sidebar -->
-    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Show Sidebar">
-        ☰
-    </button>
-    
-    <script>
-    function toggleSidebar() {
-        // Try to find and click the Streamlit sidebar toggle button
-        const sidebarToggle = document.querySelector('[data-testid="stSidebar"]');
-        if (sidebarToggle) {
-            // Find the hamburger menu button
-            const menuButton = document.querySelector('[data-testid="baseButton-header"]') ||
-                              document.querySelector('button[aria-label*="menu"]') ||
-                              document.querySelector('button[aria-label*="Menu"]') ||
-                              document.querySelector('[aria-label="View sidebar"]') ||
-                              document.querySelector('button[aria-label="Close sidebar"]') ||
-                              document.querySelector('[class*="hamburger"]');
-            
-            if (menuButton) {
-                menuButton.click();
-            } else {
-                // Fallback: try to show sidebar by clicking on the left edge
-                const sidebar = document.querySelector('[data-testid="stSidebar"]');
-                if (sidebar) {
-                    sidebar.style.transform = 'translateX(0)';
-                    sidebar.style.display = 'block';
-                }
-            }
-        }
-    }
-    
-    // Hide the floating button when sidebar is visible
-    function checkSidebarVisibility() {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        const toggleBtn = document.querySelector('.sidebar-toggle-btn');
-        if (sidebar && toggleBtn) {
-            const isVisible = window.getComputedStyle(sidebar).display !== 'none' &&
-                            sidebar.offsetWidth > 0 &&
-                            window.getComputedStyle(sidebar).transform !== 'translateX(-100%)';
-            toggleBtn.style.display = isVisible ? 'none' : 'flex';
-        }
-    }
-    
-    // Check sidebar visibility periodically
-    setInterval(checkSidebarVisibility, 500);
-    // Also check on page load and after DOM changes
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', checkSidebarVisibility);
-    } else {
-        checkSidebarVisibility();
-    }
-    </script>
     
     <!-- Top Navigation Bar -->
     <div class="nav-bar">
