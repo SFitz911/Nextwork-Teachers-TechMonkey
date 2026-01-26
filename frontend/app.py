@@ -292,90 +292,6 @@ st.markdown("""
         padding-top: 80px !important;
     }
     
-    /* Teacher showcase boxes - images ON TOP of blue boxes */
-    .teacher-showcase {
-        background: #1e293b;
-        border-radius: 16px;
-        padding: 0;
-        margin: 20px;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-        border: 2px solid #334155;
-        transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-        min-height: 500px;
-        overflow: hidden;
-    }
-    
-    /* Image container at top of box */
-    .teacher-showcase-image-container {
-        width: 100%;
-        height: 300px;
-        overflow: hidden;
-        background: #1e293b;
-        flex-shrink: 0;
-    }
-    
-    .teacher-showcase-image-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-    
-    /* Content below image */
-    .teacher-showcase-content {
-        padding: 20px;
-        flex: 1;
-    }
-    
-    .teacher-showcase:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
-        border-color: #3b82f6;
-    }
-    
-    .teacher-showcase-image {
-        width: 100%;
-        max-width: 400px;
-        height: auto;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    }
-    
-    /* Style Streamlit images - position at top of box, inside image-container */
-    .teacher-showcase-image-container .stImage,
-    .teacher-showcase-image-container .stImage > div {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        height: 300px !important;
-    }
-    
-    .teacher-showcase-image-container .stImage img {
-        width: 100% !important;
-        height: 300px !important;
-        object-fit: cover !important;
-        display: block !important;
-        border-radius: 0 !important;
-    }
-    
-    .teacher-showcase-name {
-        color: #f1f5f9;
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 15px;
-    }
-    
-    .teacher-showcase-statement {
-        color: #cbd5e1;
-        font-size: 1.1rem;
-        line-height: 1.6;
-        max-width: 400px;
-    }
     </style>
     
     <!-- Floating button to restore sidebar -->
@@ -1187,59 +1103,47 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
                 st.image("https://via.placeholder.com/400x300?text=Avatar", use_container_width=True)
 
 else:
-    # Welcome screen - no session active
+    # Brand new landing page design
     st.markdown("""
-    <div style="text-align: center; padding: 40px 20px 20px 20px;">
-        <h1 style="color: #f1f5f9; margin-bottom: 10px;">👨‍🏫 AI Virtual Classroom</h1>
-        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
+    <div style="text-align: center; padding: 60px 20px 40px 20px;">
+        <h1 style="color: #f1f5f9; font-size: 3rem; margin-bottom: 15px; font-weight: 700;">👨‍🏫 AI Virtual Classroom</h1>
+        <p style="color: #94a3b8; font-size: 1.3rem; margin-bottom: 50px; max-width: 600px; margin-left: auto; margin-right: auto;">
             Start a session with 2 AI teachers to begin your learning journey
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Teacher showcase - Maya and Maximus with images inside boxes
+    # Teacher showcase - Clean design with images on blue boxes
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        # Maya showcase - image ON TOP of the blue box
-        st.markdown("""
-        <div class="teacher-showcase">
-            <div class="teacher-showcase-image-container">
-        """, unsafe_allow_html=True)
-        # Display Maya's image at top of box
-        try:
-            st.image(TEACHERS['teacher_a']['image'], use_container_width=True)
-        except Exception as e:
-            st.markdown(f'<img src="{TEACHERS["teacher_a"]["image"]}" alt="Maya" />', unsafe_allow_html=True)
-        st.markdown("""
+        # Maya showcase box
+        st.markdown(f"""
+        <div style="background: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border: 2px solid #334155; margin: 20px;">
+            <div style="width: 100%; height: 350px; overflow: hidden; background: #0f172a;">
+                <img src="{TEACHERS['teacher_a']['image']}" alt="Maya" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
             </div>
-            <div class="teacher-showcase-content">
-                <div class="teacher-showcase-name">Maya</div>
-                <div class="teacher-showcase-statement">
+            <div style="padding: 30px; text-align: center;">
+                <h2 style="color: #f1f5f9; font-size: 2rem; margin-bottom: 15px; font-weight: 700;">Maya</h2>
+                <p style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.6;">
                     Your knowledgeable guide through complex topics, bringing clarity and expertise to every lesson.
-                </div>
+                </p>
             </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        # Maximus showcase - image ON TOP of the blue box
-        st.markdown("""
-        <div class="teacher-showcase">
-            <div class="teacher-showcase-image-container">
-        """, unsafe_allow_html=True)
-        # Display Maximus's image at top of box
-        try:
-            st.image(TEACHERS['teacher_b']['image'], use_container_width=True)
-        except Exception as e:
-            st.markdown(f'<img src="{TEACHERS["teacher_b"]["image"]}" alt="Maximus" />', unsafe_allow_html=True)
-        st.markdown("""
+        # Maximus showcase box
+        st.markdown(f"""
+        <div style="background: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border: 2px solid #334155; margin: 20px;">
+            <div style="width: 100%; height: 350px; overflow: hidden; background: #0f172a;">
+                <img src="{TEACHERS['teacher_b']['image']}" alt="Maximus" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
             </div>
-            <div class="teacher-showcase-content">
-                <div class="teacher-showcase-name">Maximus</div>
-                <div class="teacher-showcase-statement">
+            <div style="padding: 30px; text-align: center;">
+                <h2 style="color: #f1f5f9; font-size: 2rem; margin-bottom: 15px; font-weight: 700;">Maximus</h2>
+                <p style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.6;">
                     Your engaging companion who makes learning fun and interactive, bringing energy to every session.
-                </div>
+                </p>
             </div>
         </div>
         """, unsafe_allow_html=True)
