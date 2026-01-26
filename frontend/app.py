@@ -693,8 +693,8 @@ if st.session_state.session_id:
 
 
 # Main Content Area - Show EITHER session page OR landing page (mutually exclusive)
-# Show session page if we have a valid session (session_id + selected_teachers)
-if st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
+# Show session page ONLY if show_session_page is True AND we have valid session data
+if st.session_state.show_session_page and st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
     
