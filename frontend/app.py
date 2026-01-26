@@ -312,15 +312,27 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     
-    /* Style Streamlit images inside showcase */
+    /* Style Streamlit images inside showcase - make them fit at top of box */
     .teacher-showcase img,
+    .teacher-showcase .stImage,
+    .teacher-showcase .stImage > div,
     .teacher-showcase .stImage img {
         width: 100% !important;
-        max-width: 400px !important;
+        max-width: 100% !important;
         height: auto !important;
-        border-radius: 12px !important;
-        margin-bottom: 20px !important;
+        border-radius: 12px 12px 0 0 !important;
+        margin-bottom: 15px !important;
+        margin-top: -20px !important;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+        object-fit: cover !important;
+    }
+    
+    /* Ensure the image container is at the top */
+    .teacher-showcase > div:first-child {
+        width: 100% !important;
+        margin-top: -20px !important;
+        margin-left: -20px !important;
+        margin-right: -20px !important;
     }
     
     .teacher-showcase-name {
@@ -1146,15 +1158,24 @@ if (st.session_state.session_id and st.session_state.selected_teachers and len(s
 
 else:
     # Welcome screen - no session active
-    # Teacher showcase - Maya and Maximus (welcome message removed)
+    st.markdown("""
+    <div style="text-align: center; padding: 40px 20px 20px 20px;">
+        <h1 style="color: #f1f5f9; margin-bottom: 10px;">👨‍🏫 AI Virtual Classroom</h1>
+        <p style="color: #94a3b8; font-size: 1.2rem; margin-bottom: 40px;">
+            Start a session with 2 AI teachers to begin your learning journey
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Teacher showcase - Maya and Maximus with images inside boxes
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        # Maya showcase
+        # Maya showcase - image inside the box
         st.markdown("""
         <div class="teacher-showcase">
         """, unsafe_allow_html=True)
-        # Display Maya's image
+        # Display Maya's image inside the box
         try:
             st.image(TEACHERS['teacher_a']['image'], use_container_width=True)
         except Exception as e:
@@ -1169,11 +1190,11 @@ else:
         """, unsafe_allow_html=True)
     
     with col2:
-        # Maximus showcase
+        # Maximus showcase - image inside the box
         st.markdown("""
         <div class="teacher-showcase">
         """, unsafe_allow_html=True)
-        # Display Maximus's image
+        # Display Maximus's image inside the box
         try:
             st.image(TEACHERS['teacher_b']['image'], use_container_width=True)
         except Exception as e:
