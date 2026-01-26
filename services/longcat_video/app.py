@@ -219,6 +219,20 @@ async def generate_video_background(
         # Build command - use python -m torch.distributed.run to ensure correct environment
         script_path = os.path.join(LONGCAT_VIDEO_DIR, "run_demo_avatar_single_audio_to_video.py")
         
+        # Verify script file exists
+        if not os.path.exists(script_path):
+            error_msg = f"LongCat-Video script not found: {script_path}\n"
+            error_msg += f"LONGCAT_VIDEO_DIR: {LONGCAT_VIDEO_DIR}\n"
+            error_msg += f"Directory exists: {os.path.exists(LONGCAT_VIDEO_DIR)}\n"
+            if os.path.exists(LONGCAT_VIDEO_DIR):
+                error_msg += f"Files in directory: {', '.join(os.listdir(LONGCAT_VIDEO_DIR)[:10])}\n"
+            error_msg += "\nTo fix this, run:\n"
+            error_msg += "  bash scripts/clone_longcat_video.sh"
+            logger.error(error_msg)
+            jobs[job_id]["status"] = "failed"
+            jobs[job_id]["error"] = error_msg
+            return
+        
         # CRITICAL: Use conda Python explicitly, not venv Python
         # Check if we're in conda environment
         python_exe = sys.executable
