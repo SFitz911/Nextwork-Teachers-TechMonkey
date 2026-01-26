@@ -9,6 +9,14 @@ from common import (
     process_events, update_section, COORDINATOR_API_URL
 )
 
+# Page config
+st.set_page_config(
+    page_title="Session - AI Virtual Classroom",
+    page_icon="👨‍🏫",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # Initialize session state
 initialize_session_state()
 

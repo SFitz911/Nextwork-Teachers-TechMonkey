@@ -16,12 +16,13 @@ COORDINATOR_API_URL = os.getenv("COORDINATOR_API_URL", "http://localhost:8004")
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/session/start")
 
 # Teacher mapping
+# Note: Paths are relative to frontend/ directory, so we need ../ to go up one level
 TEACHERS = {
-    "teacher_a": {"name": "Maya", "image": "Nextwork-Teachers/Maya.png"},
-    "teacher_b": {"name": "Maximus", "image": "Nextwork-Teachers/Maximus.png"},
-    "teacher_c": {"name": "Krishna", "image": "Nextwork-Teachers/krishna.png"},
-    "teacher_d": {"name": "TechMonkey Steve", "image": "Nextwork-Teachers/TechMonkey Steve.png"},
-    "teacher_e": {"name": "Pano Bieber", "image": "Nextwork-Teachers/Pano Bieber.png"}
+    "teacher_a": {"name": "Maya", "image": "../Nextwork-Teachers/Maya.png"},
+    "teacher_b": {"name": "Maximus", "image": "../Nextwork-Teachers/Maximus.png"},
+    "teacher_c": {"name": "Krishna", "image": "../Nextwork-Teachers/krishna.png"},
+    "teacher_d": {"name": "TechMonkey Steve", "image": "../Nextwork-Teachers/TechMonkey Steve.png"},
+    "teacher_e": {"name": "Pano Bieber", "image": "../Nextwork-Teachers/Pano Bieber.png"}
 }
 
 
