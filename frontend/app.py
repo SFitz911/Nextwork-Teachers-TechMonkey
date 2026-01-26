@@ -613,6 +613,7 @@ with st.sidebar:
                 st.session_state.session_id = session_id
                 st.session_state.selected_teachers = selected
                 st.session_state.website_url = url_to_use  # Set website URL for session page
+                # Immediately navigate to session page
                 st.session_state.show_session_page = True  # Show session page
                 
                 if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
@@ -623,7 +624,7 @@ with st.sidebar:
                     )
                     st.session_state.sse_thread.start()
                 
-                st.success("✅ Session started!")
+                # Immediately rerun to show session page - don't show success message on landing page
                 st.rerun()
         
         # Navigation: Go to Session button (if session exists but we're on landing page)
@@ -694,7 +695,15 @@ if st.session_state.session_id:
 # Main Content Area - Show EITHER session page OR landing page (mutually exclusive)
 # Show session page ONLY if show_session_page is True AND we have valid session data
 # This ensures landing page and session page never render together
-if st.session_state.show_session_page and st.session_state.session_id and st.session_state.selected_teachers and len(st.session_state.selected_teachers) == 2:
+# Priority: If session exists and show_session_page is True, always show session page
+has_valid_session = (
+    st.session_state.show_session_page and 
+    st.session_state.session_id and 
+    st.session_state.selected_teachers and 
+    len(st.session_state.selected_teachers) == 2
+)
+
+if has_valid_session:
     left_teacher = st.session_state.selected_teachers[0]
     right_teacher = st.session_state.selected_teachers[1]
     
@@ -1171,6 +1180,7 @@ else:
                 st.session_state.session_id = session_id
                 st.session_state.selected_teachers = selected
                 st.session_state.website_url = url_to_use
+                # Immediately navigate to session page
                 st.session_state.show_session_page = True
                 
                 if st.session_state.sse_thread is None or not st.session_state.sse_thread.is_alive():
@@ -1181,7 +1191,7 @@ else:
                     )
                     st.session_state.sse_thread.start()
                 
-                st.success("✅ Session started!")
+                # Immediately rerun to show session page - don't show success message on landing page
                 st.rerun()
         
         # Navigation: Go to Session button (if session exists but we're on landing page)
