@@ -825,6 +825,156 @@ Generate your response in JSON format:
 }
 ```
 
+### Pre-Generation & Caching Strategy (Zero-Lag Architecture)
+
+#### Core Concept
+
+To achieve **zero-lag, natural conversation flow**, the system uses a **pre-generation + RAG caching** strategy:
+
+1. **Pre-read lesson** → Parse and split content into logical sections
+2. **Pre-assign sections** → Teacher A gets sections 1, 3, 5... Teacher B gets sections 2, 4, 6...
+3. **Pre-generate videos** → Each teacher generates video/audio responses for their assigned sections in background
+4. **Store in RAG** → Videos, audio, transcripts, and metadata indexed for instant retrieval
+5. **Progressive improvement** → More usage = more cached content = faster responses
+
+#### Architecture Flow
+
+```
+User selects lesson URL
+    ↓
+Read & parse lesson content
+    ↓
+Split into sections (semantic boundaries, not just length)
+    ├─► Tag with keywords, concepts, topics
+    └─► Assign to Teacher A (odd) / Teacher B (even)
+    ↓
+Pre-generate videos (background, parallel processing)
+    ├─► Generate: Video URL, Audio URL, Transcript
+    ├─► Extract: Keywords, Concepts, Topics
+    └─► Store metadata: Section ID, Lesson ID, Teacher, Turn
+    ↓
+Store in RAG with rich metadata:
+    ├─► Video URL (pre-generated)
+    ├─► Audio URL (pre-generated)
+    ├─► Transcript (full text)
+    ├─► Keywords (extracted)
+    ├─► Concepts (extracted)
+    ├─► Section metadata (ID, lesson, topic)
+    └─► Embeddings (for similarity search)
+    ↓
+User asks question
+    ↓
+RAG searches:
+    ├─► Transcript text (semantic similarity)
+    ├─► Keywords (exact match)
+    ├─► Concepts (conceptual match)
+    └─► Metadata (section, lesson, topic)
+    ↓
+Retrieve best match(es) with scores
+    ↓
+Return pre-generated video/audio (INSTANT - zero lag!)
+    ↓
+If no match → Fallback to real-time generation
+```
+
+#### Two-Tier RAG System
+
+**Tier 1: Pre-Generated Content (Instant)**
+- Pre-generated videos/audio for lesson sections
+- Common Q&A pairs (pre-answered)
+- Frequently accessed content
+- **Result**: Zero lag for cached content
+
+**Tier 2: Real-Time Generation (Fallback)**
+- For unexpected questions
+- Edge cases not covered by pre-generation
+- Follow-up questions requiring synthesis
+- **Result**: Handles all cases, with slight delay
+
+#### Smart Sectioning Strategy
+
+**Don't just split by length - split by meaning:**
+
+- **Semantic boundaries**: Split at topic changes, concept transitions
+- **Natural breaks**: Paragraphs, code blocks, examples
+- **Context preservation**: Overlap chunks to maintain context
+- **Tagging**: Extract keywords, concepts, topics for each section
+- **Result**: Better RAG retrieval, more relevant answers
+
+#### Metadata Indexing Schema
+
+Each pre-generated clip stored in RAG includes:
+
+```json
+{
+  "clip_id": "clip-{sessionId}-{teacher}-{turn}-{timestamp}",
+  "video_url": "http://localhost:8003/video/{jobId}",
+  "audio_url": "http://localhost:8001/audio/{audioId}.wav",
+  "transcript": "Full spoken text of the clip",
+  "section_id": "sec-03",
+  "lesson_id": "lesson-1",
+  "lesson_url": "https://example.com/lesson/1",
+  "teacher": "teacher_a",
+  "turn": 2,
+  "keywords": ["validation", "server-side", "security"],
+  "concepts": ["input validation", "security best practices"],
+  "topics": ["backend", "api", "validation"],
+  "duration_ms": 8500,
+  "created_at": "2026-01-26T00:00:00Z",
+  "embedding": [0.123, 0.456, ...],
+  "access_count": 0,
+  "last_accessed": null
+}
+```
+
+#### Progressive Pre-Generation
+
+**Don't wait for everything - start fast, expand in background:**
+
+1. **Immediate**: Generate first 3-5 sections (instant start)
+2. **Background**: Continue generating remaining sections while user watches
+3. **On-demand**: Generate sections as user progresses through lesson
+4. **Result**: Feels instant, but covers full content
+
+#### Question Prediction & Pre-Answering
+
+**Track and pre-answer common questions:**
+
+1. **Track questions**: Log all user questions per lesson
+2. **Identify patterns**: Find frequently asked questions
+3. **Pre-generate answers**: Create video/audio responses for common questions
+4. **Store in RAG**: Index with high priority for instant retrieval
+5. **Result**: Instant answers to frequent questions
+
+#### Edge Cases & Fallbacks
+
+**Handle scenarios not covered by pre-generation:**
+
+1. **Unexpected questions** → Real-time generation fallback
+2. **Follow-up questions** → RAG finds related sections, chain them together
+3. **Skip ahead requests** → RAG finds relevant section, jump to it
+4. **Content updates** → Version RAG entries, invalidate old ones
+5. **Cross-lesson questions** → Search across all lessons in RAG
+
+#### Performance Benefits
+
+**This approach provides:**
+
+- ✅ **Zero lag** for pre-generated content (instant retrieval)
+- ✅ **Natural flow** (A/B alternation with seamless handoffs)
+- ✅ **Contextual answers** (RAG finds relevant sections)
+- ✅ **Progressive improvement** (more usage = more cached content = faster)
+- ✅ **Handles common questions instantly** (pre-answered Q&A)
+- ✅ **Graceful degradation** (real-time fallback for edge cases)
+
+#### Implementation Priority
+
+1. **Phase 1**: Basic pre-generation (sections A/B, store in RAG)
+2. **Phase 2**: Metadata enrichment (keywords, concepts, topics)
+3. **Phase 3**: Question prediction (track, pre-answer common questions)
+4. **Phase 4**: Progressive generation (start fast, expand background)
+5. **Phase 5**: Cross-lesson search (search across all lessons)
+
 ---
 
 ## Turn-Taking Logic
