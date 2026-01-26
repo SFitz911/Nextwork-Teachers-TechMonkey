@@ -114,14 +114,14 @@ with st.sidebar:
                     st.session_state.sse_thread.start()
                 
                 # Navigate to session page using Streamlit's native navigation
-                st.switch_page("pages/Session")
+                st.switch_page("Session")
         
         # Navigation: Go to Session button (if session exists)
         if st.session_state.session_id:
             st.markdown("---")
             st.markdown("### 🧭 Navigation")
             if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_sidebar"):
-                st.switch_page("pages/Session")
+                st.switch_page("Session")
     else:
         st.info("👋 Welcome! Start a session to begin learning with AI teachers.")
 
@@ -280,11 +280,11 @@ with col_center:
                 st.session_state.sse_thread.start()
             
             # Navigate to session page using Streamlit's native navigation
-            st.switch_page("pages/Session")
+            st.switch_page("Session")
     
     # Navigation: Go to Session button (if session exists)
     if st.session_state.session_id:
         st.markdown("---")
         st.markdown("### 🧭 Navigation")
         if st.button("▶️ Go to Session", use_container_width=True, type="primary", key="nav_forward_landing"):
-            st.switch_page("pages/Session")
+            st.switch_page("Session")
